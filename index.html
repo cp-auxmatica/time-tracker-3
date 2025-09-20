@@ -511,7 +511,7 @@
                 const project = projects.find(p => p.id === activeTimer.projectId);
                 title = project ? project.name : 'Active Session';
                 document.body.classList.add('in-session-mode');
-                document.body.style.setProperty('--session-project-color', project.color || '#cccccc');
+                document.body.style.setProperty('--session-project-color', project?.color || '#cccccc');
             } else {
                  document.body.classList.remove('in-session-mode');
                  document.body.style.removeProperty('--session-project-color');
@@ -761,6 +761,100 @@
             `;
             lucide.createIcons();
         };
+        
+        const renderProjectDetailPage = () => {
+             const contentEl = document.getElementById('detail-view-content');
+            if (!currentDetailProjectId) {
+                contentEl.innerHTML = `<p class="text-center text-muted-foreground">Project not found.</p>`;
+                return;
+            }
+
+            const p = projects.find(proj => proj.id === currentDetailProjectId);
+            if (!p) {
+                contentEl.innerHTML = `<p class="text-center text-muted-foreground">Project not found.</p>`;
+                return;
+            }
+
+            const statusRadios=`<div class="flex items-center gap-6 mt-4"><p class="text-sm font-medium text-muted-foreground">Status:</p><div class="flex items-center gap-4"><label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="project-status" value="open" class="project-status-radio" ${p.status!=='completed'?'checked':''}> Open</label><label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="project-status" value="completed" class="project-status-radio" ${p.status==='completed'?'checked':''}> Completed</label></div></div>`;
+            
+            contentEl.innerHTML = `
+                <div id="project-detail-view-mode">
+                     <button class="back-to-projects-btn font-semibold text-primary-accent hover:underline mb-4">&larr; Back to Projects</button>
+                    <div class="bg-card p-4 rounded-xl border mb-4">
+                        <div class="flex justify-between items-start">
+                             <h2 class="text-2xl font-bold mb-2">${p.name}</h2>
+                             <button id="edit-project-btn-detail" class="action-btn"><i data-lucide="pencil" class="w-5 h-5"></i></button>
+                        </div>
+                        <p class="text-sm text-muted-foreground mb-4">${p.description||'No description.'}</p>
+                        ${statusRadios}
+                    </div>
+                </div>
+                <div id="project-detail-edit-mode" class="hidden bg-card p-4 rounded-xl border mb-4 space-y-3">
+                     <h2 class="text-xl font-bold">Edit Project</h2>
+                    <div>
+                        <label class="block text-sm font-medium text-muted-foreground mb-1">Project Name</label>
+                        <input type="text" id="edit-project-name" class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border" value="${p.name}">
+                    </div>
+                     <div>
+                        <label class="block text-sm font-medium text-muted-foreground mb-1">Description</label>
+                        <textarea id="edit-project-description" rows="2" class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border">${p.description||''}</textarea>
+                    </div>
+                     <div>
+                         <label class="block text-sm font-medium text-muted-foreground mb-2">Color</label>
+                         <div id="edit-color-palette" class="flex flex-wrap gap-2"></div>
+                         <input type="hidden" id="edit-project-color" value="${p.color}">
+                    </div>
+                     <div>
+                        <label class="block text-sm font-medium text-muted-foreground mb-1">Time Estimate (hours)</label>
+                        <input type="number" id="edit-project-estimate" placeholder="Estimate (hrs)" value="${p.estimate||''}" class="w-full p-2 border rounded-md text-sm bg-card-secondary">
+                    </div>
+                    <div class="flex justify-end gap-2 pt-2">
+                        <button id="cancel-edit-project-btn" class="px-4 py-2 font-semibold rounded-lg hover:bg-card-secondary">Cancel</button>
+                        <button id="save-updated-project-btn" class="px-4 py-2 font-semibold rounded-lg text-white" style="background:var(--primary-accent)">Save</button>
+                    </div>
+                </div>
+
+                <div class="bg-card p-4 rounded-xl border">
+                    <h3 class="font-semibold mb-2">Time Entries</h3>
+                    <div id="detail-entries-list" class="space-y-3"></div>
+                </div>
+            `;
+            renderProjectEntries(currentDetailProjectId);
+            lucide.createIcons();
+        };
+
+        const renderProjectEntries = (projectId) => {
+            const listEl = document.getElementById('detail-entries-list');
+            if(!listEl) return;
+            const projectTasks = tasks.filter(t => t.projectId === projectId).sort((a,b) => b.startTime - a.startTime);
+            listEl.innerHTML = projectTasks.length > 0 ? projectTasks.map(t => createTaskEntryHTML(t)).join('') : '<p class="text-sm text-muted-foreground">No time entries for this project yet.</p>';
+            lucide.createIcons();
+        };
+
+        const createTaskEntryHTML = (task) => {
+            const startTime = new Date(task.startTime);
+            const endTime = new Date(task.endTime);
+            const duration = formatDuration(endTime - startTime);
+            const dateStr = startTime.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+            const timeStr = `${startTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - ${endTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+
+            return `<div class="task-entry bg-card p-3 rounded-lg border" data-task-id="${task.id}">
+                <div class="view-mode">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-grow">
+                            <p class="font-semibold">${task.description}</p>
+                            <p class="text-sm text-muted-foreground whitespace-pre-wrap">${task.notes || 'No notes'}</p>
+                            <div class="text-sm text-muted-foreground mt-2">${dateStr} &bull; ${timeStr}</div>
+                        </div>
+                        <div class="flex items-start pt-1 gap-1 ml-2 flex-shrink-0">
+                            <span class="font-semibold text-base mr-2">${duration}</span>
+                            <button class="edit-task-btn action-btn h-8 w-8"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+                            <button class="delete-task-btn action-btn h-8 w-8"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        };
 
         const renderReportsPage=()=>{ const content=document.getElementById('reports-page-template').content.cloneNode(true); document.getElementById('reports-content').innerHTML=''; document.getElementById('reports-content').appendChild(content); const dayPicker = document.getElementById('reports-day-picker'); dayPicker.value = new Date().toISOString().split('T')[0]; dayPicker.addEventListener('change', () => renderReportData('day')); renderReportData('week'); lucide.createIcons();};
         const renderReportData=(filter,range={})=>{ const exportBtn = document.getElementById('export-day-notes-btn'); const dayPickerContainer = document.getElementById('reports-day-picker-container'); if(exportBtn) exportBtn.classList.toggle('hidden', filter !== 'day'); if(dayPickerContainer) dayPickerContainer.classList.toggle('hidden', filter !== 'day'); let sD,eD;const n=new Date(); if(filter==='day'){ const picker = document.getElementById('reports-day-picker'); const reportDate = picker ? new Date(picker.value + 'T00:00:00') : n; sD=new Date(reportDate).setHours(0,0,0,0); eD=new Date(reportDate).setHours(23,59,59,999); }else if(filter==='week'){const d=n.getDay()===0?6:n.getDay()-1,f=n.getDate()-d;sD=new Date(new Date(n).setDate(f)).setHours(0,0,0,0);eD=new Date(new Date(n).setDate(f+6)).setHours(23,59,59,999);}else if(filter==='month'){sD=new Date(n.getFullYear(),n.getMonth(),1);eD=new Date(n.getFullYear(),n.getMonth()+1,0).setHours(23,59,59,999);} else if(filter==='custom'&&range.start&&range.end){ sD=new Date(range.start + 'T00:00:00').getTime(); eD=new Date(range.end + 'T00:00:00').setHours(23,59,59,999); } const fTs=tasks.filter(t=>t.startTime>=sD&&t.startTime<=eD); const totalTimeMs = fTs.reduce((sum, task) => sum + (task.endTime - task.startTime), 0); const totalTimeEl = document.getElementById('reports-total-time'); if (totalTimeEl) { totalTimeEl.textContent = formatDuration(totalTimeMs); } const groupedByProject=fTs.reduce((acc,task)=>{(acc[task.projectId]=acc[task.projectId]||[]).push(task);return acc;},{}); const summaryEl=document.getElementById('reports-summary');if(!summaryEl)return;summaryEl.innerHTML=projects.filter(p=>groupedByProject[p.id]).map(p=>{const projectTasks=groupedByProject[p.id];const totalTime=projectTasks.reduce((sum,t)=>sum+(t.endTime-t.startTime),0);return`<details class="bg-card p-3 rounded-lg border"><summary class="font-semibold flex justify-between items-center cursor-pointer"><span><span class="inline-block w-3 h-3 rounded-full mr-2" style="background-color:${p.color};"></span>${p.name}</span><span>${formatDuration(totalTime)}</span></summary><div class="mt-3 pt-3 border-t border-border space-y-2">${projectTasks.sort((a,b)=>b.startTime-a.startTime).map(t=>`<div class="text-sm flex justify-between report-task-item p-1 rounded-md" data-task-id="${t.id}"><span>${t.description}</span><span class="text-muted-foreground">${formatDuration(t.endTime-t.startTime)}</span></div>`).join('')}</div></details>`;}).join('')||'<p class="text-center text-muted-foreground py-8 col-span-full">No time tracked in this period.</p>'; };
@@ -841,12 +935,13 @@
             if(e.target.closest('.delete-predefined-task-btn')){const taskEl=e.target.closest('[data-task-id]');if(taskEl){const taskId=parseInt(taskEl.dataset.taskId);if(confirm('Delete this pre-defined task?')){await deleteData('predefinedTasks',taskId);predefinedTasks=predefinedTasks.filter(t=>t.id!==taskId);renderTasksPage();}}}
             if(e.target.closest('.edit-predefined-task-btn')){const taskEl=e.target.closest('[data-task-id]');if(taskEl){const taskId=parseInt(taskEl.dataset.taskId);const task=predefinedTasks.find(t=>t.id===taskId);if(task){const modal=document.getElementById('add-predefined-task-modal');modal.querySelector('form').reset();modal.querySelector('#predefined-task-modal-title').textContent="Edit Task";const select=modal.querySelector('#predefined-task-project');select.innerHTML=`<option value="">General Task</option>`+projects.filter(p=>p.status!=='completed').map(p=>`<option value="${p.id}">${p.name}</option>`).join('');modal.querySelector('#predefined-task-id').value=task.id;modal.querySelector('#predefined-task-desc').value=task.description;modal.querySelector('#predefined-task-project').value=task.projectId||'';modal.querySelector('#predefined-task-due-date').value=task.dueDate||'';modal.querySelector('#predefined-task-notes').value=task.notes||'';modal.querySelector('#predefined-task-tags').value=(task.tags||[]).join(', ');openModal(modal);}}}
             if(e.target.closest('#view-completed-projects-btn'))navigateTo('page-completed-projects');
-            if(e.target.closest('.edit-project-btn')) { currentDetailProjectId = parseInt(e.target.closest('.edit-project-btn').dataset.projectId); navigateTo('page-detail'); }
-            if(e.target.closest('.start-timer-btn')) { startTimer(parseInt(e.target.closest('.start-timer-btn').dataset.projectId)); }
+            if(e.target.closest('.edit-project-btn')) { currentDetailProjectId = parseInt(e.target.closest('.project-card').dataset.projectId); navigateTo('page-detail'); }
+            if(e.target.closest('.start-timer-btn')) { startTimer(parseInt(e.target.closest('.project-card').dataset.projectId)); }
+            if(e.target.closest('.view-project-detail-btn')) { currentDetailProjectId = parseInt(e.target.closest('.project-card').dataset.projectId); navigateTo('page-detail'); }
             if(e.target.closest('#session-pause-resume-btn')) { if(activeTimer.isPaused) resumeTimer(); else pauseTimer(); }
             if(e.target.closest('#session-stop-btn')) { stopTimer(); }
             if(e.target.closest('#cancel-confirmation-btn')) { closeModal(document.getElementById('confirmation-modal')); navigationIntent=null;}
-            if(e.target.closest('#confirm-navigation-btn')) { await stopTimer(); if (navigationIntent) navigateTo(navigationIntent); navigationIntent = null; closeModal(document.getElementById('confirmation-modal')); }
+            if(e.target.closest('#confirm-navigation-btn') && e.target.closest('#confirm-navigation-btn').dataset.action !== 'clear-data') { await stopTimer(); if (navigationIntent) navigateTo(navigationIntent); navigationIntent = null; closeModal(document.getElementById('confirmation-modal')); }
 
             const sessionPage = e.target.closest('#page-session');
             if(sessionPage && e.target.matches('.session-task-checkbox')) {
