@@ -13,50 +13,61 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Font Awesome for Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" xintegrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
     <style>
         :root {
             --background: #f8fafc; --foreground: #1e293b; --card: #ffffff; --card-secondary: #f1f5f9;
             --border: #e2e8f0; --input-border: #cbd5e1; --muted-foreground: #64748b;
-            --header-bg: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); --header-foreground: #ffffff;
-            --primary-accent: #0f766e; --primary-accent-light: #ccfbf1; --shadow-color: rgba(15, 23, 42, 0.08);
+            --shadow-color: rgba(15, 23, 42, 0.08);
             --danger: #ef4444; --warning: #f59e0b; --success: #22c55e;
+        }
+        .theme-teal {
+             --header-bg: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); --header-foreground: #ffffff;
+             --primary-accent: #0f766e; --primary-accent-light: #ccfbf1;
+        }
+        .theme-mono {
+            --header-bg: linear-gradient(135deg, #334155 0%, #1e293b 100%); --header-foreground: #ffffff;
+            --primary-accent: #475569; --primary-accent-light: #f1f5f9;
+        }
+         .theme-indigo {
+            --header-bg: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); --header-foreground: #ffffff;
+            --primary-accent: #4338ca; --primary-accent-light: #e0e7ff;
         }
 
         .dark {
-            --background: #020617; --foreground: #e2e8f0; --card: #0f172a; --card-secondary: #1e293b;
-            --border: #1e293b; --input-border: #334155; --muted-foreground: #94a3b8;
-            --header-bg: #000000; --header-foreground: #ffffff;
-            --primary-accent: #5eead4; --primary-accent-light: rgba(45, 212, 191, 0.1);
+            --background: #1e293b; 
+            --foreground: #e2e8f0; 
+            --card: #0f172a; 
+            --card-secondary: #334155;
+            --border: #334155; 
+            --input-border: #475569; 
+            --muted-foreground: #94a3b8;
             --shadow-color: rgba(0, 0, 0, 0.2);
         }
+        .dark.theme-teal, .dark.theme-mono, .dark.theme-indigo { --header-bg: #000000; }
+        .dark.theme-teal { --primary-accent: #5eead4; --primary-accent-light: rgba(45, 212, 191, 0.1); }
+        .dark.theme-mono { --primary-accent: #94a3b8; --primary-accent-light: #1e293b; }
+        .dark.theme-indigo { --primary-accent: #818cf8; --primary-accent-light: rgba(99, 102, 241, 0.1); }
         
         html { scroll-padding-bottom: 90px; }
-        body { 
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background-color: var(--background); color: var(--foreground); 
-            padding-bottom: 80px; /* Space for bottom nav */
-        }
-        
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: var(--background); color: var(--foreground); padding-bottom: 80px; }
         .page { display: none; } .page.active { display: block; }
-        
         .modal-backdrop { position: fixed; inset: 0; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 40; } 
         .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 50; }
 
-        .app-header {
-            background: var(--header-bg); color: var(--header-foreground); padding: 24px 24px 20px;
-            position: sticky; top: 0; z-index: 30;
-        }
-        .app-header::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.2) 50%, transparent 100%); }
-        .app-title { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 500; margin-bottom: 16px; opacity: 0.9; }
-        .app-icon { width: 24px; height: 24px; background: rgba(255,255,255,0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+        .app-header { background: var(--header-bg); color: var(--header-foreground); padding: 16px 24px 20px; position: sticky; top: 0; z-index: 30; }
+        .app-header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .app-title { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 500; opacity: 0.9; }
+        .app-icon { width: 24px; height: 24px; background: rgba(255,255,255,0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+        .header-actions { display: flex; align-items: center; gap: 4px; }
+        .header-btn { width: 36px; height: 36px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.2); border-radius: 10px; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; backdrop-filter: blur(10px); }
+        .header-btn:hover { background: rgba(255,255,255,0.25); transform: translateY(-1px); }
         .page-header { display: flex; justify-content: space-between; align-items: flex-end; }
         .page-info h1 { font-size: 28px; font-weight: 600; margin-bottom: 2px; letter-spacing: -0.3px; }
         .page-date { font-size: 13px; opacity: 0.8; font-weight: 400; }
-        .add-btn { width: 44px; height: 44px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; color: white; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; backdrop-filter: blur(10px); }
-        .add-btn:hover { background: rgba(255,255,255,0.25); transform: translateY(-1px); }
-
+        
         .main-content { padding: 20px; max-w-3xl mx-auto; }
         .controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
         .sort-options { display: flex; gap: 6px; align-items: center; background: var(--card-secondary); border-radius: 12px; padding: 4px; }
@@ -66,59 +77,69 @@
         .today-time { font-size: 13px; color: var(--muted-foreground); font-weight: 500; }
         .today-time b { color: var(--foreground); }
 
-        .project-list { display: flex; flex-direction: column; gap: 12px; }
-        .project-item { display: flex; flex-direction: column; background: var(--card); border-radius: 12px; border: 1px solid var(--border); transition: all 0.5s cubic-bezier(0.645, 0.045, 0.355, 1); position: relative; overflow: hidden; border-left-width: 4px; }
-        .project-item:hover { border-color: var(--input-border); transform: translateY(-1px); box-shadow: 0 4px 12px var(--shadow-color); }
+        .project-card { display: flex; align-items: center; background: var(--card); border-radius: 12px; border: 1px solid var(--border); transition: all 0.2s ease; position: relative; overflow: hidden; padding: 12px 16px; gap: 12px; }
+        .project-card:hover { border-color: var(--input-border); transform: translateY(-1px); box-shadow: 0 4px 12px var(--shadow-color); }
+        .project-card-list { display: flex; flex-direction: column; gap: 12px; }
+        .project-card-initial { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-bold; font-size: 18px; flex-shrink: 0; }
+        .project-card-info { flex-grow: 1; min-width: 0; }
+        .project-card-name { font-weight: 500; color: var(--foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .project-card-time { font-size: 13px; color: var(--muted-foreground); }
+        .project-card-action { flex-shrink: 0; }
+        .action-btn { width: 36px; height: 36px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-secondary); color: var(--muted-foreground); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease; }
+        .action-btn:hover { border-color: var(--primary-accent); color: var(--primary-accent); background: var(--primary-accent-light); }
         
-        .project-info { flex: 1; font-size: 16px; font-weight: 500; color: var(--foreground); }
-        .project-details { display: flex; align-items: center; gap: 16px; }
-        .project-time { font-size: 14px; color: var(--muted-foreground); font-weight: 500; min-width: 24px; text-align: right; }
-        .play-btn { width: 36px; height: 36px; border: 1.5px solid var(--input-border); border-radius: 10px; background: var(--card-secondary); color: var(--muted-foreground); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease; font-size: 12px; }
-        .play-btn:hover { border-color: var(--primary-accent); color: var(--primary-accent); background: var(--primary-accent-light); transform: scale(1.05); }
+        .tracker-list { display: flex; flex-direction: column; gap: 16px; }
+        .tracker-item { background: var(--card); border-radius: 16px; border: 1px solid var(--border); overflow: hidden; transition: all 0.3s ease; }
+        .tracker-item-header { display: flex; align-items: center; gap: 12px; padding: 16px; cursor: pointer; }
+        .tracker-item.is-expanded { box-shadow: 0 8px 24px var(--shadow-color); border-color: var(--input-border); }
+        .tracker-tasks { max-height: 0; overflow: hidden; transition: max-height 0.4s ease, padding 0.4s ease; }
+        .tracker-item.is-expanded .tracker-tasks { max-height: 500px; }
+        .task-list { padding: 0 16px 16px; border-top: 1px solid var(--border); margin-top: 8px; }
+        .task-item { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+        .task-item:last-child { border-bottom: none; }
 
         .completed-link { text-align: center; padding: 24px; border-top: 1px solid var(--border); margin-top: 16px; }
         .completed-link a { color: var(--muted-foreground); text-decoration: none; font-size: 14px; font-weight: 500; transition: color 0.2s ease; }
         .completed-link a:hover { color: var(--primary-accent); }
         
-        .bottom-nav { display: flex; justify-content: space-around; padding: 8px 0; background: var(--card); border-top: 1px solid var(--border); position: fixed; bottom: 0; left: 0; right: 0; z-index: 20; max-width: 500px; margin: 0 auto; border-top-left-radius: 16px; border-top-right-radius: 16px; }
-        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--muted-foreground); text-decoration: none; font-size: 11px; font-weight: 500; transition: color 0.2s ease; flex: 1; padding: 8px 0; border: none; background: none; }
-        .nav-item.active { color: var(--primary-accent); }
-        .nav-icon { font-size: 20px; }
-
-        .timer-display { font-variant-numeric: tabular-nums; }
-        .expanded-content { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.4s ease-in-out; } .expanded-content > div { overflow: hidden; } 
-        .project-item.is-running .expanded-content { grid-template-rows: 1fr; }
-
+        .bottom-nav { display: flex; justify-content: space-around; padding: 8px 0; background: var(--header-bg); position: fixed; bottom: 0; left: 0; right: 0; z-index: 20; max-width: 500px; margin: 0 auto; border-top-left-radius: 16px; border-top-right-radius: 16px; box-shadow: 0 -4px 12px var(--shadow-color); }
+        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: rgba(255,255,255,0.7); text-decoration: none; font-size: 11px; font-weight: 500; transition: color 0.2s ease; flex: 1; padding: 8px 0; border: none; background: none; }
+        .nav-item.active { color: #ffffff; }
+        
+        /* Focus Mode Styles */
         .project-item-placeholder { border-radius: 12px; transition: all 0.4s ease-in-out; flex-shrink: 0; border: 1px solid var(--border); }
-        #dashboard-projects-list.focused-mode .project-item:not(.is-focused) { opacity: 0; transform: scale(0.9); pointer-events: none; }
-        .project-item.is-focused { z-index: 50; }
-        body.focus-mode-active .controls, body.focus-mode-active .completed-link, body.focus-mode-active .bottom-nav, body.focus-mode-active #add-btn-header { opacity: 0; pointer-events: none; transition: opacity 0.4s ease; }
+        .tracker-list.focused-mode .tracker-item:not(.is-focused) { opacity: 0; transform: scale(0.9); pointer-events: none; }
+        .tracker-item.is-focused { z-index: 50; }
+        body.focus-mode-active .controls, body.focus-mode-active .bottom-nav { opacity: 0; pointer-events: none; transition: opacity 0.4s ease; }
+        .is-focused .expanded-content { grid-template-rows: 1fr; }
+        .expanded-content { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.4s ease-in-out; } .expanded-content > div { overflow: hidden; } 
         
         input.toggle-checkbox:checked ~ .dot { transform: translateX(100%); background-color: var(--primary-accent); }
-        .color-swatch { width: 2rem; height: 2rem; border-radius: 9999px; cursor: pointer; border: 2px solid transparent; transition: all 0.2s; }
-        .color-swatch.selected { border-color: var(--primary-accent); transform: scale(1.1); box-shadow: 0 0 0 2px var(--primary-accent); }
+        .color-swatch, .accent-swatch { width: 2.5rem; height: 2.5rem; border-radius: 9999px; cursor: pointer; border: 3px solid transparent; transition: all 0.2s; }
+        .color-swatch.selected, .accent-swatch.selected { border-color: var(--primary-accent); transform: scale(1.1); }
         .custom-task-dropdown { position: absolute; top: 100%; left:0; right: 0; max-height: 150px; overflow-y: auto; background: var(--card); border: 1px solid var(--border); border-radius: 0.5rem; z-index: 10; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .tag { background-color: var(--card-secondary); color: var(--muted-foreground); padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 500; }
-
     </style>
 </head>
-<body class="">
+<body class="theme-teal">
     
     <div id="app-container">
-        <!-- Combined Mobile/Desktop Header -->
         <header class="app-header">
-            <div class="app-title">
-                <div class="app-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12l4 6-10 13L2 9Z"></path><path d="M12 22V9"></path><path d="m3.5 8.5 17 0"></path><path d="m8.5 3.5 7 5.5"></path><path d="m15.5 3.5-7 5.5"></path></svg>
+            <div class="app-header-top">
+                <div class="app-title">
+                    <div class="app-icon"><i data-lucide="gem" class="w-4 h-4"></i></div>
+                    time
                 </div>
-                time
+                <div class="header-actions">
+                    <button id="settings-btn" class="header-btn"><i data-lucide="settings" class="w-5 h-5"></i></button>
+                </div>
             </div>
             <div class="page-header">
                 <div class="page-info">
-                    <h1 id="page-title">Projects</h1>
+                    <h1 id="page-title">Tracker</h1>
                     <div id="page-date" class="page-date"></div>
                 </div>
-                <button id="add-btn-header" class="add-btn"><i class="fa-solid fa-plus"></i></button>
+                <button id="add-btn-header" class="header-btn"><i data-lucide="plus" class="w-6 h-6"></i></button>
             </div>
         </header>
 
@@ -126,15 +147,22 @@
             <div id="page-tracker" class="page active">
                 <div class="main-content">
                     <div class="controls">
+                         <div class="today-time">Today: <b id="dashboard-total-time">0m</b></div>
+                    </div>
+                    <div id="tracker-list" class="tracker-list"></div>
+                </div>
+            </div>
+            <div id="page-projects" class="page">
+                 <div class="main-content">
+                    <div class="controls">
                         <div class="sort-options">
                             <span class="sort-label">Sort</span>
                             <button data-sort="latest" class="sort-btn active">Recent</button>
                             <button data-sort="name" class="sort-btn">Name</button>
                             <button data-sort="time" data-dir="desc" class="sort-btn inline-flex items-center gap-1">Time <span class="sort-arrow"></span></button>
                         </div>
-                        <div class="today-time">Today: <b id="dashboard-total-time">0m</b></div>
                     </div>
-                    <div id="dashboard-projects-list" class="project-list"></div>
+                    <div id="projects-list" class="project-card-list"></div>
                     <div class="completed-link">
                         <a href="#" id="view-completed-projects-btn">View Completed Projects</a>
                     </div>
@@ -151,24 +179,20 @@
 
         <nav id="bottom-nav" class="bottom-nav">
              <button data-page="page-tracker" class="nav-btn nav-item active">
-                <i class="fa-solid fa-clock nav-icon"></i>
+                <i data-lucide="timer" class="w-5 h-5"></i>
                 <span>Tracker</span>
             </button>
-            <button data-page="page-tasks" class="nav-btn nav-item">
-                <i class="fa-solid fa-list-check nav-icon"></i>
-                <span>Tasks</span>
+            <button data-page="page-projects" class="nav-btn nav-item">
+                <i data-lucide="layout-grid" class="w-5 h-5"></i>
+                <span>Projects</span>
             </button>
             <button data-page="page-reports" class="nav-btn nav-item">
-                <i class="fa-solid fa-chart-simple nav-icon"></i>
+                <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
                 <span>Reports</span>
             </button>
             <button data-page="page-accomplishments" class="nav-btn nav-item">
-               <i class="fa-solid fa-award nav-icon"></i>
+               <i data-lucide="award" class="w-5 h-5"></i>
                <span>Goals</span>
-            </button>
-            <button data-page="page-settings" class="nav-btn nav-item">
-               <i class="fa-solid fa-gear nav-icon"></i>
-               <span>Settings</span>
             </button>
         </nav>
     </div>
@@ -335,6 +359,14 @@
     <template id="settings-template">
          <div class="space-y-6">
             <div class="bg-card p-4 rounded-lg border border-border">
+                 <h2 class="text-lg font-semibold mb-3">Accent Color</h2>
+                 <div id="accent-color-selector" class="flex gap-4">
+                     <div class="accent-swatch selected" data-theme="theme-teal" style="background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);"></div>
+                     <div class="accent-swatch" data-theme="theme-indigo" style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);"></div>
+                     <div class="accent-swatch" data-theme="theme-mono" style="background: linear-gradient(135deg, #334155 0%, #1e293b 100%);"></div>
+                 </div>
+            </div>
+            <div class="bg-card p-4 rounded-lg border border-border">
                 <h2 class="text-lg font-semibold mb-3">Appearance</h2>
                 <div class="flex items-center justify-between">
                     <span class="font-medium">Dark Mode</span>
@@ -410,11 +442,12 @@
         const getAllData=(s)=>new Promise(r=>db.transaction(s,'readonly').objectStore(s).getAll().onsuccess=e=>r(e.target.result));
         const clearData=(s)=>new Promise(r=>db.transaction(s,'readwrite').objectStore(s).clear().onsuccess=()=>r());
 
-        const loadData=async()=>{await openDB();[projects,tasks,accomplishments,predefinedTasks]=await Promise.all([getAllData('projects'),getAllData('tasks'),getAllData('accomplishments'),getAllData('predefinedTasks')]);renderDashboardProjects();updateDashboardTotalTime();};
+        const loadData=async()=>{await openDB();[projects,tasks,accomplishments,predefinedTasks]=await Promise.all([getAllData('projects'),getAllData('tasks'),getAllData('accomplishments'),getAllData('predefinedTasks')]);updateDashboardTotalTime();};
         const checkPersistentTimer=()=>{const s=localStorage.getItem('activeTimerState');if(s){activeTimer=JSON.parse(s);startTimerInterval();}};
 
-        const applyTheme=(t)=>{if(t==='dark'){document.documentElement.classList.add('dark');if(dom.darkModeToggle)dom.darkModeToggle.checked=true;}else{document.documentElement.classList.remove('dark');if(dom.darkModeToggle)dom.darkModeToggle.checked=false;}};
-        const toggleTheme=()=>{const n=(localStorage.getItem('theme')||'light')==='dark'?'light':'dark';localStorage.setItem('theme',n);applyTheme(n);};
+        const applyTheme=(t)=>{if(t==='dark'){document.documentElement.classList.add('dark');}else{document.documentElement.classList.remove('dark');}if(dom.darkModeToggle)dom.darkModeToggle.checked = (t === 'dark');};
+        const applyAccentTheme=(themeName)=>{ document.body.classList.remove('theme-teal', 'theme-mono', 'theme-indigo'); document.body.classList.add(themeName); localStorage.setItem('accentTheme', themeName); };
+        const toggleTheme=()=>{const newTheme = document.documentElement.classList.contains('dark') ? 'light' : 'dark'; localStorage.setItem('theme', newTheme); applyTheme(newTheme);};
 
         const exportDataAsJSON=async(isAuto=false)=>{const all={projects:await getAllData('projects'),tasks:await getAllData('tasks'),accomplishments:await getAllData('accomplishments'), predefinedTasks:await getAllData('predefinedTasks')};const d=new Date().toISOString().split('T')[0];const f=isAuto?`work_app_auto_backup_${d}.json`:'work_app_manual_backup.json';downloadFile(JSON.stringify(all,null,2),f,'application/json');if(isAuto)localStorage.setItem('lastAutoBackup',new Date().toISOString());};
         const importDataFromJSON=(e)=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=async(ev)=>{try{const d=JSON.parse(ev.target.result);if(!d.projects||!d.tasks)throw new Error("Invalid format.");if(confirm("This will overwrite all current data. Are you sure?")){await Promise.all([clearData('projects'),clearData('tasks'),clearData('accomplishments'),clearData('predefinedTasks')]);const importedProjects=d.projects.map(p=>({id:p.id,name:p.name,color:p.color,status:p.isComplete?'completed':'open',description:p.description||'',estimate:p.estimate||0}));const importedTasks=d.tasks.map(t=>{if(t.duration&&t.timestamp&&!t.startTime){return{projectId:t.projectId,description:t.description,startTime:t.timestamp-t.duration,endTime:t.timestamp,notes:t.notes||'',tags:t.tags||[]};}
@@ -432,20 +465,34 @@
             document.getElementById('page-date').textContent = dateString;
 
             const titles = {
-                'page-tracker': 'Projects', 'page-tasks': 'Tasks', 'page-reports': 'Reports',
-                'page-accomplishments': 'Goals', 'page-settings': 'Settings',
+                'page-tracker': 'Tracker', 'page-projects': 'Projects', 'page-tasks': 'Tasks', 
+                'page-reports': 'Reports', 'page-accomplishments': 'Goals', 'page-settings': 'Settings',
                 'page-detail': projects.find(p => p.id === currentDetailProjectId)?.name || 'Project Detail',
                 'page-completed-projects': 'Completed Projects'
             };
-            document.getElementById('page-title').textContent = titles[pageId] || 'Projects';
+            document.getElementById('page-title').textContent = titles[pageId] || 'Tracker';
             const addBtn = document.getElementById('add-btn-header');
-            const showAddBtnFor = ['page-tracker', 'page-tasks', 'page-accomplishments'];
+            const showAddBtnFor = ['page-tracker', 'page-projects', 'page-tasks', 'page-accomplishments'];
             if(addBtn) addBtn.style.display = showAddBtnFor.includes(pageId) ? 'flex' : 'none';
         };
 
-        const navigateTo=(pageId)=>{document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active',p.id===pageId));document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.page===pageId));if(pageId==='page-reports')renderReportsPage();if(pageId==='page-accomplishments')renderAccomplishmentsPage();if(pageId==='page-settings')renderSettingsPage();if(pageId==='page-tasks')renderTasksPage();if(pageId==='page-completed-projects')renderCompletedProjectsPage();if(pageId==='page-tracker')renderDashboardProjects();updatePageHeader(pageId);};
+        const navigateTo=(pageId)=>{
+            document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active',p.id===pageId));
+            document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.page===pageId));
+            switch(pageId) {
+                case 'page-tracker': renderTrackerPage(); break;
+                case 'page-projects': renderProjectsPage(); break;
+                case 'page-reports': renderReportsPage(); break;
+                case 'page-accomplishments': renderAccomplishmentsPage(); break;
+                case 'page-settings': renderSettingsPage(); break;
+                case 'page-tasks': renderTasksPage(); break;
+                case 'page-completed-projects': renderCompletedProjectsPage(); break;
+            }
+            updatePageHeader(pageId);
+            lucide.createIcons();
+        };
 
-        const startTimerInterval=()=>{if(timerInterval)clearInterval(timerInterval);timerInterval=setInterval(()=>{if(activeTimer&&!activeTimer.isPaused){const elapsed=Date.now()-activeTimer.startTime-activeTimer.totalPausedTime;const el=document.querySelector(`.project-item.is-running .live-timer-display`);if(el)el.textContent=formatTime(elapsed>0?elapsed:0);updateDashboardTotalTime();}},1000);};
+        const startTimerInterval=()=>{if(timerInterval)clearInterval(timerInterval);timerInterval=setInterval(()=>{if(activeTimer&&!activeTimer.isPaused){const elapsed=Date.now()-activeTimer.startTime-activeTimer.totalPausedTime;const el=document.querySelector(`.tracker-item.is-running .live-timer-display`);if(el)el.textContent=formatTime(elapsed>0?elapsed:0);updateDashboardTotalTime();}},1000);};
         const stopTimerInterval=()=>{clearInterval(timerInterval);timerInterval=null;};
         
         const focusOnCard = (card) => {
@@ -453,7 +500,7 @@
             isAnimating = true;
             document.body.classList.add('focus-mode-active');
             
-            const list = document.getElementById('dashboard-projects-list');
+            const list = document.getElementById('tracker-list');
             const rect = card.getBoundingClientRect();
 
             const placeholder = document.createElement('div');
@@ -466,8 +513,7 @@
 
             Object.assign(card.style, {
                 position: 'fixed', left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`,
-                height: `${rect.height}px`, // Start with current height for smooth animation
-                zIndex: '50'
+                height: `${rect.height}px`, zIndex: '50'
             });
             
             card.classList.add('is-focused');
@@ -475,99 +521,66 @@
 
             requestAnimationFrame(() => {
                 const headerEl = document.querySelector('.app-header');
-                const headerHeight = headerEl ? headerEl.offsetHeight : 80; // Fallback height
+                const headerHeight = headerEl ? headerEl.offsetHeight : 80;
                 const targetTop = headerHeight + 20;
                 const targetHeight = window.innerHeight - targetTop - 20;
-
                 const vw = window.innerWidth;
                 let targetWidth = Math.min(600, vw * 0.9);
-
-                Object.assign(card.style, { 
-                    left: `${(vw - targetWidth) / 2}px`, 
-                    top: `${targetTop}px`, 
-                    width: `${targetWidth}px`,
-                    height: `${targetHeight}px`
-                });
+                Object.assign(card.style, { left: `${(vw - targetWidth) / 2}px`, top: `${targetTop}px`, width: `${targetWidth}px`, height: `${targetHeight}px` });
                 setTimeout(() => { isAnimating = false; }, 500);
             });
         };
 
         const unfocusCard = () => {
             return new Promise(resolve => {
-                if (!focusedCardState || isAnimating) {
-                    resolve();
-                    return;
-                }
+                if (!focusedCardState || isAnimating) { resolve(); return; }
                 isAnimating = true;
                 document.body.classList.remove('focus-mode-active');
-
                 const { card, placeholder } = focusedCardState;
-                const list = document.getElementById('dashboard-projects-list');
+                const list = document.getElementById('tracker-list');
                 const rect = placeholder.getBoundingClientRect();
-                
-                Object.assign(card.style, {
-                    left: `${rect.left}px`,
-                    top: `${rect.top}px`,
-                    width: `${rect.width}px`,
-                    height: `${rect.height}px`
-                });
-                
+                Object.assign(card.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` });
                 if (list) list.classList.remove('focused-mode');
-
                 const onEnd = (event) => {
                     if (event && event.target !== card) return;
                     card.removeEventListener('transitionend', onEnd);
-                    Object.assign(card.style, {
-                        position: '', left: '', top: '', width: '', height: '', zIndex: '', transition: ''
-                    });
+                    Object.assign(card.style, { position: '', left: '', top: '', width: '', height: '', zIndex: '', transition: '' });
                     card.classList.remove('is-focused');
                     if (placeholder) placeholder.remove();
-                    focusedCardState = null;
-                    isAnimating = false;
-                    resolve();
+                    focusedCardState = null; isAnimating = false; resolve();
                 };
                 card.addEventListener('transitionend', onEnd);
-                setTimeout(() => { // Fallback in case transitionend does not fire
-                    onEnd(null);
-                }, 550);
+                setTimeout(() => { onEnd(null); }, 550);
             });
         };
         
         const updateRunningCard = () => {
             if (!activeTimer) return;
-            const card = document.querySelector('.project-item.is-running');
+            const card = document.querySelector('.tracker-item.is-running');
             if (!card) return;
-
             const projectDetailsEl = card.querySelector('.project-details');
             if (!projectDetailsEl) return;
-
-            let liveDisplayTime = "00:00:00";
-            let elapsed;
-            if (activeTimer.isPaused) {
-                elapsed = activeTimer.pauseStartTime - activeTimer.startTime - activeTimer.totalPausedTime;
-            } else {
-                elapsed = Date.now() - activeTimer.startTime - activeTimer.totalPausedTime;
-            }
+            let liveDisplayTime = "00:00:00", elapsed;
+            if (activeTimer.isPaused) { elapsed = activeTimer.pauseStartTime - activeTimer.startTime - activeTimer.totalPausedTime; } 
+            else { elapsed = Date.now() - activeTimer.startTime - activeTimer.totalPausedTime; }
             liveDisplayTime = formatTime(elapsed > 0 ? elapsed : 0);
-            
-            const timerControlsHTML = `<div class="flex items-center space-x-2">
-                    <span class="text-xl font-semibold live-timer-display" style="color: ${activeTimer.isPaused ? 'var(--warning)' : 'var(--success)'}">${liveDisplayTime}</span>
-                    <button class="timer-control-btn ${activeTimer.isPaused ? 'resume-timer-btn' : 'pause-timer-btn'} w-10 h-10 rounded-lg flex items-center justify-center text-xl" style="background-color: var(--warning); color: white;"><i class="fa-solid ${activeTimer.isPaused ? 'fa-play' : 'fa-pause'}"></i></button>
-                    <button class="timer-control-btn stop-timer-btn w-10 h-10 rounded-lg flex items-center justify-center text-xl" style="background-color: var(--danger); color: white;"><i class="fa-solid fa-stop"></i></button>
-                   </div>`;
-
-            projectDetailsEl.innerHTML = timerControlsHTML;
+            projectDetailsEl.innerHTML = `<div class="flex items-center space-x-2">
+                <span class="text-xl font-semibold live-timer-display" style="color: ${activeTimer.isPaused ? 'var(--warning)' : 'var(--success)'}">${liveDisplayTime}</span>
+                <button class="timer-control-btn ${activeTimer.isPaused ? 'resume-timer-btn' : 'pause-timer-btn'} w-10 h-10 rounded-lg flex items-center justify-center text-xl" style="background-color: var(--warning); color: white;"><i data-lucide="${activeTimer.isPaused ? 'play' : 'pause'}"></i></button>
+                <button class="timer-control-btn stop-timer-btn w-10 h-10 rounded-lg flex items-center justify-center text-xl" style="background-color: var(--danger); color: white;"><i data-lucide="stop-circle"></i></button>
+               </div>`;
+            lucide.createIcons();
         };
 
-        const startTimer = async (id) => {
+        const startTimer = async (id, taskDescription = '') => {
             if (isAnimating) return;
             if (activeTimer) await stopTimer();
             const now = Date.now();
-            activeTimer = { projectId: id, description: '', notes: '', tags: [], startTime: now, totalPausedTime: 0, isPaused: false, pauseStartTime: null };
+            activeTimer = { projectId: id, description: taskDescription, notes: '', tags: [], startTime: now, totalPausedTime: 0, isPaused: false, pauseStartTime: null };
             localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));
             startTimerInterval();
-            renderDashboardProjects();
-            setTimeout(() => { const card = document.querySelector(`.project-item[data-project-id="${id}"]`); if (card) focusOnCard(card); }, 50); 
+            renderTrackerPage(); 
+            setTimeout(() => { const card = document.querySelector(`.tracker-item[data-project-id="${id}"]`); if (card) focusOnCard(card); }, 50); 
         };
 
         const pauseTimer=()=>{ if (!activeTimer || activeTimer.isPaused) return; activeTimer.isPaused=true; activeTimer.pauseStartTime=Date.now(); localStorage.setItem('activeTimerState', JSON.stringify(activeTimer)); stopTimerInterval(); updateRunningCard(); };
@@ -575,35 +588,30 @@
 
         const stopTimer = async () => {
             if (!activeTimer || isAnimating) return;
-            
-            const cardDataSource = focusedCardState?.card || document.querySelector(`.project-item[data-project-id="${activeTimer.projectId}"]`);
+            const cardDataSource = focusedCardState?.card || document.querySelector(`.tracker-item[data-project-id="${activeTimer.projectId}"]`);
             if (cardDataSource) {
-                activeTimer.description = cardDataSource.querySelector('.task-description-input')?.value || '';
+                activeTimer.description = cardDataSource.querySelector('.task-description-input')?.value || activeTimer.description || 'Untitled Task';
                 activeTimer.notes = cardDataSource.querySelector('.task-notes-input')?.value || '';
                 const tagsInput = cardDataSource.querySelector('.task-tags-input')?.value.trim();
                 activeTimer.tags = tagsInput ? tagsInput.split(/[\s,]+/).map(t => t.startsWith('#') ? t : t) : [];
             }
-
             const endTime = activeTimer.isPaused ? activeTimer.pauseStartTime : Date.now();
             const duration = (endTime - activeTimer.startTime) - activeTimer.totalPausedTime;
-            const t = { projectId: activeTimer.projectId, description: activeTimer.description || 'Untitled Task', notes: activeTimer.notes, tags: activeTimer.tags, startTime: activeTimer.startTime, endTime: activeTimer.startTime + duration };
-            
+            const t = { projectId: activeTimer.projectId, description: activeTimer.description, notes: activeTimer.notes, tags: activeTimer.tags, startTime: activeTimer.startTime, endTime: activeTimer.startTime + duration };
             const newId = await addData('tasks', t);
             t.id = newId; tasks.push(t);
-
             localStorage.removeItem('activeTimerState');
             activeTimer = null; stopTimerInterval();
             await unfocusCard();
-            renderDashboardProjects(); updateDashboardTotalTime();
+            renderTrackerPage(); updateDashboardTotalTime();
         };
         
-        const saveNewProject=async(e)=>{e.preventDefault();const modal=document.getElementById('add-project-modal');const name=modal.querySelector('#new-project-name').value.trim();const color=modal.querySelector('#new-project-color').value;const description=modal.querySelector('#new-project-description').value.trim();if(!name||!color){alert("Project name and color are required.");return;}const p={id:Date.now(),name,description,color:color,estimate:parseFloat(modal.querySelector('#new-project-estimate').value)||0,status:'open'};await addData('projects',p);projects.push(p);renderDashboardProjects();closeModal(modal);modal.querySelector('form').reset();};
-        const updateProject=async(id,data)=>{const p=projects.find(proj=>proj.id===id);if(p){Object.assign(p,data);await updateData('projects',p);openProjectDetailView(id);renderDashboardProjects();}};
-
+        const saveNewProject=async(e)=>{e.preventDefault();const modal=document.getElementById('add-project-modal');const name=modal.querySelector('#new-project-name').value.trim();const color=modal.querySelector('#new-project-color').value;const description=modal.querySelector('#new-project-description').value.trim();if(!name||!color){alert("Project name and color are required.");return;}const p={id:Date.now(),name,description,color:color,estimate:parseFloat(modal.querySelector('#new-project-estimate').value)||0,status:'open'};await addData('projects',p);projects.push(p);renderProjectsPage();renderTrackerPage();closeModal(modal);modal.querySelector('form').reset();};
+        const updateProject=async(id,data)=>{const p=projects.find(proj=>proj.id===id);if(p){Object.assign(p,data);await updateData('projects',p);openProjectDetailView(id);renderProjectsPage();renderTrackerPage();}};
         const updateDashboardTotalTime=()=>{const el=document.getElementById('dashboard-total-time');if(!el)return;const sD=new Date().setHours(0,0,0,0);let t=tasks.filter(t=>t.endTime>=sD).reduce((s,t)=>s+(t.endTime-t.startTime),0);if(activeTimer){let elapsed;if(activeTimer.isPaused){elapsed=activeTimer.pauseStartTime-activeTimer.startTime-activeTimer.totalPausedTime;}else{elapsed=Date.now()-activeTimer.startTime-activeTimer.totalPausedTime;} t+=elapsed>0?elapsed:0;} el.textContent=formatDuration(t);};
         
-        const renderDashboardProjects=()=>{
-            const listEl = document.getElementById('dashboard-projects-list');
+        const renderProjectsPage = () => {
+            const listEl = document.getElementById('projects-list');
             if(!listEl) return;
             const openProjects=projects.filter(p=>p.status!=='completed');
             let sP=[...openProjects];
@@ -612,69 +620,99 @@
             else{const l={};tasks.forEach(t=>{if(!l[t.projectId]||t.endTime>l[t.projectId])l[t.projectId]=t.endTime;});sP.sort((a,b)=>(l[b.id]||0)-(l[a.id]||0));}
             
             listEl.innerHTML=sP.map(p=>{
-                const isR=activeTimer?.projectId===p.id;
-                const timeTodayMs=getTodaysTimeForProjectMs(p.id);
-                
-                let liveDisplayTime="00:00:00";
-                if(isR){ let elapsed; if(activeTimer.isPaused){elapsed=activeTimer.pauseStartTime-activeTimer.startTime-activeTimer.totalPausedTime;} else{elapsed=Date.now()-activeTimer.startTime-activeTimer.totalPausedTime;} liveDisplayTime=formatTime(elapsed>0?elapsed:0); }
-
-                const expC=`<div class="expanded-content flex-grow"><div class="h-full"><div class="p-4 pt-0 flex flex-col h-full relative">
-                    <div class="border-t border-border pt-4 flex flex-col h-full">
-                        <div class="relative mb-3 flex-shrink-0">
-                            <input type="text" placeholder="What are you working on?" class="task-description-input w-full p-2 rounded-md border border-input-border bg-card-secondary" value="${isR ? activeTimer.description : ''}">
-                            <div class="custom-task-dropdown hidden"></div>
-                        </div>
-                        <textarea placeholder="Notes..." class="task-notes-input w-full p-2 rounded-md border bg-card-secondary flex-grow resize-none">${isR ? activeTimer.notes : ''}</textarea>
-                        <input type="text" placeholder="Add tags... (#meeting)" class="task-tags-input w-full p-2 mt-3 rounded-md border bg-card-secondary flex-shrink-0" value="${isR ? (activeTimer.tags || []).join(' ') : ''}">
+                const timeTodayMs = getTodaysTimeForProjectMs(p.id);
+                return `<div class="project-card" data-project-id="${p.id}">
+                    <div class="project-card-initial" style="background-color: ${p.color};">${p.name.charAt(0).toUpperCase()}</div>
+                    <div class="project-card-info">
+                        <div class="project-card-name">${p.name}</div>
+                        <div class="project-card-time">Today: ${formatDuration(timeTodayMs)}</div>
                     </div>
-                </div></div></div>`;
-                
-                const timerControls = isR
-                    ? `<div class="flex items-center space-x-2">
-                        <span class="text-xl font-semibold live-timer-display" style="color: ${activeTimer.isPaused ? 'var(--warning)' : 'var(--success)'}">${liveDisplayTime}</span>
-                        <button class="timer-control-btn ${activeTimer.isPaused ? 'resume-timer-btn' : 'pause-timer-btn'} w-10 h-10 rounded-lg flex items-center justify-center text-xl" style="background-color: var(--warning); color: white;"><i class="fa-solid ${activeTimer.isPaused ? 'fa-play' : 'fa-pause'}"></i></button>
-                        <button class="timer-control-btn stop-timer-btn w-10 h-10 rounded-lg flex items-center justify-center text-xl" style="background-color: var(--danger); color: white;"><i class="fa-solid fa-stop"></i></button>
-                       </div>`
-                    : `<button class="play-btn start-timer-btn"><i class="fas fa-play"></i></button>`;
-
-                return `<div class="project-item ${isR?'is-running':''}" data-project-id="${p.id}" style="--project-color: ${p.color}; border-left-color: ${p.color};">
-                    <div class="flex items-center w-full p-3">
-                         <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-lg mr-3 flex-shrink-0" style="background-color: ${p.color};">
-                            ${p.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div class="project-info mr-4 min-w-0">
-                            <button class="project-name-link font-semibold text-lg text-left hover:underline truncate w-full" data-project-id="${p.id}">${p.name}</button>
-                        </div>
-                        <div class="project-details ml-auto flex-shrink-0">
-                            ${!isR ? `<div class="project-time text-lg">${formatDuration(timeTodayMs)}</div>` : ''}
-                            ${timerControls}
-                        </div>
+                    <div class="project-card-action">
+                        <button class="action-btn edit-project-btn" data-project-id="${p.id}"><i data-lucide="pencil" class="w-5 h-5"></i></button>
                     </div>
-                    ${isR ? expC : ''}
                 </div>`;
             }).join('');
+            lucide.createIcons();
         };
         
-        const renderReportsPage=()=>{ const content=document.getElementById('reports-page-template').content.cloneNode(true); document.getElementById('reports-content').innerHTML=''; document.getElementById('reports-content').appendChild(content); const dayPicker = document.getElementById('reports-day-picker'); dayPicker.value = new Date().toISOString().split('T')[0]; dayPicker.addEventListener('change', () => renderReportData('day')); renderReportData('week'); };
+        const renderTrackerPage = () => {
+            const listEl = document.getElementById('tracker-list');
+            if(!listEl) return;
+
+            const openProjects = projects.filter(p=>p.status!=='completed');
+            listEl.innerHTML = openProjects.map(p => {
+                 const isR = activeTimer?.projectId === p.id;
+                 let liveDisplayTime="00:00:00";
+                 if(isR){ let elapsed; if(activeTimer.isPaused){elapsed=activeTimer.pauseStartTime-activeTimer.startTime-activeTimer.totalPausedTime;} else{elapsed=Date.now()-activeTimer.startTime-activeTimer.totalPausedTime;} liveDisplayTime=formatTime(elapsed>0?elapsed:0); }
+
+                 const timerControls = isR
+                    ? `<div class="project-details flex items-center space-x-2">
+                        <span class="text-xl font-semibold live-timer-display" style="color: ${activeTimer.isPaused ? 'var(--warning)' : 'var(--success)'}">${liveDisplayTime}</span>
+                        <button class="timer-control-btn ${activeTimer.isPaused ? 'resume-timer-btn' : 'pause-timer-btn'} w-10 h-10 rounded-lg flex items-center justify-center text-xl" style="background-color: var(--warning); color: white;"><i data-lucide="${activeTimer.isPaused ? 'play' : 'pause'}"></i></button>
+                        <button class="timer-control-btn stop-timer-btn w-10 h-10 rounded-lg flex items-center justify-center text-xl" style="background-color: var(--danger); color: white;"><i data-lucide="stop-circle"></i></button>
+                       </div>`
+                    : `<button class="action-btn start-timer-btn" data-project-id="${p.id}"><i data-lucide="play" class="w-5 h-5"></i></button>`;
+
+                const expC = isR ? `<div class="expanded-content flex-grow"><div class="h-full"><div class="p-4 pt-0 flex flex-col h-full relative">
+                    <div class="border-t border-border pt-4 flex flex-col h-full">
+                        <div class="relative mb-3 flex-shrink-0">
+                            <input type="text" placeholder="What are you working on?" class="task-description-input w-full p-2 rounded-md border border-input-border bg-card-secondary" value="${activeTimer.description}">
+                        </div>
+                        <textarea placeholder="Notes..." class="task-notes-input w-full p-2 rounded-md border bg-card-secondary flex-grow resize-none">${activeTimer.notes}</textarea>
+                        <input type="text" placeholder="Add tags... (#meeting)" class="task-tags-input w-full p-2 mt-3 rounded-md border bg-card-secondary flex-shrink-0" value="${(activeTimer.tags || []).join(' ')}">
+                    </div>
+                </div></div></div>` : '';
+
+                return `<div class="tracker-item ${isR ? 'is-running' : ''}" data-project-id="${p.id}">
+                    <div class="tracker-item-header">
+                        <div class="project-card-initial" style="background-color: ${p.color};">${p.name.charAt(0).toUpperCase()}</div>
+                        <div class="project-card-info">
+                            <div class="project-card-name">${p.name}</div>
+                        </div>
+                        <div class="project-card-action">
+                            ${isR ? '' : timerControls}
+                        </div>
+                    </div>
+                    <div class="tracker-tasks"></div>
+                    ${isR ? expC : ''}
+                </div>`;
+
+            }).join('');
+             if(activeTimer) {
+                const runningCard = listEl.querySelector(`.tracker-item[data-project-id="${activeTimer.projectId}"] .project-card-action`);
+                if(runningCard) {
+                    runningCard.innerHTML = `<div class="project-details flex items-center space-x-2">
+                        <span class="text-xl font-semibold live-timer-display" style="color: ${activeTimer.isPaused ? 'var(--warning)' : 'var(--success)'}">00:00:00</span>
+                        <button class="timer-control-btn ${activeTimer.isPaused ? 'resume-timer-btn' : 'pause-timer-btn'} w-10 h-10 rounded-lg flex items-center justify-center text-xl" style="background-color: var(--warning); color: white;"><i data-lucide="${activeTimer.isPaused ? 'play' : 'pause'}"></i></button>
+                        <button class="timer-control-btn stop-timer-btn w-10 h-10 rounded-lg flex items-center justify-center text-xl" style="background-color: var(--danger); color: white;"><i data-lucide="stop-circle"></i></button>
+                       </div>`;
+                    updateRunningCard();
+                }
+             }
+            lucide.createIcons();
+        };
+
+        const renderReportsPage=()=>{ const content=document.getElementById('reports-page-template').content.cloneNode(true); document.getElementById('reports-content').innerHTML=''; document.getElementById('reports-content').appendChild(content); const dayPicker = document.getElementById('reports-day-picker'); dayPicker.value = new Date().toISOString().split('T')[0]; dayPicker.addEventListener('change', () => renderReportData('day')); renderReportData('week'); lucide.createIcons();};
         const renderReportData=(filter,range={})=>{ const exportBtn = document.getElementById('export-day-notes-btn'); const dayPickerContainer = document.getElementById('reports-day-picker-container'); if(exportBtn) exportBtn.classList.toggle('hidden', filter !== 'day'); if(dayPickerContainer) dayPickerContainer.classList.toggle('hidden', filter !== 'day'); let sD,eD;const n=new Date(); if(filter==='day'){ const picker = document.getElementById('reports-day-picker'); const reportDate = picker ? new Date(picker.value + 'T00:00:00') : n; sD=new Date(reportDate).setHours(0,0,0,0); eD=new Date(reportDate).setHours(23,59,59,999); }else if(filter==='week'){const d=n.getDay()===0?6:n.getDay()-1,f=n.getDate()-d;sD=new Date(new Date(n).setDate(f)).setHours(0,0,0,0);eD=new Date(new Date(n).setDate(f+6)).setHours(23,59,59,999);}else if(filter==='month'){sD=new Date(n.getFullYear(),n.getMonth(),1);eD=new Date(n.getFullYear(),n.getMonth()+1,0).setHours(23,59,59,999);} else if(filter==='custom'&&range.start&&range.end){ sD=new Date(range.start + 'T00:00:00').getTime(); eD=new Date(range.end + 'T00:00:00').setHours(23,59,59,999); } const fTs=tasks.filter(t=>t.startTime>=sD&&t.startTime<=eD); const totalTimeMs = fTs.reduce((sum, task) => sum + (task.endTime - task.startTime), 0); const totalTimeEl = document.getElementById('reports-total-time'); if (totalTimeEl) { totalTimeEl.textContent = formatDuration(totalTimeMs); } const groupedByProject=fTs.reduce((acc,task)=>{(acc[task.projectId]=acc[task.projectId]||[]).push(task);return acc;},{}); const summaryEl=document.getElementById('reports-summary');if(!summaryEl)return;summaryEl.innerHTML=projects.filter(p=>groupedByProject[p.id]).map(p=>{const projectTasks=groupedByProject[p.id];const totalTime=projectTasks.reduce((sum,t)=>sum+(t.endTime-t.startTime),0);return`<details class="bg-card p-3 rounded-lg border"><summary class="font-semibold flex justify-between items-center cursor-pointer"><span><span class="inline-block w-3 h-3 rounded-full mr-2" style="background-color:${p.color};"></span>${p.name}</span><span>${formatDuration(totalTime)}</span></summary><div class="mt-3 pt-3 border-t border-border space-y-2">${projectTasks.sort((a,b)=>b.startTime-a.startTime).map(t=>`<div class="text-sm flex justify-between"><span>${t.description}</span><span class="text-muted-foreground">${formatDuration(t.endTime-t.startTime)}</span></div>`).join('')}</div></details>`;}).join('')||'<p class="text-center text-muted-foreground py-8 col-span-full">No time tracked in this period.</p>'; };
         const exportDayNotesAsMarkdown = () => { const dayPicker = document.getElementById('reports-day-picker'); if (!dayPicker || !dayPicker.value) { alert("Please select a day to export."); return; } const reportDate = new Date(dayPicker.value + 'T00:00:00'); reportDate.setHours(0,0,0,0); const startOfDay = reportDate.getTime(); const endOfDay = startOfDay + (24 * 60 * 60 * 1000 - 1); const dayTasks = tasks.filter(t => t.startTime >= startOfDay && t.startTime <= endOfDay && t.notes); if (dayTasks.length === 0) { alert("No notes found for " + reportDate.toLocaleDateString()); return; } const tasksByProject = dayTasks.reduce((acc, task) => { const p = projects.find(proj => proj.id === task.projectId); const projectName = p ? p.name : 'Uncategorized'; if (!acc[projectName]) { acc[projectName] = []; } acc[projectName].push(task); return acc; }, {}); let markdown = `Daily Notes: ${reportDate.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}\n\n`; for (const projectName in tasksByProject) { markdown += `# ${projectName}\n\n`; tasksByProject[projectName].sort((a, b) => a.startTime - b.startTime).forEach(task => { if (task.description) { markdown += `## ${task.description}\n`; } if (task.notes) { markdown += `${task.notes}\n\n`; } }); } const filename = `work_app_notes_${reportDate.toISOString().split('T')[0]}.md`; downloadFile(markdown, filename, 'text/markdown;charset=utf-8;'); };
-        const renderSettingsPage=()=>{const content=document.getElementById('settings-template').content.cloneNode(true);document.getElementById('settings-content').innerHTML='';document.getElementById('settings-content').appendChild(content);dom.darkModeToggle=document.getElementById('dark-mode-toggle');dom.autoBackupToggle=document.getElementById('auto-backup-toggle');dom.lastBackupInfo=document.getElementById('last-backup-info');dom.importFileInput=document.getElementById('import-file-input');dom.csvDateStart=document.getElementById('csv-date-start');dom.csvDateEnd=document.getElementById('csv-date-end');applyTheme(localStorage.getItem('theme')||'light');dom.autoBackupToggle.checked=localStorage.getItem('autoBackupEnabled')==='true';updateLastBackupInfo();document.getElementById('detected-time-zone').textContent=Intl.DateTimeFormat().resolvedOptions().timeZone;};
-        const renderAccomplishmentsPage=()=>{const content=document.getElementById('accomplishments-page-template').content.cloneNode(true);const ac=document.getElementById('accomplishments-content');ac.innerHTML='';ac.appendChild(content);const listEl=document.getElementById('accomplishments-list');listEl.innerHTML=accomplishments.sort((a,b)=>b.date-a.date).map(acc=>{const p=projects.find(j=>j.id===acc.projectId);return`<div class="bg-card p-3 rounded-lg border"><p>${acc.text}</p><div class="flex flex-wrap gap-1 mt-2">${(acc.tags||[]).map(g=>`<span class="tag">${g}</span>`).join('')}</div><div class="flex justify-between items-center mt-2"><p class="text-xs text-muted-foreground font-semibold" style="color:${p?.color||'gray'}">${p?.name||'No Project'}&bull;${new Date(acc.date).toLocaleDateString()}</p><button class="edit-accomplishment-btn p-2" data-accomplishment-id="${acc.id}"><i class="fa-solid fa-pencil text-sm"></i></button></div></div>`;}).join('')||'<p class="text-center text-muted-foreground py-8 col-span-full">No accomplishments yet.</p>';};
+        const renderSettingsPage=()=>{const content=document.getElementById('settings-template').content.cloneNode(true);document.getElementById('settings-content').innerHTML='';document.getElementById('settings-content').appendChild(content);dom.darkModeToggle=document.getElementById('dark-mode-toggle');dom.autoBackupToggle=document.getElementById('auto-backup-toggle');dom.lastBackupInfo=document.getElementById('last-backup-info');dom.importFileInput=document.getElementById('import-file-input');dom.csvDateStart=document.getElementById('csv-date-start');dom.csvDateEnd=document.getElementById('csv-date-end');applyTheme(localStorage.getItem('theme')||'light');dom.autoBackupToggle.checked=localStorage.getItem('autoBackupEnabled')==='true';updateLastBackupInfo();document.getElementById('detected-time-zone').textContent=Intl.DateTimeFormat().resolvedOptions().timeZone; const savedTheme=localStorage.getItem('accentTheme')||'theme-teal';document.querySelector(`.accent-swatch[data-theme="${savedTheme}"]`)?.classList.add('selected');};
+        const renderAccomplishmentsPage=()=>{const content=document.getElementById('accomplishments-page-template').content.cloneNode(true);const ac=document.getElementById('accomplishments-content');ac.innerHTML='';ac.appendChild(content);const listEl=document.getElementById('accomplishments-list');listEl.innerHTML=accomplishments.sort((a,b)=>b.date-a.date).map(acc=>{const p=projects.find(j=>j.id===acc.projectId);return`<div class="bg-card p-3 rounded-lg border"><p>${acc.text}</p><div class="flex flex-wrap gap-1 mt-2">${(acc.tags||[]).map(g=>`<span class="tag">${g}</span>`).join('')}</div><div class="flex justify-between items-center mt-2"><p class="text-xs text-muted-foreground font-semibold" style="color:${p?.color||'gray'}">${p?.name||'No Project'}&bull;${new Date(acc.date).toLocaleDateString()}</p><button class="edit-accomplishment-btn p-2" data-accomplishment-id="${acc.id}"><i data-lucide="pencil" class="w-4 h-4"></i></button></div></div>`;}).join('')||'<p class="text-center text-muted-foreground py-8 col-span-full">No accomplishments yet.</p>'; lucide.createIcons();};
         const saveAccomplishment=async e=>{e.preventDefault();const modal=document.getElementById('add-accomplishment-modal');const id=modal.querySelector('#accomplishment-id').value;const pId=parseInt(modal.querySelector('#accomplishment-project-select').value);const t=modal.querySelector('#accomplishment-text').value.trim();if(!t)return;const tagsInput=modal.querySelector('#accomplishment-tags').value.trim();const tags=tagsInput?tagsInput.split(/[\s,]+/).map(tag=>tag.startsWith('#')?tag:tag):[];const date=new Date(modal.querySelector('#accomplishment-date').value+'T00:00:00').getTime();const accData={projectId:pId||null,text:t,tags,date};if(id){const accomplishment=accomplishments.find(a=>a.id===parseInt(id));Object.assign(accomplishment,accData);await updateData('accomplishments',accomplishment);}else{const newId=await addData('accomplishments',accData);accData.id=newId;accomplishments.push(accData);}closeModal(modal);renderAccomplishmentsPage();};
-        const renderTasksPage=()=>{const content=document.getElementById('tasks-page-template').content.cloneNode(true);const tc=document.getElementById('tasks-content');tc.innerHTML='';tc.appendChild(content);const listEl=document.getElementById('predefined-tasks-list'); const groupedByProject=predefinedTasks.reduce((acc,task)=>{(acc[task.projectId||'none']=acc[task.projectId||'none']||[]).push(task);return acc;},{}); listEl.innerHTML=projects.concat({id:'none',name:'General Tasks'}).filter(p=>groupedByProject[p.id]).map(p=>{return`<div><h2 class="font-bold text-lg mt-4 mb-2" style="color:${p.color||'inherit'}">${p.name}</h2><div class="space-y-2">${groupedByProject[p.id].map(task=>{const isDoneToday=task.isCompleted&&new Date(task.completedDate).toDateString()===new Date().toDateString();return`<div class="flex items-center bg-card p-3 rounded-lg border" data-task-id="${task.id}"><input type="checkbox" class="predefined-task-checkbox h-5 w-5 rounded border-gray-300 text-primary-accent focus:ring-primary-accent mr-4 flex-shrink-0" ${isDoneToday?'checked':''}> <div class="flex-grow min-w-0"><p class="font-medium ${isDoneToday?'line-through text-gray-500':''}">${task.description}</p>${task.dueDate?`<p class="text-sm text-muted-foreground">Due: ${new Date(task.dueDate+'T00:00:00').toLocaleDateString()}</p>`:''}${task.notes?`<p class="text-sm text-muted-foreground">${task.notes}</p>`:''}<div class="flex flex-wrap gap-1 mt-1">${(task.tags||[]).map(g=>`<span class="tag">${g}</span>`).join('')}</div></div><div class="flex items-center"><button class="edit-predefined-task-btn p-2 rounded-md hover:bg-card-secondary"><i class="fa-solid fa-pencil"></i></button><button class="delete-predefined-task-btn p-2 rounded-md hover:bg-card-secondary"><i class="fa-solid fa-trash-can"></i></button></div></div>`}).join('')}</div></div>`}).join('')||'<p class="text-center text-muted-foreground py-8">No tasks yet. Add one!</p>';};
+        const renderTasksPage=()=>{const content=document.getElementById('tasks-page-template').content.cloneNode(true);const tc=document.getElementById('tasks-content');tc.innerHTML='';tc.appendChild(content);const listEl=document.getElementById('predefined-tasks-list'); const groupedByProject=predefinedTasks.reduce((acc,task)=>{(acc[task.projectId||'none']=acc[task.projectId||'none']||[]).push(task);return acc;},{}); listEl.innerHTML=projects.concat({id:'none',name:'General Tasks'}).filter(p=>groupedByProject[p.id]).map(p=>{return`<div><h2 class="font-bold text-lg mt-4 mb-2" style="color:${p.color||'inherit'}">${p.name}</h2><div class="space-y-2">${groupedByProject[p.id].map(task=>{const isDoneToday=task.isCompleted&&new Date(task.completedDate).toDateString()===new Date().toDateString();return`<div class="flex items-center bg-card p-3 rounded-lg border" data-task-id="${task.id}"><input type="checkbox" class="predefined-task-checkbox h-5 w-5 rounded border-gray-300 text-primary-accent focus:ring-primary-accent mr-4 flex-shrink-0" ${isDoneToday?'checked':''}> <div class="flex-grow min-w-0"><p class="font-medium ${isDoneToday?'line-through text-gray-500':''}">${task.description}</p>${task.dueDate?`<p class="text-sm text-muted-foreground">Due: ${new Date(task.dueDate+'T00:00:00').toLocaleDateString()}</p>`:''}${task.notes?`<p class="text-sm text-muted-foreground">${task.notes}</p>`:''}<div class="flex flex-wrap gap-1 mt-1">${(task.tags||[]).map(g=>`<span class="tag">${g}</span>`).join('')}</div></div><div class="flex items-center"><button class="edit-predefined-task-btn p-2 rounded-md hover:bg-card-secondary"><i data-lucide="pencil" class="w-4 h-4"></i></button><button class="delete-predefined-task-btn p-2 rounded-md hover:bg-card-secondary"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div>`}).join('')}</div></div>`}).join('')||'<p class="text-center text-muted-foreground py-8">No tasks yet. Add one!</p>'; lucide.createIcons();};
         const savePredefinedTask=async e=>{e.preventDefault();const modal=document.getElementById('add-predefined-task-modal');const id=modal.querySelector('#predefined-task-id').value;const description=modal.querySelector('#predefined-task-desc').value.trim();if(!description)return;const projectId=parseInt(modal.querySelector('#predefined-task-project').value)||null;const notes=modal.querySelector('#predefined-task-notes').value.trim();const tags=modal.querySelector('#predefined-task-tags').value.split(',').map(t=>t.trim()).filter(Boolean);const dueDate=modal.querySelector('#predefined-task-due-date').value;const taskData={description,projectId,notes,tags,dueDate:dueDate||null};if(id){const task=predefinedTasks.find(t=>t.id===parseInt(id));Object.assign(task,taskData);await updateData('predefinedTasks',task);}else{const newId=await addData('predefinedTasks',{...taskData,isCompleted:false,completedDate:null});taskData.id=newId;predefinedTasks.push(taskData);}closeModal(modal);renderTasksPage();};
-        const renderCompletedProjectsPage=()=>{const completedProjects=projects.filter(p=>p.status==='completed');const contentEl=document.getElementById('completed-projects-content');contentEl.innerHTML=`<div class="flex items-center justify-between mb-6"><button class="back-to-dashboard-btn font-semibold text-primary-accent hover:underline">&larr; Back to Dashboard</button></div><div class="space-y-2">${completedProjects.length>0?completedProjects.map(p=>`<div class="bg-card p-3 rounded-lg border flex items-center justify-between"><div class="flex items-center space-x-3"><span class="w-3 h-3 rounded-full" style="background-color:${p.color};"></span><button class="font-semibold completed-project-link hover:underline" data-project-id="${p.id}">${p.name}</button></div></div>`).join(''):'<p class="text-center text-muted-foreground py-8 col-span-full">No completed projects.</p>'}</div>`;};
-        const openProjectDetailView=(id)=>{navigateTo('page-detail');currentDetailProjectId=id;const p=projects.find(p=>p.id===id);if(!p)return;const projectTasks=predefinedTasks.filter(t=>t.projectId===id);const tasksHTML=`<div class="mt-6"><h2 class="font-semibold mb-2">Task List</h2><div class="space-y-2">${projectTasks.length>0?projectTasks.map(t=>`<div class="bg-card p-2 rounded-lg border text-sm">${t.description}</div>`).join(''):'<p class="text-sm text-muted-foreground">No tasks defined for this project yet.</p>'}</div></div>`;const statusRadios=`<div class="flex items-center gap-6 mt-4"><p class="text-sm font-medium text-muted-foreground">Status:</p><div class="flex items-center gap-4"><label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="project-status" value="open" class="project-status-radio" ${p.status!=='completed'?'checked':''}> Open</label><label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="project-status" value="completed" class="project-status-radio" ${p.status==='completed'?'checked':''}> Completed</label></div></div>`;document.getElementById('detail-view-content').innerHTML=`<div id="project-detail-view-mode"><header class="flex items-start justify-between mb-2"><button class="back-to-dashboard-btn font-semibold text-primary-accent hover:underline mb-4">&larr; Back</button><div class="flex items-center gap-2"><button id="edit-project-btn" class="p-2 rounded-md hover:bg-card-secondary"><i class="fa-solid fa-pencil text-xl"></i></button></div></header><p class="text-sm text-muted-foreground mb-4">${p.description||'No description.'}</p><button id="add-manual-entry-btn" class="w-full text-center py-2 px-4 rounded-lg font-semibold border border-input-border hover:bg-card-secondary">Add Time</button>${statusRadios}</div><div id="project-detail-edit-mode" class="hidden mt-6 mb-6 space-y-3 p-4 bg-card-secondary rounded-lg"><div class="flex gap-4"><input type="text" id="edit-project-name" class="w-full p-2 text-xl font-bold border rounded-md bg-card" value="${p.name}"><div id="edit-color-palette" class="flex flex-wrap gap-2"></div><input type="hidden" id="edit-project-color" value="${p.color}"></div><textarea id="edit-project-description" rows="2" class="w-full p-2 text-sm border rounded-md bg-card">${p.description||''}</textarea><div class="grid grid-cols-2 gap-4"><input type="number" id="edit-project-estimate" placeholder="Estimate (hrs)" value="${p.estimate||''}" class="w-full p-2 border rounded-md text-sm bg-card"></div><div class="flex justify-end gap-2"><button id="cancel-edit-project-btn" class="font-semibold px-5 py-2 text-base rounded-lg hover:bg-border">Cancel</button><button id="save-updated-project-btn" class="font-semibold px-5 py-2 text-base rounded-lg text-white" style="background:var(--primary-accent)">Save</button></div></div><div class="mb-6 p-4 bg-card rounded-xl border mt-6"><p class="text-sm text-muted-foreground">Total Time for Period</p><p id="detail-total-time" class="text-3xl font-bold">0h 0m</p></div><div id="detail-date-filters" class="p-2 bg-card-secondary rounded-xl flex text-center text-sm font-semibold my-4"><button data-filter="today" class="detail-filter-btn flex-1 py-2 rounded-lg bg-card shadow">Today</button><button data-filter="week" class="detail-filter-btn flex-1 py-2 rounded-lg">Week</button><button data-filter="month" class="detail-filter-btn flex-1 py-2 rounded-lg">Month</button><button data-filter="custom" class="detail-filter-btn flex-1 py-2 rounded-lg">Custom</button></div><div id="detail-custom-range" class="hidden flex items-center gap-2 text-sm mb-4"><input type="date" id="detail-date-start" class="w-full p-2 border rounded-md text-sm bg-card-secondary"><span class="text-muted-foreground">to</span><input type="date" id="detail-date-end" class="w-full p-2 border rounded-md text-sm bg-card-secondary"></div><div id="detail-entries-list" class="space-y-3"></div>${tasksHTML}`;renderProjectEntries(id,'today');};
-        const renderProjectEntries=(id,filter,range={})=>{let sD,eD;const n=new Date();if(filter==='today'){sD=new Date().setHours(0,0,0,0);eD=new Date().setHours(23,59,59,999);}else if(filter==='week'){const d=n.getDay()===0?6:n.getDay()-1,f=n.getDate()-d;sD=new Date(new Date(n).setDate(f)).setHours(0,0,0,0);eD=new Date(new Date(n).setDate(f+6)).setHours(23,59,59,999);}else if(filter==='month'){sD=new Date(n.getFullYear(),n.getMonth(),1);eD=new Date(n.getFullYear(),n.getMonth()+1,0).setHours(23,59,59,999);}else if(filter==='range'&&range.start&&range.end){sD=new Date(range.start).getTime();eD=new Date(range.end).setHours(23,59,59,999);}const fTs=tasks.filter(t=>t.projectId===id&&t.startTime>=sD&&t.startTime<=eD).sort((a,b)=>b.startTime-a.startTime);const tMs=fTs.reduce((s,t)=>s+(t.endTime-t.startTime),0);const tEl=document.getElementById('detail-total-time');if(tEl)tEl.textContent=formatDuration(tMs);const lEl=document.getElementById('detail-entries-list');if(lEl)lEl.innerHTML=fTs.length>0?fTs.map(t=>createTaskEntryHTML(t,projects.find(p=>p.id===t.projectId))).join(''):`<p class="text-center p-4">No entries.</p>`;};
-        const createTaskEntryHTML=(t,p)=>{const sT=new Date(t.startTime),eT=new Date(t.endTime);const dur=formatDuration(t.endTime-t.startTime);const dStr=sT.toLocaleDateString([],{month:'short',day:'numeric',year:'numeric'});const tStr=`${sT.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})} - ${eT.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;return`<div class="task-entry bg-card p-3 rounded-lg border" data-task-id="${t.id}"><div class="view-mode"><div class="flex justify-between items-start"><div class="flex-grow"><p class="font-semibold">${t.description}</p><p class="text-sm text-muted-foreground whitespace-pre-wrap">${t.notes||'No notes'}</p><div class="text-sm text-muted-foreground mt-2">${dStr} &bull; ${tStr}</div></div><div class="flex items-start pt-1 gap-1 ml-2 flex-shrink-0"><span class="font-semibold text-base mr-2">${dur}</span><button class="edit-task-btn p-2 rounded-md hover:bg-card-secondary"><i class="fa-solid fa-pencil"></i></button><button class="delete-task-btn p-2 rounded-md hover:bg-card-secondary"><i class="fa-solid fa-trash-can"></i></button></div></div></div><div class="edit-mode hidden space-y-2 mt-2"><input class="w-full p-2 text-sm border rounded-md bg-card-secondary edit-task-description" value="${t.description}"><textarea class="w-full p-2 text-sm border rounded-md h-20 bg-card-secondary edit-task-notes">${t.notes||''}</textarea><input type="text" placeholder="Add tags..." class="w-full p-2 text-sm border rounded-md bg-card-secondary" value="${(t.tags||[]).join(' ')}"><div class="flex items-center gap-2"><input type="date" class="w-full p-1 text-xs border rounded-md bg-card-secondary" value="${sT.toISOString().split('T')[0]}"><input type="time" class="w-full p-1 text-xs border" value="${sT.toTimeString().slice(0,5)}"><input type="time" class="w-full p-1 text-xs border" value="${eT.toTimeString().slice(0,5)}"></div><div class="flex justify-end gap-2"><button class="cancel-edit-btn px-4 py-2 text-sm rounded-md">Cancel</button><button class="save-task-btn px-4 py-2 text-sm text-white rounded-md" style="background:var(--primary-accent)">Save</button></div></div></div>`;};
-        const saveManualEntry=async e=>{e.preventDefault();const desc=document.getElementById('manual-entry-desc').value,date=document.getElementById('manual-entry-date').value,start=document.getElementById('manual-entry-start').value,end=document.getElementById('manual-entry-end').value,notes=document.getElementById('manual-entry-notes').value;if(!desc||!date||!start||!end)return;const startTime=new Date(`${date}T${start}`).getTime(),endTime=new Date(`${date}T${end}`).getTime();if(startTime>=endTime)return;const newTask={projectId:currentDetailProjectId,description:desc,notes,startTime,endTime,tags:[]};const newId=await addData('tasks',newTask);newTask.id=newId;tasks.push(newTask);closeModal(document.getElementById('manual-entry-modal'));const cF=document.querySelector('#detail-date-filters .detail-filter-btn.active').dataset.filter;renderProjectEntries(currentDetailProjectId,cF);updateDashboardTotalTime();renderDashboardProjects();};
-        const showUserGuide=()=>{document.getElementById('guide-content').innerHTML=`<h2 class="text-2xl font-bold mb-4">Welcome to the work app!</h2><div class="prose dark:prose-invert max-w-none space-y-4 text-foreground"><p>This guide explains the features to help you track time effectively.</p><h3 class="font-semibold">1. Creating a Project</h3><p>Use the '+' button on the main screen to create a new project. You can add a name, description, color, and an optional time estimate.</p><h3 class="font-semibold">2. Tasks</h3><p>Go to the Tasks page (clipboard icon) to create reusable tasks for your projects. This saves you from typing the same task name repeatedly.</p><h3 class="font-semibold">3. Tracking Time</h3><ul><li>Click the play button on a project card to start the timer.</li><li>You can select a task or type a new one.</li><li>Use the pause button to take a break without creating a new time entry.</li><li>Click the stop button to end and save the time entry.</li></ul><h3 class="font-semibold">4. PWA & Automatic Backups</h3><ul><li><strong>Installable App (PWA):</strong> Your browser may show an option to "Install" or "Add to Home Screen" to use this app like a native app.</li><li><strong>Automatic Backups:</strong> In <strong>Settings</strong>, enable "Automatic Daily Backups" to save a JSON backup to your downloads folder every day after 12:00 PM.</li></ul></div>`;openModal(document.getElementById('guide-modal'));};
+        const renderCompletedProjectsPage=()=>{const completedProjects=projects.filter(p=>p.status==='completed');const contentEl=document.getElementById('completed-projects-content');contentEl.innerHTML=`<div class="flex items-center justify-between mb-6"><button class="back-to-dashboard-btn font-semibold text-primary-accent hover:underline">&larr; Back to Projects</button></div><div class="space-y-2">${completedProjects.length>0?completedProjects.map(p=>`<div class="bg-card p-3 rounded-lg border flex items-center justify-between"><div class="flex items-center space-x-3"><span class="w-3 h-3 rounded-full" style="background-color:${p.color};"></span><button class="font-semibold completed-project-link hover:underline" data-project-id="${p.id}">${p.name}</button></div></div>`).join(''):'<p class="text-center text-muted-foreground py-8 col-span-full">No completed projects.</p>'}</div>`;};
+        const openProjectDetailView=(id)=>{navigateTo('page-detail');currentDetailProjectId=id;const p=projects.find(p=>p.id===id);if(!p)return;const projectTasks=predefinedTasks.filter(t=>t.projectId===id);const tasksHTML=`<div class="mt-6"><h2 class="font-semibold mb-2">Task List</h2><div class="space-y-2">${projectTasks.length>0?projectTasks.map(t=>`<div class="bg-card p-2 rounded-lg border text-sm">${t.description}</div>`).join(''):'<p class="text-sm text-muted-foreground">No tasks defined for this project yet.</p>'}</div></div>`;const statusRadios=`<div class="flex items-center gap-6 mt-4"><p class="text-sm font-medium text-muted-foreground">Status:</p><div class="flex items-center gap-4"><label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="project-status" value="open" class="project-status-radio" ${p.status!=='completed'?'checked':''}> Open</label><label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="project-status" value="completed" class="project-status-radio" ${p.status==='completed'?'checked':''}> Completed</label></div></div>`;document.getElementById('detail-view-content').innerHTML=`<div id="project-detail-view-mode"><header class="flex items-start justify-between mb-2"><button class="back-to-projects-btn font-semibold text-primary-accent hover:underline mb-4">&larr; Back</button><div class="flex items-center gap-2"><button id="edit-project-btn" class="p-2 rounded-md hover:bg-card-secondary"><i data-lucide="pencil" class="w-5 h-5"></i></button></div></header><p class="text-sm text-muted-foreground mb-4">${p.description||'No description.'}</p><button id="add-manual-entry-btn" class="w-full text-center py-2 px-4 rounded-lg font-semibold border border-input-border hover:bg-card-secondary">Add Time</button>${statusRadios}</div><div id="project-detail-edit-mode" class="hidden mt-6 mb-6 space-y-3 p-4 bg-card-secondary rounded-lg"><div class="flex gap-4"><input type="text" id="edit-project-name" class="w-full p-2 text-xl font-bold border rounded-md bg-card" value="${p.name}"><div id="edit-color-palette" class="flex flex-wrap gap-2"></div><input type="hidden" id="edit-project-color" value="${p.color}"></div><textarea id="edit-project-description" rows="2" class="w-full p-2 text-sm border rounded-md bg-card">${p.description||''}</textarea><div class="grid grid-cols-2 gap-4"><input type="number" id="edit-project-estimate" placeholder="Estimate (hrs)" value="${p.estimate||''}" class="w-full p-2 border rounded-md text-sm bg-card"></div><div class="flex justify-end gap-2"><button id="cancel-edit-project-btn" class="font-semibold px-5 py-2 text-base rounded-lg hover:bg-border">Cancel</button><button id="save-updated-project-btn" class="font-semibold px-5 py-2 text-base rounded-lg text-white" style="background:var(--primary-accent)">Save</button></div></div><div class="mb-6 p-4 bg-card rounded-xl border mt-6"><p class="text-sm text-muted-foreground">Total Time for Period</p><p id="detail-total-time" class="text-3xl font-bold">0h 0m</p></div><div id="detail-date-filters" class="p-2 bg-card-secondary rounded-xl flex text-center text-sm font-semibold my-4"><button data-filter="today" class="detail-filter-btn flex-1 py-2 rounded-lg bg-card shadow">Today</button><button data-filter="week" class="detail-filter-btn flex-1 py-2 rounded-lg">Week</button><button data-filter="month" class="detail-filter-btn flex-1 py-2 rounded-lg">Month</button><button data-filter="custom" class="detail-filter-btn flex-1 py-2 rounded-lg">Custom</button></div><div id="detail-custom-range" class="hidden flex items-center gap-2 text-sm mb-4"><input type="date" id="detail-date-start" class="w-full p-2 border rounded-md text-sm bg-card-secondary"><span class="text-muted-foreground">to</span><input type="date" id="detail-date-end" class="w-full p-2 border rounded-md text-sm bg-card-secondary"></div><div id="detail-entries-list" class="space-y-3"></div>${tasksHTML}`;renderProjectEntries(id,'today'); lucide.createIcons();};
+        const renderProjectEntries=(id,filter,range={})=>{let sD,eD;const n=new Date();if(filter==='today'){sD=new Date().setHours(0,0,0,0);eD=new Date().setHours(23,59,59,999);}else if(filter==='week'){const d=n.getDay()===0?6:n.getDay()-1,f=n.getDate()-d;sD=new Date(new Date(n).setDate(f)).setHours(0,0,0,0);eD=new Date(new Date(n).setDate(f+6)).setHours(23,59,59,999);}else if(filter==='month'){sD=new Date(n.getFullYear(),n.getMonth(),1);eD=new Date(n.getFullYear(),n.getMonth()+1,0).setHours(23,59,59,999);}else if(filter==='range'&&range.start&&range.end){sD=new Date(range.start).getTime();eD=new Date(range.end).setHours(23,59,59,999);}const fTs=tasks.filter(t=>t.projectId===id&&t.startTime>=sD&&t.startTime<=eD).sort((a,b)=>b.startTime-a.startTime);const tMs=fTs.reduce((s,t)=>s+(t.endTime-t.startTime),0);const tEl=document.getElementById('detail-total-time');if(tEl)tEl.textContent=formatDuration(tMs);const lEl=document.getElementById('detail-entries-list');if(lEl)lEl.innerHTML=fTs.length>0?fTs.map(t=>createTaskEntryHTML(t,projects.find(p=>p.id===t.projectId))).join(''):`<p class="text-center p-4">No entries.</p>`; lucide.createIcons();};
+        const createTaskEntryHTML=(t,p)=>{const sT=new Date(t.startTime),eT=new Date(t.endTime);const dur=formatDuration(t.endTime-t.startTime);const dStr=sT.toLocaleDateString([],{month:'short',day:'numeric',year:'numeric'});const tStr=`${sT.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})} - ${eT.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;return`<div class="task-entry bg-card p-3 rounded-lg border" data-task-id="${t.id}"><div class="view-mode"><div class="flex justify-between items-start"><div class="flex-grow"><p class="font-semibold">${t.description}</p><p class="text-sm text-muted-foreground whitespace-pre-wrap">${t.notes||'No notes'}</p><div class="text-sm text-muted-foreground mt-2">${dStr} &bull; ${tStr}</div></div><div class="flex items-start pt-1 gap-1 ml-2 flex-shrink-0"><span class="font-semibold text-base mr-2">${dur}</span><button class="edit-task-btn p-2 rounded-md hover:bg-card-secondary"><i data-lucide="pencil" class="w-4 h-4"></i></button><button class="delete-task-btn p-2 rounded-md hover:bg-card-secondary"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div></div><div class="edit-mode hidden space-y-2 mt-2"><input class="w-full p-2 text-sm border rounded-md bg-card-secondary edit-task-description" value="${t.description}"><textarea class="w-full p-2 text-sm border rounded-md h-20 bg-card-secondary edit-task-notes">${t.notes||''}</textarea><input type="text" placeholder="Add tags..." class="w-full p-2 text-sm border rounded-md bg-card-secondary" value="${(t.tags||[]).join(' ')}"><div class="flex items-center gap-2"><input type="date" class="w-full p-1 text-xs border rounded-md bg-card-secondary" value="${sT.toISOString().split('T')[0]}"><input type="time" class="w-full p-1 text-xs border" value="${sT.toTimeString().slice(0,5)}"><input type="time" class="w-full p-1 text-xs border" value="${eT.toTimeString().slice(0,5)}"></div><div class="flex justify-end gap-2"><button class="cancel-edit-btn px-4 py-2 text-sm rounded-md">Cancel</button><button class="save-task-btn px-4 py-2 text-sm text-white rounded-md" style="background:var(--primary-accent)">Save</button></div></div></div>`;};
+        const saveManualEntry=async e=>{e.preventDefault();const desc=document.getElementById('manual-entry-desc').value,date=document.getElementById('manual-entry-date').value,start=document.getElementById('manual-entry-start').value,end=document.getElementById('manual-entry-end').value,notes=document.getElementById('manual-entry-notes').value;if(!desc||!date||!start||!end)return;const startTime=new Date(`${date}T${start}`).getTime(),endTime=new Date(`${date}T${end}`).getTime();if(startTime>=endTime)return;const newTask={projectId:currentDetailProjectId,description:desc,notes,startTime,endTime,tags:[]};const newId=await addData('tasks',newTask);newTask.id=newId;tasks.push(newTask);closeModal(document.getElementById('manual-entry-modal'));const cF=document.querySelector('#detail-date-filters .detail-filter-btn.active').dataset.filter;renderProjectEntries(currentDetailProjectId,cF);updateDashboardTotalTime();renderProjectsPage();};
+        const showUserGuide=()=>{document.getElementById('guide-content').innerHTML=`<h2 class="text-2xl font-bold mb-4">Welcome to time!</h2><div class="prose dark:prose-invert max-w-none space-y-4 text-foreground"><p>This guide explains the features to help you track time effectively.</p><h3 class="font-semibold">1. Projects Page</h3><p>Use the '+' button to create a new project. Click the pencil icon on any project to edit its details or see its history.</p><h3 class="font-semibold">2. Tracker Page</h3><p>This is your main dashboard for tracking time. Click a project to see its tasks, then click the play button on a task (or the project itself) to start a timer.</p><h3 class="font-semibold">3. Tasks Page</h3><p>Go to the Tasks page to create reusable tasks that you can assign to projects. This saves you from typing the same task name repeatedly.</p><h3 class="font-semibold">4. PWA & Automatic Backups</h3><ul><li><strong>Installable App (PWA):</strong> Your browser may show an option to "Install" or "Add to Home Screen" to use this app like a native app.</li><li><strong>Automatic Backups:</strong> In <strong>Settings</strong>, enable "Automatic Daily Backups" to save a JSON backup to your downloads folder every day after 12:00 PM.</li></ul></div>`;openModal(document.getElementById('guide-modal'));};
         
         document.body.addEventListener('click',async e=>{
             const navBtn = e.target.closest('.nav-btn'); if (navBtn) return navigateTo(navBtn.dataset.page);
+            if (e.target.closest('#settings-btn')) return navigateTo('page-settings');
             if(e.target.closest('#add-btn-header')){
                 const activePage = document.querySelector('.page.active').id;
-                if(activePage === 'page-tracker' || activePage === 'page-detail' || activePage === 'page-completed-projects') {
+                if(activePage === 'page-tracker' || activePage === 'page-projects' || activePage === 'page-detail' || activePage === 'page-completed-projects') {
                     const palette=document.getElementById('color-palette');palette.innerHTML=PALETTE.map(c=>`<div class="color-swatch" style="background-color: ${c}" data-color="${c}"></div>`).join('');document.getElementById('new-project-color').value='';openModal(document.getElementById('add-project-modal'));
                 } else if (activePage === 'page-tasks') {
                     const modal=document.getElementById('add-predefined-task-modal');modal.querySelector('form').reset();modal.querySelector('#predefined-task-modal-title').textContent="New Task";const select=modal.querySelector('#predefined-task-project');select.innerHTML=`<option value="">General Task</option>`+projects.filter(p=>p.status!=='completed').map(p=>`<option value="${p.id}">${p.name}</option>`).join('');openModal(modal);
@@ -683,7 +721,8 @@
                 }
             }
             if(e.target.closest('.color-swatch')){document.querySelectorAll('.color-swatch').forEach(el=>el.classList.remove('selected'));e.target.classList.add('selected');document.getElementById('new-project-color').value=e.target.dataset.color;}
-            if(e.target.closest('#cancel-add-project-btn'))return closeModal(document.getElementById('add-project-modal'));if(e.target.closest('.sort-btn')){const sortBtn=e.target.closest('.sort-btn');document.querySelectorAll('.sort-btn').forEach(b=>{b.classList.remove('active');});sortBtn.classList.add('active');const sortType=sortBtn.dataset.sort;if(sortType==='time'){const arrow=sortBtn.querySelector('.sort-arrow');if(arrow)arrow.style.display='inline';const currentDir=sortBtn.dataset.dir;const newDir=currentDir==='desc'?'asc':'desc';sortBtn.dataset.dir=newDir;if(arrow)arrow.textContent=newDir==='desc'?'▼':'▲';currentSort=`time_${newDir}`;}else{currentSort=sortType;}renderDashboardProjects();return;}
+            if(e.target.closest('#cancel-add-project-btn'))return closeModal(document.getElementById('add-project-modal'));
+            if(e.target.closest('.sort-btn')){const sortBtn=e.target.closest('.sort-btn');document.querySelectorAll('.sort-btn').forEach(b=>{b.classList.remove('active');});sortBtn.classList.add('active');const sortType=sortBtn.dataset.sort;if(sortType==='time'){const arrow=sortBtn.querySelector('.sort-arrow');if(arrow)arrow.style.display='inline';const currentDir=sortBtn.dataset.dir;const newDir=currentDir==='desc'?'asc':'desc';sortBtn.dataset.dir=newDir;if(arrow)arrow.textContent=newDir==='desc'?'▼':'▲';currentSort=`time_${newDir}`;}else{currentSort=sortType;}renderProjectsPage();return;}
             if(e.target.closest('.reports-filter-btn')){const btn=e.target.closest('.reports-filter-btn');document.querySelectorAll('.reports-filter-btn').forEach(b=>b.classList.remove('bg-card','shadow'));btn.classList.add('bg-card','shadow');document.getElementById('reports-custom-range').classList.toggle('hidden',btn.dataset.filter!=='custom');renderReportData(btn.dataset.filter);}
             if(e.target.closest('.edit-accomplishment-btn')){const id=parseInt(e.target.closest('.edit-accomplishment-btn').dataset.accomplishmentId);const acc=accomplishments.find(a=>a.id===id);if(acc){const modal=document.getElementById('add-accomplishment-modal');modal.querySelector('form').reset();modal.querySelector('#accomplishment-modal-title').textContent="Edit Accomplishment";const select=modal.querySelector('#accomplishment-project-select');select.innerHTML=`<option value="">No Project</option>`+projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');modal.querySelector('#accomplishment-id').value=acc.id;modal.querySelector('#accomplishment-project-select').value=acc.projectId||'';modal.querySelector('#accomplishment-text').value=acc.text;modal.querySelector('#accomplishment-tags').value=(acc.tags||[]).join(', ');modal.querySelector('#accomplishment-date').value=new Date(acc.date).toISOString().slice(0,10);openModal(modal);}}
             if(e.target.closest('#cancel-add-accomplishment-btn'))return closeModal(document.getElementById('add-accomplishment-modal'));if(e.target.closest('#import-json-btn'))dom.importFileInput.click();if(e.target.closest('#export-json-btn'))exportDataAsJSON(false);if(e.target.closest('#export-csv-btn'))exportTasksAsCSV();if(e.target.closest('#export-day-notes-btn')){exportDayNotesAsMarkdown();}if(e.target.closest('#show-guide-btn'))showUserGuide();if(e.target.closest('#close-guide-btn'))closeModal(document.getElementById('guide-modal'));
@@ -691,18 +730,51 @@
             if(e.target.closest('.delete-predefined-task-btn')){const taskEl=e.target.closest('[data-task-id]');if(taskEl){const taskId=parseInt(taskEl.dataset.taskId);if(confirm('Delete this pre-defined task?')){await deleteData('predefinedTasks',taskId);predefinedTasks=predefinedTasks.filter(t=>t.id!==taskId);renderTasksPage();}}}
             if(e.target.closest('.edit-predefined-task-btn')){const taskEl=e.target.closest('[data-task-id]');if(taskEl){const taskId=parseInt(taskEl.dataset.taskId);const task=predefinedTasks.find(t=>t.id===taskId);if(task){const modal=document.getElementById('add-predefined-task-modal');modal.querySelector('form').reset();modal.querySelector('#predefined-task-modal-title').textContent="Edit Task";const select=modal.querySelector('#predefined-task-project');select.innerHTML=`<option value="">General Task</option>`+projects.filter(p=>p.status!=='completed').map(p=>`<option value="${p.id}">${p.name}</option>`).join('');modal.querySelector('#predefined-task-id').value=task.id;modal.querySelector('#predefined-task-desc').value=task.description;modal.querySelector('#predefined-task-project').value=task.projectId||'';modal.querySelector('#predefined-task-due-date').value=task.dueDate||'';modal.querySelector('#predefined-task-notes').value=task.notes||'';modal.querySelector('#predefined-task-tags').value=(task.tags||[]).join(', ');openModal(modal);}}}
             if(e.target.closest('#view-completed-projects-btn'))navigateTo('page-completed-projects');
-            const card=e.target.closest('.project-item');if(card && !isAnimating){const pId=parseInt(card.dataset.projectId);if(e.target.closest('.start-timer-btn'))startTimer(pId);if(e.target.closest('.stop-timer-btn'))stopTimer();if(e.target.closest('.pause-timer-btn'))pauseTimer();if(e.target.closest('.resume-timer-btn'))resumeTimer();if(e.target.closest('.project-name-link'))openProjectDetailView(pId);}
-            const detailView=e.target.closest('#detail-view-content');if(detailView){if(e.target.closest('.back-to-dashboard-btn'))navigateTo('page-tracker');if(e.target.closest('#add-manual-entry-btn')){const modal=document.getElementById('manual-entry-modal');modal.querySelector('form').reset();openModal(modal);}
+            if(e.target.closest('.edit-project-btn')) openProjectDetailView(parseInt(e.target.closest('.edit-project-btn').dataset.projectId));
+            const trackerItem = e.target.closest('.tracker-item');
+            if(trackerItem && !e.target.closest('.action-btn, .timer-control-btn')) {
+                const pId = parseInt(trackerItem.dataset.projectId);
+                const tasksEl = trackerItem.querySelector('.tracker-tasks');
+                if(trackerItem.classList.contains('is-expanded')) {
+                    trackerItem.classList.remove('is-expanded');
+                    tasksEl.innerHTML = '';
+                } else {
+                    document.querySelectorAll('.tracker-item.is-expanded').forEach(item => {
+                        item.classList.remove('is-expanded');
+                        item.querySelector('.tracker-tasks').innerHTML = '';
+                    });
+                    trackerItem.classList.add('is-expanded');
+                    const projectTasks = predefinedTasks.filter(t => t.projectId === pId);
+                    const loggedTasks = tasks.filter(t => t.projectId === pId).map(t => t.description).filter((v,i,a) => a.indexOf(v) === i);
+                    const allTaskDescriptions = [...new Set(projectTasks.map(t => t.description).concat(loggedTasks))];
+                    tasksEl.innerHTML = `<div class="task-list">${allTaskDescriptions.map(desc => `<div class="task-item"><span class="flex-grow">${desc}</span><button class="action-btn start-timer-btn" data-project-id="${pId}" data-task-desc="${desc}"><i data-lucide="play" class="w-5 h-5"></i></button></div>`).join('') || '<p class="text-muted-foreground text-sm py-2">No tasks for this project yet.</p>'}</div>`;
+                    lucide.createIcons();
+                }
+            }
+            const timerBtn = e.target.closest('.start-timer-btn, .stop-timer-btn, .pause-timer-btn, .resume-timer-btn');
+            if(timerBtn && !isAnimating) {
+                if (timerBtn.classList.contains('start-timer-btn')) {
+                    const pId = parseInt(timerBtn.dataset.projectId);
+                    const taskDesc = timerBtn.dataset.taskDesc || '';
+                    startTimer(pId, taskDesc);
+                } else if (timerBtn.classList.contains('stop-timer-btn')) stopTimer();
+                else if (timerBtn.classList.contains('pause-timer-btn')) pauseTimer();
+                else if (timerBtn.classList.contains('resume-timer-btn')) resumeTimer();
+            }
+
+            const detailView=e.target.closest('#detail-view-content');if(detailView){if(e.target.closest('.back-to-projects-btn'))navigateTo('page-projects');if(e.target.closest('#add-manual-entry-btn')){const modal=document.getElementById('manual-entry-modal');modal.querySelector('form').reset();openModal(modal);}
             if(e.target.closest('#cancel-manual-entry-btn'))closeModal(document.getElementById('manual-entry-modal'));if(e.target.closest('#edit-project-btn')){detailView.querySelector('#project-detail-view-mode').classList.add('hidden');detailView.querySelector('#project-detail-edit-mode').classList.remove('hidden');const p=projects.find(proj=>proj.id===currentDetailProjectId);const palette=detailView.querySelector('#edit-color-palette');palette.innerHTML=PALETTE.map(c=>`<div class="color-swatch ${p.color===c?'selected':''}" style="background-color: ${c}" data-color="${c}"></div>`).join('');}
             if(e.target.closest('#edit-color-palette .color-swatch')){detailView.querySelectorAll('#edit-color-palette .color-swatch').forEach(el=>el.classList.remove('selected'));e.target.classList.add('selected');detailView.querySelector('#edit-project-color').value=e.target.dataset.color;}
             if(e.target.closest('#cancel-edit-project-btn')){detailView.querySelector('#project-detail-view-mode').classList.remove('hidden');detailView.querySelector('#project-detail-edit-mode').classList.add('hidden');}
             if(e.target.closest('#save-updated-project-btn')){const data={name:detailView.querySelector('#edit-project-name').value,description:detailView.querySelector('#edit-project-description').value,color:detailView.querySelector('#edit-project-color').value,estimate:parseFloat(detailView.querySelector('#edit-project-estimate').value)||0,};await updateProject(currentDetailProjectId,data);detailView.querySelector('#project-detail-view-mode').classList.remove('hidden');detailView.querySelector('#project-detail-edit-mode').classList.add('hidden');}
             if(e.target.closest('#detail-date-filters .detail-filter-btn')){const btn=e.target.closest('.detail-filter-btn');detailView.querySelectorAll('#detail-date-filters .detail-filter-btn').forEach(b=>b.classList.remove('bg-card','shadow'));btn.classList.add('bg-card','shadow');detailView.querySelector('#detail-custom-range').classList.toggle('hidden',btn.dataset.filter!=='custom');renderProjectEntries(currentDetailProjectId,btn.dataset.filter);}
-            const entryEl=e.target.closest('.task-entry');if(entryEl){const tId=parseInt(entryEl.dataset.taskId);if(e.target.closest('.delete-task-btn')){if(confirm('Delete entry?')){await deleteData('tasks',tId);tasks=tasks.filter(t=>t.id!==tId);renderProjectEntries(currentDetailProjectId,document.querySelector('#detail-date-filters .detail-filter-btn.active').dataset.filter);updateDashboardTotalTime();renderDashboardProjects();}}
+            const entryEl=e.target.closest('.task-entry');if(entryEl){const tId=parseInt(entryEl.dataset.taskId);if(e.target.closest('.delete-task-btn')){if(confirm('Delete entry?')){await deleteData('tasks',tId);tasks=tasks.filter(t=>t.id!==tId);renderProjectEntries(currentDetailProjectId,document.querySelector('#detail-date-filters .detail-filter-btn.active').dataset.filter);updateDashboardTotalTime();renderProjectsPage();}}
             else if(e.target.closest('.edit-task-btn')){entryEl.querySelector('.view-mode').classList.add('hidden');entryEl.querySelector('.edit-mode').classList.remove('hidden');const notesInput=entryEl.querySelector('.edit-task-notes');if(notesInput){notesInput.dispatchEvent(new Event('input',{bubbles:true}));}}
             else if(e.target.closest('.cancel-edit-btn')){entryEl.querySelector('.view-mode').classList.remove('hidden');entryEl.querySelector('.edit-mode').classList.add('hidden');}
-            else if(e.target.closest('.save-task-btn')){const t=tasks.find(t=>t.id===tId);if(!t)return;const i=entryEl.querySelectorAll('.edit-mode input, .edit-mode textarea');t.description=i[0].value;t.notes=i[1].value;t.tags=i[2].value.trim().split(/[\s,]+/).filter(Boolean);const nD=i[3].value;t.startTime=new Date(`${nD}T${i[4].value}`).getTime();t.endTime=new Date(`${nD}T${i[5].value}`).getTime();await updateData('tasks',t);entryEl.querySelector('.view-mode').classList.remove('hidden');entryEl.querySelector('.edit-mode').classList.add('hidden');renderProjectEntries(currentDetailProjectId,document.querySelector('#detail-date-filters .detail-filter-btn.active').dataset.filter);updateDashboardTotalTime();renderDashboardProjects();}}}
-            const completedProjectsView=e.target.closest('#page-completed-projects');if(completedProjectsView){if(e.target.closest('.back-to-dashboard-btn'))navigateTo('page-tracker');if(e.target.closest('.completed-project-link')){const pId=parseInt(e.target.closest('.completed-project-link').dataset.projectId);openProjectDetailView(pId);}}});
+            else if(e.target.closest('.save-task-btn')){const t=tasks.find(t=>t.id===tId);if(!t)return;const i=entryEl.querySelectorAll('.edit-mode input, .edit-mode textarea');t.description=i[0].value;t.notes=i[1].value;t.tags=i[2].value.trim().split(/[\s,]+/).filter(Boolean);const nD=i[3].value;t.startTime=new Date(`${nD}T${i[4].value}`).getTime();t.endTime=new Date(`${nD}T${i[5].value}`).getTime();await updateData('tasks',t);entryEl.querySelector('.view-mode').classList.remove('hidden');entryEl.querySelector('.edit-mode').classList.add('hidden');renderProjectEntries(currentDetailProjectId,document.querySelector('#detail-date-filters .detail-filter-btn.active').dataset.filter);updateDashboardTotalTime();renderProjectsPage();}}}
+            const completedProjectsView=e.target.closest('#page-completed-projects');if(completedProjectsView){if(e.target.closest('.back-to-dashboard-btn'))navigateTo('page-projects');if(e.target.closest('.completed-project-link')){const pId=parseInt(e.target.closest('.completed-project-link').dataset.projectId);openProjectDetailView(pId);}}
+            if(e.target.closest('.accent-swatch')) { const theme = e.target.dataset.theme; applyAccentTheme(theme); document.querySelectorAll('.accent-swatch').forEach(el => el.classList.remove('selected')); e.target.classList.add('selected'); }
+        });
         
         document.getElementById('add-project-form').addEventListener('submit',saveNewProject);
         document.getElementById('manual-entry-form').addEventListener('submit',saveManualEntry);
@@ -716,17 +788,15 @@
             if(e.target.matches('#import-file-input'))importDataFromJSON(e);
             if(e.target.matches('#reports-date-start')||e.target.matches('#reports-date-end')){const sE=document.getElementById('reports-date-start'),eE=document.getElementById('reports-date-end');if(sE&&eE&&sE.value&&eE.value)renderReportData('custom',{start:sE.value,end:eE.value});}
             if(e.target.matches('.predefined-task-checkbox')){const taskEl=e.target.closest('[data-task-id]');const taskId=parseInt(taskEl.dataset.taskId);const task=predefinedTasks.find(t=>t.id===taskId);if(task){task.isCompleted=e.target.checked;task.completedDate=e.target.checked?Date.now():null;await updateData('predefinedTasks',task);renderTasksPage();}}
-            const detailView=e.target.closest('#detail-view-content');if(detailView){if(e.target.matches('.project-status-radio')){const newStatus=e.target.value;const p=projects.find(proj=>proj.id===currentDetailProjectId);if(p&&p.status!==newStatus){const oldStatus=p.status;p.status=newStatus;await updateData('projects',p);renderDashboardProjects();if(oldStatus==='open'&&newStatus==='completed'){navigateTo('page-completed-projects');}else if(oldStatus==='completed'&&newStatus==='open'){navigateTo('page-tracker');}}}
+            const detailView=e.target.closest('#detail-view-content');if(detailView){if(e.target.matches('.project-status-radio')){const newStatus=e.target.value;const p=projects.find(proj=>proj.id===currentDetailProjectId);if(p&&p.status!==newStatus){const oldStatus=p.status;p.status=newStatus;await updateData('projects',p);renderProjectsPage();renderTrackerPage();if(oldStatus==='open'&&newStatus==='completed'){navigateTo('page-completed-projects');}else if(oldStatus==='completed'&&newStatus==='open'){navigateTo('page-projects');}}}
             const sE=detailView.querySelector('#detail-date-start'),eE=detailView.querySelector('#detail-date-end');if(sE&&eE&&sE.value&&eE.value){detailView.querySelectorAll('#detail-date-filters .detail-filter-btn').forEach(b=>b.classList.remove('bg-card','shadow'));renderProjectEntries(currentDetailProjectId,'range',{start:sE.value,end:eE.value});}}});
         
-        document.addEventListener('input',e=>{const input=e.target;if(input.matches('.task-description-input')){const card=input.closest('.project-item');const pId=parseInt(card.dataset.projectId);const dropdown=card.querySelector('.custom-task-dropdown');const projectTasks=predefinedTasks.filter(t=>t.projectId===pId || !t.projectId);const filter=input.value.toLowerCase();const filteredTasks=projectTasks.filter(t=>t.description.toLowerCase().includes(filter));dropdown.innerHTML=filteredTasks.map(t=>`<div class="p-2 hover:bg-card-secondary cursor-pointer">${t.description}</div>`).join('');dropdown.classList.toggle('hidden',!filteredTasks.length);if(activeTimer)activeTimer.description=input.value;localStorage.setItem('activeTimerState',JSON.stringify(activeTimer));}
+        document.addEventListener('input',e=>{const input=e.target;if(input.matches('.task-description-input')){ if(activeTimer)activeTimer.description=input.value;localStorage.setItem('activeTimerState',JSON.stringify(activeTimer));}
         else if(e.target.matches('.task-notes-input')||e.target.matches('.task-tags-input')){if(!activeTimer)return;if(e.target.matches('.task-notes-input'))activeTimer.notes=e.target.value;else if(e.target.matches('.task-tags-input'))activeTimer.tags=e.target.value.trim().split(/[\s,]+/).filter(Boolean);localStorage.setItem('activeTimerState',JSON.stringify(activeTimer));}});
-        document.addEventListener('focusin', e => { if (e.target.matches('.task-description-input')) { const card = e.target.closest('.project-item'); const dropdown = card.querySelector('.custom-task-dropdown'); dropdown.classList.remove('hidden'); e.target.dispatchEvent(new Event('input', { bubbles: true })); }});
-        document.addEventListener('focusout', e => { if (e.target.matches('.task-description-input')) { setTimeout(() => { const card = e.target.closest('.project-item'); const dropdown = card.querySelector('.custom-task-dropdown'); if (dropdown) dropdown.classList.add('hidden'); }, 150); }});
-        document.addEventListener('mousedown', e => { if (e.target.closest('.custom-task-dropdown > div')) { const card = e.target.closest('.project-item'); const input = card.querySelector('.task-description-input'); input.value = e.target.textContent; card.querySelector('.custom-task-dropdown').classList.add('hidden'); if(activeTimer) { activeTimer.description = input.value; localStorage.setItem('activeTimerState', JSON.stringify(activeTimer)); } e.preventDefault(); }});
         
         const initializeApp = async () => { 
             applyTheme(localStorage.getItem('theme') || 'light'); 
+            applyAccentTheme(localStorage.getItem('accentTheme') || 'theme-teal');
             await loadData();
             checkPersistentTimer();
             navigateTo('page-tracker');
