@@ -503,7 +503,7 @@
         
         const updatePageHeader=(pageId)=>{
             const now=new Date();
-            const dateString=now.toLocaleDateString(undefined,{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+            const dateString=now.toLocaleDateString(undefined,{weekday:'long',year:'numeric',month:'long',day:'numeric', timeZone: 'America/Chicago'});
             document.getElementById('page-date').textContent = dateString;
             
             let title = 'Timer';
