@@ -85,7 +85,7 @@
         .project-card { display: flex; align-items: center; background: var(--card); border-radius: 12px; border: 1px solid var(--border); transition: all 0.2s ease; position: relative; overflow: hidden; padding: 12px; gap: 12px; border-left-width: 5px; }
         .project-card:hover { border-color: var(--input-border); transform: translateY(-1px); box-shadow: 0 4px 12px var(--shadow-color); }
         .project-card-list { display: flex; flex-direction: column; gap: 12px; }
-        .project-card-info { flex-grow: 1; min-width: 0; }
+        .project-card-info { flex-grow: 1; min-width: 0; cursor: pointer; }
         .project-card-name { font-weight: 500; color: var(--foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .project-card-time { font-size: 13px; color: var(--muted-foreground); }
         .project-card-action { flex-shrink: 0; }
@@ -109,7 +109,7 @@
         .report-task-item { cursor: pointer; } .report-task-item:hover { background-color: var(--card-secondary); }
         
         /* Session Page Styles */
-        body.in-session-mode .app-header { background: var(--session-project-color); min-height: auto; padding-bottom: 12px; }
+        body.in-session-mode .app-header { background: var(--session-project-color); }
         body.in-session-mode .app-header-top, body.in-session-mode #add-btn-header { display: none; }
         #session-timer-display { font-variant-numeric: tabular-nums; }
         #session-task-list .task-item { display: flex; align-items: center; gap: 12px; }
@@ -408,18 +408,14 @@
             </div>
             <div class="bg-card p-4 rounded-lg border border-border space-y-3">
                 <h2 class="text-lg font-semibold">Data Management</h2>
-                <div class="flex items-center justify-between">
-                    <div>
-                        <label for="auto-backup-toggle" class="font-medium">Automatic Daily Backup</label>
-                        <p id="last-backup-info" class="text-xs text-muted-foreground">Backs up at 12:00 PM daily.</p>
-                    </div>
-                    <label for="auto-backup-toggle" class="flex items-center cursor-pointer"><div class="relative"><input type="checkbox" id="auto-backup-toggle" class="sr-only toggle-checkbox"><div class="block bg-gray-300 dark:bg-gray-600 w-12 h-6 rounded-full"></div><div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition"></div></div></label>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <button id="import-json-btn" class="w-full text-center py-2 px-4 rounded-lg font-semibold border border-input-border hover:bg-card-secondary">Import from JSON</button>
                     <button id="export-json-btn" class="w-full text-center py-2 px-4 rounded-lg font-semibold border border-input-border hover:bg-card-secondary">Export to JSON</button>
                 </div>
                 <input type="file" id="import-file-input" class="hidden" accept="application/json">
+                 <div class="pt-2">
+                    <button id="clear-data-btn" class="w-full text-center py-2 px-4 rounded-lg font-semibold border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/50">Clear All Data</button>
+                 </div>
             </div>
             <div class="bg-card p-4 rounded-lg border border-border space-y-3">
                 <h2 class="text-lg font-semibold">Export CSV Report</h2>
@@ -526,6 +522,10 @@
                     'page-completed-projects': 'Completed Projects'
                 };
                 title = titles[pageId] || 'Timer';
+                 if(pageId === 'page-detail' && currentDetailProjectId) {
+                     const project = projects.find(p => p.id === currentDetailProjectId);
+                     if(project) title = project.name;
+                 }
             }
             document.getElementById('page-title').textContent = title;
 
@@ -644,13 +644,13 @@
             
             listEl.innerHTML=projects.filter(p=>p.status!=='completed').map(p=>{
                 const timeTodayMs = getTodaysTimeForProjectMs(p.id);
-                return `<div class="project-card edit-project-btn" data-project-id="${p.id}" style="border-left-color: ${p.color};">
-                    <div class="project-card-info">
+                return `<div class="project-card" data-project-id="${p.id}" style="border-left-color: ${p.color};">
+                    <div class="project-card-info view-project-detail-btn">
                         <div class="project-card-name">${p.name}</div>
                         <div class="project-card-time">Today: ${formatDuration(timeTodayMs)}</div>
                     </div>
                     <div class="project-card-action">
-                        <i data-lucide="pencil" class="w-5 h-5 text-muted-foreground"></i>
+                        <button class="action-btn edit-project-btn"><i data-lucide="pencil" class="w-5 h-5"></i></button>
                     </div>
                 </div>`;
             }).join('');
@@ -673,13 +673,13 @@
 
             listEl.innerHTML = sP.map(p => {
                  const timeTodayMs = getTodaysTimeForProjectMs(p.id);
-                 return `<div class="project-card start-timer-btn" data-project-id="${p.id}" style="border-left-color: ${p.color};">
-                    <div class="project-card-info">
+                 return `<div class="project-card" data-project-id="${p.id}" style="border-left-color: ${p.color};">
+                    <div class="project-card-info view-project-detail-btn">
                         <div class="project-card-name">${p.name}</div>
                     </div>
                     <div class="project-card-action flex items-center gap-4">
                         <span class="font-semibold text-muted-foreground">${formatDuration(timeTodayMs)}</span>
-                        <button class="action-btn"><i data-lucide="play" class="w-5 h-5"></i></button>
+                        <button class="action-btn start-timer-btn"><i data-lucide="play" class="w-5 h-5"></i></button>
                     </div>
                 </div>`;
             }).join('');
@@ -749,7 +749,7 @@
                      <div id="session-task-list">${tasksHTML || '<p class="text-sm text-muted-foreground py-2">No predefined tasks. Add some below!</p>'}</div>
                      <form id="add-session-task-form" class="flex gap-2 mt-4">
                         <input type="text" id="new-session-task-input" class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border" placeholder="Add a new task for this session...">
-                        <button type="submit" class="action-btn bg-primary-accent text-white border-transparent"><i data-lucide="plus"></i></button>
+                        <button type="submit" class="action-btn bg-primary-accent text-white border-transparent hover:bg-primary-accent"><i data-lucide="plus"></i></button>
                      </form>
                 </div>
                 
@@ -841,7 +841,7 @@
             if(e.target.closest('.delete-predefined-task-btn')){const taskEl=e.target.closest('[data-task-id]');if(taskEl){const taskId=parseInt(taskEl.dataset.taskId);if(confirm('Delete this pre-defined task?')){await deleteData('predefinedTasks',taskId);predefinedTasks=predefinedTasks.filter(t=>t.id!==taskId);renderTasksPage();}}}
             if(e.target.closest('.edit-predefined-task-btn')){const taskEl=e.target.closest('[data-task-id]');if(taskEl){const taskId=parseInt(taskEl.dataset.taskId);const task=predefinedTasks.find(t=>t.id===taskId);if(task){const modal=document.getElementById('add-predefined-task-modal');modal.querySelector('form').reset();modal.querySelector('#predefined-task-modal-title').textContent="Edit Task";const select=modal.querySelector('#predefined-task-project');select.innerHTML=`<option value="">General Task</option>`+projects.filter(p=>p.status!=='completed').map(p=>`<option value="${p.id}">${p.name}</option>`).join('');modal.querySelector('#predefined-task-id').value=task.id;modal.querySelector('#predefined-task-desc').value=task.description;modal.querySelector('#predefined-task-project').value=task.projectId||'';modal.querySelector('#predefined-task-due-date').value=task.dueDate||'';modal.querySelector('#predefined-task-notes').value=task.notes||'';modal.querySelector('#predefined-task-tags').value=(task.tags||[]).join(', ');openModal(modal);}}}
             if(e.target.closest('#view-completed-projects-btn'))navigateTo('page-completed-projects');
-            if(e.target.closest('.edit-project-btn')) { startTimer(parseInt(e.target.closest('.edit-project-btn').dataset.projectId)); }
+            if(e.target.closest('.edit-project-btn')) { currentDetailProjectId = parseInt(e.target.closest('.edit-project-btn').dataset.projectId); navigateTo('page-detail'); }
             if(e.target.closest('.start-timer-btn')) { startTimer(parseInt(e.target.closest('.start-timer-btn').dataset.projectId)); }
             if(e.target.closest('#session-pause-resume-btn')) { if(activeTimer.isPaused) resumeTimer(); else pauseTimer(); }
             if(e.target.closest('#session-stop-btn')) { stopTimer(); }
@@ -859,9 +859,19 @@
                 }
             }
 
-            const completedProjectsView=e.target.closest('#page-completed-projects');if(completedProjectsView){if(e.target.closest('.back-to-dashboard-btn'))navigateTo('page-projects');if(e.target.closest('.completed-project-link')){const pId=parseInt(e.target.closest('.completed-project-link').dataset.projectId);navigateTo('page-session'); currentDetailProjectId = pId; renderSessionPage();}}
+            const completedProjectsView=e.target.closest('#page-completed-projects');if(completedProjectsView){if(e.target.closest('.back-to-dashboard-btn'))navigateTo('page-projects');if(e.target.closest('.completed-project-link')){const pId=parseInt(e.target.closest('.completed-project-link').dataset.projectId);currentDetailProjectId=pId;navigateTo('page-detail');}}
             if(e.target.closest('.accent-swatch')) { const theme = e.target.dataset.theme; applyAccentTheme(theme); document.querySelectorAll('.accent-swatch').forEach(el => el.classList.remove('selected')); e.target.classList.add('selected'); }
             if(e.target.closest('.report-task-item')) { const taskId = parseInt(e.target.closest('.report-task-item').dataset.taskId); openManualEntryModalForEdit(taskId); }
+            if(e.target.closest('#clear-data-btn')) {
+                document.getElementById('confirmation-title').textContent = 'Clear All Data?';
+                document.getElementById('confirmation-message').textContent = 'This will permanently delete all projects, tasks, and time entries. This action cannot be undone.';
+                document.getElementById('confirm-navigation-btn').dataset.action = 'clear-data';
+                openModal(document.getElementById('confirmation-modal'));
+            }
+             if(e.target.closest('#confirm-navigation-btn') && e.target.closest('#confirm-navigation-btn').dataset.action === 'clear-data') {
+                await Promise.all([clearData('projects'), clearData('tasks'), clearData('accomplishments'), clearData('predefinedTasks')]);
+                location.reload();
+             }
         });
         
         document.getElementById('add-project-form').addEventListener('submit',saveNewProject);
