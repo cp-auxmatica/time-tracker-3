@@ -6,7 +6,7 @@
     <title>time</title>
     
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#14b8a6">
+    <meta name="theme-color" id="theme-color-meta" content="#14b8a6">
     
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🕰️</text></svg>">
     <script src="https://cdn.tailwindcss.com/3.4.1?plugins=typography"></script>
@@ -62,7 +62,7 @@
         .modal-backdrop { position: fixed; inset: 0; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 40; } 
         .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 50; }
 
-        .app-header { background: var(--header-bg); color: var(--header-foreground); padding: 16px 24px 20px; position: sticky; top: 0; z-index: 30; }
+        .app-header { background: var(--header-bg); color: var(--header-foreground); padding: 16px 24px 20px; position: sticky; top: 0; z-index: 30; transition: all 0.3s ease; }
         .app-header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
         .app-title { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 500; opacity: 0.9; }
         .app-icon { width: 24px; height: 24px; background: rgba(255,255,255,0.15); border-radius: 6px; display: flex; align-items: center; justify-content: center; }
@@ -92,16 +92,8 @@
         .action-btn { width: 36px; height: 36px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-secondary); color: var(--muted-foreground); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease; }
         .action-btn:hover { border-color: var(--primary-accent); color: var(--primary-accent); background: var(--primary-accent-light); }
         
-        .tracker-list { display: flex; flex-direction: column; gap: 16px; }
-        .tracker-item { background: var(--card); border-radius: 16px; border: 1px solid var(--border); overflow: hidden; transition: all 0.3s ease; border-left-width: 5px; }
-        .tracker-item-header { display: flex; align-items: center; gap: 12px; padding: 12px; cursor: pointer; }
-        .tracker-item.is-expanded { box-shadow: 0 8px 24px var(--shadow-color); border-color: var(--input-border); }
-        .tracker-tasks { max-height: 0; overflow: hidden; transition: max-height 0.4s ease, padding 0.4s ease; }
-        .tracker-item.is-expanded .tracker-tasks { max-height: 500px; }
-        .task-list { padding: 0 16px 16px; border-top: 1px solid var(--border); }
-        .task-item { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
-        .task-item:last-child { border-bottom: none; }
-
+        .timer-list { display: flex; flex-direction: column; gap: 12px; }
+        
         .completed-link { text-align: center; padding: 24px; border-top: 1px solid var(--border); margin-top: 16px; }
         .completed-link a { color: var(--muted-foreground); text-decoration: none; font-size: 14px; font-weight: 500; transition: color 0.2s ease; }
         .completed-link a:hover { color: var(--primary-accent); }
@@ -110,20 +102,21 @@
         .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: rgba(255,255,255,0.7); text-decoration: none; font-size: 11px; font-weight: 500; transition: color 0.2s ease; flex: 1; padding: 8px 0; border: none; background: none; }
         .nav-item.active { color: #ffffff; }
         
-        /* Focus Mode Styles */
-        .project-item-placeholder { border-radius: 12px; transition: all 0.4s ease-in-out; flex-shrink: 0; border: 1px solid var(--border); }
-        .tracker-list.focused-mode .tracker-item:not(.is-focused) { opacity: 0; transform: scale(0.9); pointer-events: none; }
-        .tracker-item.is-focused { z-index: 50; }
-        body.focus-mode-active .controls, body.focus-mode-active .bottom-nav { opacity: 0; pointer-events: none; transition: opacity 0.4s ease; }
-        .is-focused .expanded-content { grid-template-rows: 1fr; }
-        .expanded-content { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.4s ease-in-out; } .expanded-content > div { overflow: hidden; } 
-        
         input.toggle-checkbox:checked ~ .dot { transform: translateX(100%); background-color: var(--primary-accent); }
         .color-swatch, .accent-swatch { width: 2.5rem; height: 2.5rem; border-radius: 9999px; cursor: pointer; border: 3px solid transparent; transition: all 0.2s; }
         .color-swatch.selected, .accent-swatch.selected { border-color: var(--primary-accent); transform: scale(1.1); }
-        .custom-task-dropdown { position: absolute; top: 100%; left:0; right: 0; max-height: 150px; overflow-y: auto; background: var(--card); border: 1px solid var(--border); border-radius: 0.5rem; z-index: 10; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .tag { background-color: var(--card-secondary); color: var(--muted-foreground); padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 500; }
         .report-task-item { cursor: pointer; } .report-task-item:hover { background-color: var(--card-secondary); }
+        
+        /* Session Page Styles */
+        body.in-session-mode .app-header { background: var(--session-project-color); min-height: auto; padding-bottom: 12px; }
+        body.in-session-mode .app-header-top, body.in-session-mode #add-btn-header { display: none; }
+        #session-timer-display { font-variant-numeric: tabular-nums; }
+        #session-task-list .task-item { display: flex; align-items: center; gap: 12px; }
+        #session-task-list .task-item input[type=checkbox] { width: 1.25rem; height: 1.25rem; }
+        #session-view-content { display: flex; flex-direction: column; min-height: calc(100vh - 120px - 80px); /* Full height minus header and nav */ }
+        #session-notes-container { flex-grow: 1; display: flex; flex-direction: column; }
+        #session-notes { flex-grow: 1; }
     </style>
 </head>
 <body class="theme-teal">
@@ -160,7 +153,7 @@
                         </div>
                          <div class="today-time">Today: <b id="dashboard-total-time">0m</b></div>
                     </div>
-                    <div id="tracker-list" class="tracker-list"></div>
+                    <div id="timer-list" class="timer-list project-card-list"></div>
                 </div>
             </div>
             <div id="page-projects" class="page">
@@ -176,6 +169,7 @@
             <div id="page-reports" class="page"><div id="reports-content" class="main-content"></div></div>
             <div id="page-accomplishments" class="page"><div id="accomplishments-content" class="main-content"></div></div>
             <div id="page-settings" class="page"><div id="settings-content" class="main-content"></div></div>
+            <div id="page-session" class="page"><div id="session-view-content" class="p-4"></div></div>
             <div id="page-detail" class="page"><div id="detail-view-content" class="main-content"></div></div>
             <div id="page-completed-projects" class="page"><div id="completed-projects-content" class="main-content"></div></div>
         </main>
@@ -330,6 +324,23 @@
             </div>
         </form>
     </div>
+    <div id="confirmation-modal" class="modal hidden w-11/12 max-w-sm">
+        <div class="bg-[var(--card)] rounded-lg shadow-xl border border-[var(--border)] p-6 space-y-4">
+            <h2 id="confirmation-title" class="text-lg font-bold">Leave Session?</h2>
+            <p id="confirmation-message" class="text-sm text-muted-foreground">Your timer is running. Leaving this page will stop and save your current session.</p>
+            <div class="flex justify-end gap-3 pt-4">
+                <button type="button" id="cancel-confirmation-btn" class="px-5 py-2 text-base font-semibold rounded-lg hover:bg-card-secondary">Cancel</button>
+                <button type="button" id="confirm-navigation-btn" class="px-5 py-2 text-base font-semibold text-white rounded-lg" style="background-color: var(--danger);">Stop & Leave</button>
+            </div>
+        </div>
+    </div>
+     <div id="notes-view-modal" class="modal hidden w-11/12 max-w-md">
+        <div class="bg-[var(--card)] rounded-lg shadow-xl border border-[var(--border)] p-6 space-y-4">
+            <h2 class="text-xl font-bold">Session Notes</h2>
+            <div id="notes-view-content" class="text-sm text-muted-foreground whitespace-pre-wrap max-h-60 overflow-y-auto"></div>
+            <button id="close-notes-view-btn" class="mt-4 w-full px-4 py-2 font-semibold rounded-lg bg-card-secondary hover:bg-border">Close</button>
+        </div>
+    </div>
     
     <!-- Templates -->
     <template id="accomplishments-page-template">
@@ -434,8 +445,13 @@
         let projects = [], tasks = [], accomplishments = [], predefinedTasks = [], activeTimer = null, timerInterval = null;
         let currentDetailProjectId = null, currentSort = 'latest';
         let dom = {};
-        let focusedCardState = null;
-        let isAnimating = false;
+        let navigationIntent = null;
+        
+        const THEME_COLORS = { 
+            'theme-teal': '#0d9488', 'theme-indigo': '#4f46e5', 'theme-orange': '#ea580c', 
+            'theme-blue': '#2563eb', 'theme-mono': '#1e293b'
+        };
+        const DARK_THEME_COLOR = '#000000';
 
         const PALETTE = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ef4444', '#ec4899', '#6366f1', '#14b8a6'];
 
@@ -459,8 +475,24 @@
         const loadData=async()=>{await openDB();[projects,tasks,accomplishments,predefinedTasks]=await Promise.all([getAllData('projects'),getAllData('tasks'),getAllData('accomplishments'),getAllData('predefinedTasks')]);updateDashboardTotalTime();};
         const checkPersistentTimer=()=>{const s=localStorage.getItem('activeTimerState');if(s){activeTimer=JSON.parse(s);startTimerInterval();}};
 
-        const applyTheme=(t)=>{if(t==='dark'){document.documentElement.classList.add('dark');}else{document.documentElement.classList.remove('dark');}if(dom.darkModeToggle)dom.darkModeToggle.checked = (t === 'dark');};
-        const applyAccentTheme=(themeName)=>{ document.body.classList.remove('theme-teal', 'theme-mono', 'theme-indigo', 'theme-orange', 'theme-blue'); document.body.classList.add(themeName); localStorage.setItem('accentTheme', themeName); };
+        const applyTheme=(t)=>{
+            const themeMeta = document.getElementById('theme-color-meta');
+            const currentAccent = localStorage.getItem('accentTheme') || 'theme-teal';
+            if(t==='dark'){
+                document.documentElement.classList.add('dark');
+                if(themeMeta) themeMeta.setAttribute('content', DARK_THEME_COLOR);
+            }else{
+                document.documentElement.classList.remove('dark');
+                if(themeMeta) themeMeta.setAttribute('content', THEME_COLORS[currentAccent]);
+            }
+            if(dom.darkModeToggle)dom.darkModeToggle.checked = (t === 'dark');
+        };
+        const applyAccentTheme=(themeName)=>{ 
+            document.body.classList.remove('theme-teal', 'theme-mono', 'theme-indigo', 'theme-orange', 'theme-blue'); 
+            document.body.classList.add(themeName); 
+            localStorage.setItem('accentTheme', themeName);
+            applyTheme(localStorage.getItem('theme'));
+        };
         const toggleTheme=()=>{const newTheme = document.documentElement.classList.contains('dark') ? 'light' : 'dark'; localStorage.setItem('theme', newTheme); applyTheme(newTheme);};
 
         const exportDataAsJSON=async(isAuto=false)=>{const all={projects:await getAllData('projects'),tasks:await getAllData('tasks'),accomplishments:await getAllData('accomplishments'), predefinedTasks:await getAllData('predefinedTasks')};const d=new Date().toISOString().split('T')[0];const f=isAuto?`work_app_auto_backup_${d}.json`:'work_app_manual_backup.json';downloadFile(JSON.stringify(all,null,2),f,'application/json');if(isAuto)localStorage.setItem('lastAutoBackup',new Date().toISOString());};
@@ -477,14 +509,26 @@
             const now=new Date();
             const dateString=now.toLocaleDateString(undefined,{weekday:'long',year:'numeric',month:'long',day:'numeric'});
             document.getElementById('page-date').textContent = dateString;
+            
+            let title = 'Timer';
+            if (pageId === 'page-session' && activeTimer) {
+                const project = projects.find(p => p.id === activeTimer.projectId);
+                title = project ? project.name : 'Active Session';
+                document.body.classList.add('in-session-mode');
+                document.body.style.setProperty('--session-project-color', project.color || '#cccccc');
+            } else {
+                 document.body.classList.remove('in-session-mode');
+                 document.body.style.removeProperty('--session-project-color');
+                 const titles = {
+                    'page-timer': 'Timer', 'page-projects': 'Projects', 'page-tasks': 'Tasks', 
+                    'page-reports': 'Reports', 'page-accomplishments': 'Goals', 'page-settings': 'Settings',
+                    'page-detail': 'Project Details',
+                    'page-completed-projects': 'Completed Projects'
+                };
+                title = titles[pageId] || 'Timer';
+            }
+            document.getElementById('page-title').textContent = title;
 
-            const titles = {
-                'page-timer': 'Timer', 'page-projects': 'Projects', 'page-tasks': 'Tasks', 
-                'page-reports': 'Reports', 'page-accomplishments': 'Goals', 'page-settings': 'Settings',
-                'page-detail': projects.find(p => p.id === currentDetailProjectId)?.name || 'Project Detail',
-                'page-completed-projects': 'Completed Projects'
-            };
-            document.getElementById('page-title').textContent = titles[pageId] || 'Timer';
             const addBtn = document.getElementById('add-btn-header');
             if(addBtn) {
                  addBtn.style.display = 'flex';
@@ -507,128 +551,91 @@
                 case 'page-accomplishments': renderAccomplishmentsPage(); break;
                 case 'page-settings': renderSettingsPage(); break;
                 case 'page-tasks': renderTasksPage(); break;
+                case 'page-session': renderSessionPage(); break;
+                case 'page-detail': renderProjectDetailPage(); break;
                 case 'page-completed-projects': renderCompletedProjectsPage(); break;
             }
             updatePageHeader(pageId);
             lucide.createIcons();
         };
 
-        const startTimerInterval=()=>{if(timerInterval)clearInterval(timerInterval);timerInterval=setInterval(()=>{if(activeTimer&&!activeTimer.isPaused){const elapsed=Date.now()-activeTimer.startTime-activeTimer.totalPausedTime;const el=document.querySelector(`.tracker-item.is-running .live-timer-display`);if(el)el.textContent=formatTime(elapsed>0?elapsed:0);updateDashboardTotalTime();}},1000);};
+        const startTimerInterval=()=>{if(timerInterval)clearInterval(timerInterval);timerInterval=setInterval(()=>{if(activeTimer&&!activeTimer.isPaused){const elapsed=Date.now()-activeTimer.startTime-activeTimer.totalPausedTime;const el=document.getElementById(`session-timer-display`);if(el)el.textContent=formatTime(elapsed>0?elapsed:0);updateDashboardTotalTime();}},1000);};
         const stopTimerInterval=()=>{clearInterval(timerInterval);timerInterval=null;};
         
-        const focusOnCard = (card) => {
-            if (!card || isAnimating) return;
-            isAnimating = true;
-            document.body.classList.add('focus-mode-active');
-            
-            const list = document.getElementById('tracker-list');
-            const rect = card.getBoundingClientRect();
-
-            const placeholder = document.createElement('div');
-            placeholder.className = 'project-item-placeholder';
-            placeholder.style.width = `${rect.width}px`;
-            placeholder.style.height = `${rect.height}px`;
-            
-            if(card.parentElement === list) list.insertBefore(placeholder, card);
-            focusedCardState = { card, placeholder };
-
-            Object.assign(card.style, {
-                position: 'fixed', left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`,
-                height: `${rect.height}px`, zIndex: '50'
-            });
-            
-            card.classList.add('is-focused');
-            if (list) list.classList.add('focused-mode');
-
-            requestAnimationFrame(() => {
-                const headerEl = document.querySelector('.app-header');
-                const headerHeight = headerEl ? headerEl.offsetHeight : 80;
-                const targetTop = headerHeight + 20;
-                const targetHeight = window.innerHeight - targetTop - 20;
-                const vw = window.innerWidth;
-                let targetWidth = Math.min(600, vw * 0.9);
-                Object.assign(card.style, { left: `${(vw - targetWidth) / 2}px`, top: `${targetTop}px`, width: `${targetWidth}px`, height: `${targetHeight}px` });
-                setTimeout(() => { isAnimating = false; }, 500);
-            });
-        };
-
-        const unfocusCard = () => {
-            return new Promise(resolve => {
-                if (!focusedCardState || isAnimating) { resolve(); return; }
-                isAnimating = true;
-                document.body.classList.remove('focus-mode-active');
-                const { card, placeholder } = focusedCardState;
-                const list = document.getElementById('tracker-list');
-                const rect = placeholder.getBoundingClientRect();
-                Object.assign(card.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` });
-                if (list) list.classList.remove('focused-mode');
-                const onEnd = (event) => {
-                    if (event && event.target !== card) return;
-                    card.removeEventListener('transitionend', onEnd);
-                    Object.assign(card.style, { position: '', left: '', top: '', width: '', height: '', zIndex: '', transition: '' });
-                    card.classList.remove('is-focused');
-                    if (placeholder) placeholder.remove();
-                    focusedCardState = null; isAnimating = false; resolve();
-                };
-                card.addEventListener('transitionend', onEnd);
-                setTimeout(() => { onEnd(null); }, 550);
-            });
-        };
-        
-        const updateRunningCard = () => {
-            if (!activeTimer) return;
-            const card = document.querySelector('.tracker-item.is-running');
-            if (!card) return;
-            const projectDetailsEl = card.querySelector('.project-details');
-            if (!projectDetailsEl) return;
-            let liveDisplayTime = "00:00:00", elapsed;
-            if (activeTimer.isPaused) { elapsed = activeTimer.pauseStartTime - activeTimer.startTime - activeTimer.totalPausedTime; } 
-            else { elapsed = Date.now() - activeTimer.startTime - activeTimer.totalPausedTime; }
-            liveDisplayTime = formatTime(elapsed > 0 ? elapsed : 0);
-            projectDetailsEl.innerHTML = `<div class="flex items-center space-x-2">
-                <span class="text-xl font-semibold live-timer-display" style="color: ${activeTimer.isPaused ? 'var(--warning)' : 'var(--success)'}">${liveDisplayTime}</span>
-                <button class="timer-control-btn ${activeTimer.isPaused ? 'resume-timer-btn' : 'pause-timer-btn'} w-10 h-10 rounded-lg flex items-center justify-center text-xl" style="background-color: var(--warning); color: white;"><i data-lucide="${activeTimer.isPaused ? 'play' : 'pause'}"></i></button>
-                <button class="timer-control-btn stop-timer-btn w-10 h-10 rounded-lg flex items-center justify-center text-xl" style="background-color: var(--danger); color: white;"><i data-lucide="stop-circle"></i></button>
-               </div>`;
-            lucide.createIcons();
-        };
-
-        const startTimer = async (id, taskDescription = '') => {
-            if (isAnimating) return;
+        const startTimer = async (id) => {
             if (activeTimer) await stopTimer();
             const now = Date.now();
-            activeTimer = { projectId: id, description: taskDescription, notes: '', tags: [], startTime: now, totalPausedTime: 0, isPaused: false, pauseStartTime: null };
+            activeTimer = { 
+                projectId: id, 
+                startTime: now, 
+                totalPausedTime: 0, 
+                isPaused: false, 
+                pauseStartTime: null,
+                sessionTasks: [],
+                notes: '',
+                tags: []
+            };
             localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));
             startTimerInterval();
-            renderTimerPage(); 
-            setTimeout(() => { const card = document.querySelector(`.tracker-item[data-project-id="${id}"]`); if (card) focusOnCard(card); }, 50); 
+            navigateTo('page-session'); 
         };
 
-        const pauseTimer=()=>{ if (!activeTimer || activeTimer.isPaused) return; activeTimer.isPaused=true; activeTimer.pauseStartTime=Date.now(); localStorage.setItem('activeTimerState', JSON.stringify(activeTimer)); stopTimerInterval(); updateRunningCard(); };
-        const resumeTimer=()=>{ if (!activeTimer || !activeTimer.isPaused) return; activeTimer.totalPausedTime += Date.now() - activeTimer.pauseStartTime; activeTimer.isPaused = false; activeTimer.pauseStartTime = null; localStorage.setItem('activeTimerState', JSON.stringify(activeTimer)); startTimerInterval(); updateRunningCard(); };
+        const pauseTimer=()=>{ if (!activeTimer || activeTimer.isPaused) return; activeTimer.isPaused=true; activeTimer.pauseStartTime=Date.now(); localStorage.setItem('activeTimerState', JSON.stringify(activeTimer)); stopTimerInterval(); renderSessionPage(); };
+        const resumeTimer=()=>{ if (!activeTimer || !activeTimer.isPaused) return; activeTimer.totalPausedTime += Date.now() - activeTimer.pauseStartTime; activeTimer.isPaused = false; activeTimer.pauseStartTime = null; localStorage.setItem('activeTimerState', JSON.stringify(activeTimer)); startTimerInterval(); renderSessionPage(); };
 
         const stopTimer = async () => {
-            if (!activeTimer || isAnimating) return;
-            const cardDataSource = focusedCardState?.card || document.querySelector(`.tracker-item[data-project-id="${activeTimer.projectId}"]`);
-            if (cardDataSource) {
-                activeTimer.description = cardDataSource.querySelector('.task-description-input')?.value || activeTimer.description || 'Untitled Task';
-                activeTimer.notes = cardDataSource.querySelector('.task-notes-input')?.value || '';
-                const tagsInput = cardDataSource.querySelector('.task-tags-input')?.value.trim();
-                activeTimer.tags = tagsInput ? tagsInput.split(/[\s,]+/).map(t => t.startsWith('#') ? t : t) : [];
+            if (!activeTimer) return Promise.resolve();
+            
+            const sessionNotes = document.getElementById('session-notes')?.value || '';
+            const sessionTags = document.getElementById('session-tags')?.value.trim().split(/[\s,]+/).filter(Boolean) || [];
+            const completedSessionTasks = activeTimer.sessionTasks.filter(t => t.completed).map(t => t.description);
+
+            let combinedNotes = sessionNotes;
+            if (completedSessionTasks.length > 0) {
+                combinedNotes += `\n\nCompleted Tasks:\n- ${completedSessionTasks.join('\n- ')}`;
             }
+
             const endTime = activeTimer.isPaused ? activeTimer.pauseStartTime : Date.now();
             const duration = (endTime - activeTimer.startTime) - activeTimer.totalPausedTime;
-            const t = { projectId: activeTimer.projectId, description: activeTimer.description, notes: activeTimer.notes, tags: activeTimer.tags, startTime: activeTimer.startTime, endTime: activeTimer.startTime + duration };
-            const newId = await addData('tasks', t);
-            t.id = newId; tasks.push(t);
+            
+            const t = { 
+                projectId: activeTimer.projectId, 
+                description: `Work Session`, 
+                notes: combinedNotes.trim(), 
+                tags: sessionTags, 
+                startTime: activeTimer.startTime, 
+                endTime: activeTimer.startTime + duration 
+            };
+            
+            if (duration > 1000) { // Only save if more than a second
+                const newId = await addData('tasks', t);
+                t.id = newId; tasks.push(t);
+            }
+            
             localStorage.removeItem('activeTimerState');
-            activeTimer = null; stopTimerInterval();
-            await unfocusCard();
-            renderTimerPage(); updateDashboardTotalTime();
+            activeTimer = null; 
+            stopTimerInterval();
+            
+            navigateTo('page-timer'); 
+            updateDashboardTotalTime();
+            return Promise.resolve();
         };
         
         const saveNewProject=async(e)=>{e.preventDefault();const modal=document.getElementById('add-project-modal');const name=modal.querySelector('#new-project-name').value.trim();const color=modal.querySelector('#new-project-color').value;const description=modal.querySelector('#new-project-description').value.trim();if(!name||!color){alert("Project name and color are required.");return;}const p={id:Date.now(),name,description,color:color,estimate:parseFloat(modal.querySelector('#new-project-estimate').value)||0,status:'open'};await addData('projects',p);projects.push(p);renderProjectsPage();renderTimerPage();closeModal(modal);modal.querySelector('form').reset();};
-        const updateProject=async(id,data)=>{const p=projects.find(proj=>proj.id===id);if(p){Object.assign(p,data);await updateData('projects',p);openProjectDetailView(id);renderProjectsPage();renderTimerPage();}};
+        
+        const updateProject=async(id,data)=>{
+            const p = projects.find(proj => proj.id === id);
+            if(p){
+                Object.assign(p,data);
+                await updateData('projects',p);
+                renderProjectsPage();
+                renderTimerPage(); 
+                if (document.querySelector('.page.active').id === 'page-detail') {
+                    renderProjectDetailPage();
+                }
+            }
+        };
+
         const updateDashboardTotalTime=()=>{const el=document.getElementById('dashboard-total-time');if(!el)return;const sD=new Date().setHours(0,0,0,0);let t=tasks.filter(t=>t.endTime>=sD).reduce((s,t)=>s+(t.endTime-t.startTime),0);if(activeTimer){let elapsed;if(activeTimer.isPaused){elapsed=activeTimer.pauseStartTime-activeTimer.startTime-activeTimer.totalPausedTime;}else{elapsed=Date.now()-activeTimer.startTime-activeTimer.totalPausedTime;} t+=elapsed>0?elapsed:0;} el.textContent=formatDuration(t);};
         
         const renderProjectsPage = () => {
@@ -637,13 +644,13 @@
             
             listEl.innerHTML=projects.filter(p=>p.status!=='completed').map(p=>{
                 const timeTodayMs = getTodaysTimeForProjectMs(p.id);
-                return `<div class="project-card" data-project-id="${p.id}" style="border-left-color: ${p.color};">
+                return `<div class="project-card edit-project-btn" data-project-id="${p.id}" style="border-left-color: ${p.color};">
                     <div class="project-card-info">
                         <div class="project-card-name">${p.name}</div>
                         <div class="project-card-time">Today: ${formatDuration(timeTodayMs)}</div>
                     </div>
                     <div class="project-card-action">
-                        <button class="action-btn edit-project-btn" data-project-id="${p.id}"><i data-lucide="pencil" class="w-5 h-5"></i></button>
+                        <i data-lucide="pencil" class="w-5 h-5 text-muted-foreground"></i>
                     </div>
                 </div>`;
             }).join('');
@@ -651,7 +658,7 @@
         };
         
         const renderTimerPage = () => {
-            const listEl = document.getElementById('tracker-list');
+            const listEl = document.getElementById('timer-list');
             if(!listEl) return;
             const openProjects = projects.filter(p=>p.status!=='completed');
             let sP=[...openProjects];
@@ -665,51 +672,93 @@
             else{const l={};tasks.forEach(t=>{if(!l[t.projectId]||t.endTime>l[t.projectId])l[t.projectId]=t.endTime;});sP.sort((a,b)=>(l[b.id]||0)-(l[a.id]||0));}
 
             listEl.innerHTML = sP.map(p => {
-                 const isR = activeTimer?.projectId === p.id;
                  const timeTodayMs = getTodaysTimeForProjectMs(p.id);
-
-                 let liveDisplayTime="00:00:00";
-                 if(isR){ let elapsed; if(activeTimer.isPaused){elapsed=activeTimer.pauseStartTime-activeTimer.startTime-activeTimer.totalPausedTime;} else{elapsed=Date.now()-activeTimer.startTime-activeTimer.totalPausedTime;} liveDisplayTime=formatTime(elapsed>0?elapsed:0); }
-
-                 const timerControls = isR
-                    ? ``
-                    : `<div class="flex items-center gap-4"><span class="font-semibold text-muted-foreground">${formatDuration(timeTodayMs)}</span><button class="action-btn start-timer-btn" data-project-id="${p.id}"><i data-lucide="play" class="w-5 h-5"></i></button></div>`;
-
-                const expC = isR ? `<div class="expanded-content flex-grow"><div class="h-full"><div class="p-4 pt-0 flex flex-col h-full relative">
-                    <div class="border-t border-border pt-4 flex flex-col h-full">
-                        <div class="relative mb-3 flex-shrink-0">
-                            <input type="text" placeholder="What are you working on?" class="task-description-input w-full p-2 rounded-md border border-input-border bg-card-secondary" value="${activeTimer.description}">
-                        </div>
-                        <textarea placeholder="Notes..." class="task-notes-input w-full p-2 rounded-md border bg-card-secondary flex-grow resize-none">${activeTimer.notes}</textarea>
-                        <input type="text" placeholder="Add tags... (#meeting)" class="task-tags-input w-full p-2 mt-3 rounded-md border bg-card-secondary flex-shrink-0" value="${(activeTimer.tags || []).join(' ')}">
+                 return `<div class="project-card start-timer-btn" data-project-id="${p.id}" style="border-left-color: ${p.color};">
+                    <div class="project-card-info">
+                        <div class="project-card-name">${p.name}</div>
                     </div>
-                </div></div></div>` : '';
-
-                return `<div class="tracker-item ${isR ? 'is-running' : ''}" data-project-id="${p.id}" style="border-left-color: ${p.color};">
-                    <div class="tracker-item-header">
-                        <div class="project-card-info">
-                            <div class="project-card-name">${p.name}</div>
-                        </div>
-                        <div class="project-card-action">
-                            ${timerControls}
-                        </div>
+                    <div class="project-card-action flex items-center gap-4">
+                        <span class="font-semibold text-muted-foreground">${formatDuration(timeTodayMs)}</span>
+                        <button class="action-btn"><i data-lucide="play" class="w-5 h-5"></i></button>
                     </div>
-                    <div class="tracker-tasks"></div>
-                    ${isR ? expC : ''}
                 </div>`;
-
             }).join('');
-             if(activeTimer) {
-                const runningCard = listEl.querySelector(`.tracker-item[data-project-id="${activeTimer.projectId}"] .project-card-action`);
-                if(runningCard) {
-                    runningCard.innerHTML = `<div class="project-details flex items-center space-x-2">
-                        <span class="text-xl font-semibold live-timer-display" style="color: ${activeTimer.isPaused ? 'var(--warning)' : 'var(--success)'}">00:00:00</span>
-                        <button class="timer-control-btn ${activeTimer.isPaused ? 'resume-timer-btn' : 'pause-timer-btn'} w-10 h-10 rounded-lg flex items-center justify-center text-xl" style="background-color: var(--warning); color: white;"><i data-lucide="${activeTimer.isPaused ? 'play' : 'pause'}"></i></button>
-                        <button class="timer-control-btn stop-timer-btn w-10 h-10 rounded-lg flex items-center justify-center text-xl" style="background-color: var(--danger); color: white;"><i data-lucide="stop-circle"></i></button>
-                       </div>`;
-                    updateRunningCard();
+            lucide.createIcons();
+        };
+
+        const renderSessionPage = () => {
+            const contentEl = document.getElementById('session-view-content');
+            if (!activeTimer) {
+                contentEl.innerHTML = `<p class="text-center text-muted-foreground p-8">No active session.</p>`;
+                return;
+            }
+
+            const project = projects.find(p => p.id === activeTimer.projectId);
+            if (!project) {
+                contentEl.innerHTML = `<p class="text-center text-muted-foreground p-8">Error: Project not found for this session.</p>`;
+                return;
+            }
+
+            let elapsed;
+            if (activeTimer.isPaused) { elapsed = activeTimer.pauseStartTime - activeTimer.startTime - activeTimer.totalPausedTime; } 
+            else { elapsed = Date.now() - activeTimer.startTime - activeTimer.totalPausedTime; }
+            const liveDisplayTime = formatTime(elapsed > 0 ? elapsed : 0);
+
+            const startTime = new Date(activeTimer.startTime);
+            const startTimeString = startTime.toTimeString().slice(0,5);
+
+            const preDefinedTasksForProject = predefinedTasks.filter(t => t.projectId === project.id);
+            preDefinedTasksForProject.forEach(pTask => {
+                if(!activeTimer.sessionTasks.some(sTask => sTask.description === pTask.description)) {
+                    activeTimer.sessionTasks.push({id: Date.now() + Math.random(), description: pTask.description, completed: false});
                 }
-             }
+            });
+
+            const tasksHTML = activeTimer.sessionTasks.map(task => `
+                <div class="task-item" data-task-id="${task.id}">
+                    <input type="checkbox" class="session-task-checkbox" ${task.completed ? 'checked' : ''}>
+                    <span class="flex-grow ${task.completed ? 'line-through text-muted-foreground' : ''}">${task.description}</span>
+                </div>
+            `).join('');
+
+            contentEl.innerHTML = `
+                <div class="bg-card p-4 rounded-xl border border-border mb-4">
+                     <div class="flex justify-between items-center mb-4">
+                        <div>
+                            <label class="text-sm font-medium text-muted-foreground">Start Time</label>
+                            <input type="time" id="session-start-time" value="${startTimeString}" class="bg-transparent font-bold text-lg p-1 rounded-md focus:bg-card-secondary">
+                        </div>
+                        <div class="text-right">
+                             <div id="session-timer-display" class="text-3xl font-bold" style="color: ${activeTimer.isPaused ? 'var(--warning)' : 'var(--success)'};">${liveDisplayTime}</div>
+                        </div>
+                    </div>
+                     <div class="flex gap-2">
+                         <button id="session-pause-resume-btn" class="flex-1 text-center py-3 px-4 rounded-lg font-semibold text-white flex items-center justify-center gap-2" style="background-color: var(--warning);">
+                            <i data-lucide="${activeTimer.isPaused ? 'play' : 'pause'}"></i>
+                            <span>${activeTimer.isPaused ? 'Resume' : 'Pause'}</span>
+                         </button>
+                         <button id="session-stop-btn" class="flex-1 text-center py-3 px-4 rounded-lg font-semibold text-white flex items-center justify-center gap-2" style="background-color: var(--danger);">
+                            <i data-lucide="stop-circle"></i>
+                            <span>Stop & Save</span>
+                        </button>
+                     </div>
+                </div>
+
+                <div class="bg-card p-4 rounded-xl border border-border mb-4">
+                     <h3 class="font-semibold mb-2">Session Tasks</h3>
+                     <div id="session-task-list">${tasksHTML || '<p class="text-sm text-muted-foreground py-2">No predefined tasks. Add some below!</p>'}</div>
+                     <form id="add-session-task-form" class="flex gap-2 mt-4">
+                        <input type="text" id="new-session-task-input" class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border" placeholder="Add a new task for this session...">
+                        <button type="submit" class="action-btn bg-primary-accent text-white border-transparent"><i data-lucide="plus"></i></button>
+                     </form>
+                </div>
+                
+                 <div id="session-notes-container" class="bg-card p-4 rounded-xl border border-border space-y-3">
+                     <h3 class="font-semibold">Notes & Tags</h3>
+                     <textarea id="session-notes" class="w-full p-2 text-sm border rounded-md bg-card-secondary border-input-border" placeholder="Add notes for this session...">${activeTimer.notes || ''}</textarea>
+                     <input type="text" id="session-tags" class="w-full p-2 text-sm border rounded-md bg-card-secondary border-input-border" placeholder="Add tags... (comma-separated)" value="${(activeTimer.tags || []).join(', ')}">
+                 </div>
+            `;
             lucide.createIcons();
         };
 
@@ -722,10 +771,7 @@
         const renderTasksPage=()=>{const content=document.getElementById('tasks-page-template').content.cloneNode(true);const tc=document.getElementById('tasks-content');tc.innerHTML='';tc.appendChild(content);const listEl=document.getElementById('predefined-tasks-list'); const groupedByProject=predefinedTasks.reduce((acc,task)=>{(acc[task.projectId||'none']=acc[task.projectId||'none']||[]).push(task);return acc;},{}); listEl.innerHTML=projects.concat({id:'none',name:'General Tasks'}).filter(p=>groupedByProject[p.id]).map(p=>{return`<div><h2 class="font-bold text-lg mt-4 mb-2" style="color:${p.color||'inherit'}">${p.name}</h2><div class="space-y-2">${groupedByProject[p.id].map(task=>{const isDoneToday=task.isCompleted&&new Date(task.completedDate).toDateString()===new Date().toDateString();return`<div class="flex items-center bg-card p-3 rounded-lg border" data-task-id="${task.id}"><input type="checkbox" class="predefined-task-checkbox h-5 w-5 rounded border-gray-300 text-primary-accent focus:ring-primary-accent mr-4 flex-shrink-0" ${isDoneToday?'checked':''}> <div class="flex-grow min-w-0"><p class="font-medium ${isDoneToday?'line-through text-gray-500':''}">${task.description}</p>${task.dueDate?`<p class="text-sm text-muted-foreground">Due: ${new Date(task.dueDate+'T00:00:00').toLocaleDateString()}</p>`:''}${task.notes?`<p class="text-sm text-muted-foreground">${task.notes}</p>`:''}<div class="flex flex-wrap gap-1 mt-1">${(task.tags||[]).map(g=>`<span class="tag">${g}</span>`).join('')}</div></div><div class="flex items-center"><button class="edit-predefined-task-btn p-2 rounded-md hover:bg-card-secondary"><i data-lucide="pencil" class="w-4 h-4"></i></button><button class="delete-predefined-task-btn p-2 rounded-md hover:bg-card-secondary"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div>`}).join('')}</div></div>`}).join('')||'<p class="text-center text-muted-foreground py-8">No tasks yet. Add one!</p>'; lucide.createIcons();};
         const savePredefinedTask=async e=>{e.preventDefault();const modal=document.getElementById('add-predefined-task-modal');const id=modal.querySelector('#predefined-task-id').value;const description=modal.querySelector('#predefined-task-desc').value.trim();if(!description)return;const projectId=parseInt(modal.querySelector('#predefined-task-project').value)||null;const notes=modal.querySelector('#predefined-task-notes').value.trim();const tags=modal.querySelector('#predefined-task-tags').value.split(',').map(t=>t.trim()).filter(Boolean);const dueDate=modal.querySelector('#predefined-task-due-date').value;const taskData={description,projectId,notes,tags,dueDate:dueDate||null};if(id){const task=predefinedTasks.find(t=>t.id===parseInt(id));Object.assign(task,taskData);await updateData('predefinedTasks',task);}else{const newId=await addData('predefinedTasks',{...taskData,isCompleted:false,completedDate:null});taskData.id=newId;predefinedTasks.push(taskData);}closeModal(modal);renderTasksPage();};
         const renderCompletedProjectsPage=()=>{const completedProjects=projects.filter(p=>p.status==='completed');const contentEl=document.getElementById('completed-projects-content');contentEl.innerHTML=`<div class="flex items-center justify-between mb-6"><button class="back-to-dashboard-btn font-semibold text-primary-accent hover:underline">&larr; Back to Projects</button></div><div class="space-y-2">${completedProjects.length>0?completedProjects.map(p=>`<div class="bg-card p-3 rounded-lg border flex items-center justify-between"><div class="flex items-center space-x-3"><span class="w-3 h-3 rounded-full" style="background-color:${p.color};"></span><button class="font-semibold completed-project-link hover:underline" data-project-id="${p.id}">${p.name}</button></div></div>`).join(''):'<p class="text-center text-muted-foreground py-8 col-span-full">No completed projects.</p>'}</div>`;};
-        const openProjectDetailView=(id)=>{navigateTo('page-detail');currentDetailProjectId=id;const p=projects.find(p=>p.id===id);if(!p)return;const projectTasks=predefinedTasks.filter(t=>t.projectId===id);const tasksHTML=`<div class="mt-6"><h2 class="font-semibold mb-2">Task List</h2><div class="space-y-2">${projectTasks.length>0?projectTasks.map(t=>`<div class="bg-card p-2 rounded-lg border text-sm">${t.description}</div>`).join(''):'<p class="text-sm text-muted-foreground">No tasks defined for this project yet.</p>'}</div></div>`;const statusRadios=`<div class="flex items-center gap-6 mt-4"><p class="text-sm font-medium text-muted-foreground">Status:</p><div class="flex items-center gap-4"><label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="project-status" value="open" class="project-status-radio" ${p.status!=='completed'?'checked':''}> Open</label><label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="project-status" value="completed" class="project-status-radio" ${p.status==='completed'?'checked':''}> Completed</label></div></div>`;document.getElementById('detail-view-content').innerHTML=`<div id="project-detail-view-mode"><header class="flex items-start justify-between mb-2"><button class="back-to-projects-btn font-semibold text-primary-accent hover:underline mb-4">&larr; Back</button><div class="flex items-center gap-2"><button id="edit-project-btn" class="p-2 rounded-md hover:bg-card-secondary"><i data-lucide="pencil" class="w-5 h-5"></i></button></div></header><p class="text-sm text-muted-foreground mb-4">${p.description||'No description.'}</p><button id="add-manual-entry-btn" class="w-full text-center py-2 px-4 rounded-lg font-semibold border border-input-border hover:bg-card-secondary">Add Time</button>${statusRadios}</div><div id="project-detail-edit-mode" class="hidden mt-6 mb-6 space-y-3 p-4 bg-card-secondary rounded-lg"><div class="flex gap-4"><input type="text" id="edit-project-name" class="w-full p-2 text-xl font-bold border rounded-md bg-card" value="${p.name}"><div id="edit-color-palette" class="flex flex-wrap gap-2"></div><input type="hidden" id="edit-project-color" value="${p.color}"></div><textarea id="edit-project-description" rows="2" class="w-full p-2 text-sm border rounded-md bg-card">${p.description||''}</textarea><div class="grid grid-cols-2 gap-4"><input type="number" id="edit-project-estimate" placeholder="Estimate (hrs)" value="${p.estimate||''}" class="w-full p-2 border rounded-md text-sm bg-card"></div><div class="flex justify-end gap-2"><button id="cancel-edit-project-btn" class="font-semibold px-5 py-2 text-base rounded-lg hover:bg-border">Cancel</button><button id="save-updated-project-btn" class="font-semibold px-5 py-2 text-base rounded-lg text-white" style="background:var(--primary-accent)">Save</button></div></div><div class="mb-6 p-4 bg-card rounded-xl border mt-6"><p class="text-sm text-muted-foreground">Total Time for Period</p><p id="detail-total-time" class="text-3xl font-bold">0h 0m</p></div><div id="detail-date-filters" class="p-2 bg-card-secondary rounded-xl flex text-center text-sm font-semibold my-4"><button data-filter="today" class="detail-filter-btn flex-1 py-2 rounded-lg bg-card shadow">Today</button><button data-filter="week" class="detail-filter-btn flex-1 py-2 rounded-lg">Week</button><button data-filter="month" class="detail-filter-btn flex-1 py-2 rounded-lg">Month</button><button data-filter="custom" class="detail-filter-btn flex-1 py-2 rounded-lg">Custom</button></div><div id="detail-custom-range" class="hidden flex items-center gap-2 text-sm mb-4"><input type="date" id="detail-date-start" class="w-full p-2 border rounded-md text-sm bg-card-secondary"><span class="text-muted-foreground">to</span><input type="date" id="detail-date-end" class="w-full p-2 border rounded-md text-sm bg-card-secondary"></div><div id="detail-entries-list" class="space-y-3"></div>${tasksHTML}`;renderProjectEntries(id,'today'); lucide.createIcons();};
-        const renderProjectEntries=(id,filter,range={})=>{let sD,eD;const n=new Date();if(filter==='today'){sD=new Date().setHours(0,0,0,0);eD=new Date().setHours(23,59,59,999);}else if(filter==='week'){const d=n.getDay()===0?6:n.getDay()-1,f=n.getDate()-d;sD=new Date(new Date(n).setDate(f)).setHours(0,0,0,0);eD=new Date(new Date(n).setDate(f+6)).setHours(23,59,59,999);}else if(filter==='month'){sD=new Date(n.getFullYear(),n.getMonth(),1);eD=new Date(n.getFullYear(),n.getMonth()+1,0).setHours(23,59,59,999);}else if(filter==='range'&&range.start&&range.end){sD=new Date(range.start).getTime();eD=new Date(range.end).setHours(23,59,59,999);}const fTs=tasks.filter(t=>t.projectId===id&&t.startTime>=sD&&t.startTime<=eD).sort((a,b)=>b.startTime-a.startTime);const tMs=fTs.reduce((s,t)=>s+(t.endTime-t.startTime),0);const tEl=document.getElementById('detail-total-time');if(tEl)tEl.textContent=formatDuration(tMs);const lEl=document.getElementById('detail-entries-list');if(lEl)lEl.innerHTML=fTs.length>0?fTs.map(t=>createTaskEntryHTML(t,projects.find(p=>p.id===t.projectId))).join(''):`<p class="text-center p-4">No entries.</p>`; lucide.createIcons();};
-        const createTaskEntryHTML=(t,p)=>{const sT=new Date(t.startTime),eT=new Date(t.endTime);const dur=formatDuration(t.endTime-t.startTime);const dStr=sT.toLocaleDateString([],{month:'short',day:'numeric',year:'numeric'});const tStr=`${sT.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})} - ${eT.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;return`<div class="task-entry bg-card p-3 rounded-lg border" data-task-id="${t.id}"><div class="view-mode"><div class="flex justify-between items-start"><div class="flex-grow"><p class="font-semibold">${t.description}</p><p class="text-sm text-muted-foreground whitespace-pre-wrap">${t.notes||'No notes'}</p><div class="text-sm text-muted-foreground mt-2">${dStr} &bull; ${tStr}</div></div><div class="flex items-start pt-1 gap-1 ml-2 flex-shrink-0"><span class="font-semibold text-base mr-2">${dur}</span><button class="edit-task-btn p-2 rounded-md hover:bg-card-secondary"><i data-lucide="pencil" class="w-4 h-4"></i></button><button class="delete-task-btn p-2 rounded-md hover:bg-card-secondary"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div></div><div class="edit-mode hidden space-y-2 mt-2"><input class="w-full p-2 text-sm border rounded-md bg-card-secondary edit-task-description" value="${t.description}"><textarea class="w-full p-2 text-sm border rounded-md h-20 bg-card-secondary edit-task-notes">${t.notes||''}</textarea><input type="text" placeholder="Add tags..." class="w-full p-2 text-sm border rounded-md bg-card-secondary" value="${(t.tags||[]).join(' ')}"><div class="flex items-center gap-2"><input type="date" class="w-full p-1 text-xs border rounded-md bg-card-secondary" value="${sT.toISOString().split('T')[0]}"><input type="time" class="w-full p-1 text-xs border" value="${sT.toTimeString().slice(0,5)}"><input type="time" class="w-full p-1 text-xs border" value="${eT.toTimeString().slice(0,5)}"></div><div class="flex justify-end gap-2"><button class="cancel-edit-btn px-4 py-2 text-sm rounded-md">Cancel</button><button class="save-task-btn px-4 py-2 text-sm text-white rounded-md" style="background:var(--primary-accent)">Save</button></div></div></div>`;};
-        const saveManualEntry=async e=>{e.preventDefault();const modal=document.getElementById('manual-entry-modal');const id=modal.querySelector('#manual-entry-task-id').value;const pId=parseInt(modal.querySelector('#manual-entry-project').value);const desc=document.getElementById('manual-entry-desc').value,date=document.getElementById('manual-entry-date').value,start=document.getElementById('manual-entry-start').value,end=document.getElementById('manual-entry-end').value,notes=document.getElementById('manual-entry-notes').value;if(!desc||!date||!start||!end||!pId)return;const startTime=new Date(`${date}T${start}`).getTime(),endTime=new Date(`${date}T${end}`).getTime();if(startTime>=endTime)return;const taskData={projectId:pId,description:desc,notes,startTime,endTime,tags:[]};if(id){const task=tasks.find(t=>t.id===parseInt(id));Object.assign(task,taskData);await updateData('tasks',task);}else{const newId=await addData('tasks',taskData);taskData.id=newId;tasks.push(taskData);}closeModal(modal);const activePage=document.querySelector('.page.active').id;if(activePage==='page-reports'){renderReportData(document.querySelector('.reports-filter-btn.active').dataset.filter);}else if(activePage==='page-detail'){renderProjectEntries(currentDetailProjectId,document.querySelector('#detail-date-filters .detail-filter-btn.active').dataset.filter);}updateDashboardTotalTime();renderTimerPage();renderProjectsPage();};
+        const saveManualEntry=async e=>{e.preventDefault();const modal=document.getElementById('manual-entry-modal');const id=modal.querySelector('#manual-entry-task-id').value;const pId=parseInt(modal.querySelector('#manual-entry-project').value);const desc=document.getElementById('manual-entry-desc').value,date=document.getElementById('manual-entry-date').value,start=document.getElementById('manual-entry-start').value,end=document.getElementById('manual-entry-end').value,notes=document.getElementById('manual-entry-notes').value;if(!desc||!date||!start||!end||!pId)return;const startTime=new Date(`${date}T${start}`).getTime(),endTime=new Date(`${date}T${end}`).getTime();if(startTime>=endTime)return;const taskData={projectId:pId,description:desc,notes,startTime,endTime,tags:[]};if(id){const task=tasks.find(t=>t.id===parseInt(id));Object.assign(task,taskData);await updateData('tasks',task);}else{const newId=await addData('tasks',taskData);taskData.id=newId;tasks.push(taskData);}closeModal(modal);const activePage=document.querySelector('.page.active').id;if(activePage==='page-reports'){renderReportData(document.querySelector('.reports-filter-btn.active').dataset.filter);}else if(activePage==='page-session'){renderSessionPage();}updateDashboardTotalTime();renderTimerPage();renderProjectsPage();};
         const showUserGuide=()=>{document.getElementById('guide-content').innerHTML=`<h2 class="text-2xl font-bold mb-4">Welcome to time!</h2><div class="prose dark:prose-invert max-w-none space-y-4 text-foreground"><p>This guide explains the features to help you track time effectively.</p><h3 class="font-semibold">1. Projects Page</h3><p>Use the '+' button to create a new project. Click the pencil icon on any project to edit its details or see its history.</p><h3 class="font-semibold">2. Timer Page</h3><p>This is your main dashboard for tracking time. Click a project to see its tasks, then click the play button on a task (or the project itself) to start a timer.</p><h3 class="font-semibold">3. Tasks Page</h3><p>Go to the Tasks page to create reusable tasks that you can assign to projects. This saves you from typing the same task name repeatedly.</p><h3 class="font-semibold">4. PWA & Automatic Backups</h3><ul><li><strong>Installable App (PWA):</strong> Your browser may show an option to "Install" or "Add to Home Screen" to use this app like a native app.</li><li><strong>Automatic Backups:</strong> In <strong>Settings</strong>, enable "Automatic Daily Backups" to save a JSON backup to your downloads folder every day after 12:00 PM.</li></ul></div>`;openModal(document.getElementById('guide-modal'));};
         const openManualEntryModalForEdit = (taskId) => {
             const task = tasks.find(t => t.id === taskId);
@@ -747,8 +793,24 @@
         };
         
         document.body.addEventListener('click',async e=>{
-            const navBtn = e.target.closest('.nav-btn'); if (navBtn) return navigateTo(navBtn.dataset.page);
-            if (e.target.closest('#settings-btn')) return navigateTo('page-settings');
+            const navBtn = e.target.closest('.nav-btn'); 
+            if (navBtn) {
+                const toPage = navBtn.dataset.page;
+                if (activeTimer && document.querySelector('.page.active').id === 'page-session') {
+                    navigationIntent = toPage;
+                    openModal(document.getElementById('confirmation-modal'));
+                    return;
+                }
+                return navigateTo(toPage);
+            }
+            if (e.target.closest('#settings-btn')) {
+                if (activeTimer && document.querySelector('.page.active').id === 'page-session') {
+                    navigationIntent = 'page-settings';
+                    openModal(document.getElementById('confirmation-modal'));
+                    return;
+                }
+                return navigateTo('page-settings');
+            }
             if(e.target.closest('#add-btn-header')){
                 const activePage = document.querySelector('.page.active').id;
                 switch(activePage){
@@ -779,49 +841,25 @@
             if(e.target.closest('.delete-predefined-task-btn')){const taskEl=e.target.closest('[data-task-id]');if(taskEl){const taskId=parseInt(taskEl.dataset.taskId);if(confirm('Delete this pre-defined task?')){await deleteData('predefinedTasks',taskId);predefinedTasks=predefinedTasks.filter(t=>t.id!==taskId);renderTasksPage();}}}
             if(e.target.closest('.edit-predefined-task-btn')){const taskEl=e.target.closest('[data-task-id]');if(taskEl){const taskId=parseInt(taskEl.dataset.taskId);const task=predefinedTasks.find(t=>t.id===taskId);if(task){const modal=document.getElementById('add-predefined-task-modal');modal.querySelector('form').reset();modal.querySelector('#predefined-task-modal-title').textContent="Edit Task";const select=modal.querySelector('#predefined-task-project');select.innerHTML=`<option value="">General Task</option>`+projects.filter(p=>p.status!=='completed').map(p=>`<option value="${p.id}">${p.name}</option>`).join('');modal.querySelector('#predefined-task-id').value=task.id;modal.querySelector('#predefined-task-desc').value=task.description;modal.querySelector('#predefined-task-project').value=task.projectId||'';modal.querySelector('#predefined-task-due-date').value=task.dueDate||'';modal.querySelector('#predefined-task-notes').value=task.notes||'';modal.querySelector('#predefined-task-tags').value=(task.tags||[]).join(', ');openModal(modal);}}}
             if(e.target.closest('#view-completed-projects-btn'))navigateTo('page-completed-projects');
-            if(e.target.closest('.edit-project-btn')) openProjectDetailView(parseInt(e.target.closest('.edit-project-btn').dataset.projectId));
-            const trackerItem = e.target.closest('.tracker-item');
-            if(trackerItem && !e.target.closest('.action-btn, .timer-control-btn')) {
-                const pId = parseInt(trackerItem.dataset.projectId);
-                const tasksEl = trackerItem.querySelector('.tracker-tasks');
-                if(trackerItem.classList.contains('is-expanded')) {
-                    trackerItem.classList.remove('is-expanded');
-                    tasksEl.innerHTML = '';
-                } else {
-                    document.querySelectorAll('.tracker-item.is-expanded').forEach(item => {
-                        item.classList.remove('is-expanded');
-                        item.querySelector('.tracker-tasks').innerHTML = '';
-                    });
-                    trackerItem.classList.add('is-expanded');
-                    const projectTasks = predefinedTasks.filter(t => t.projectId === pId);
-                    const loggedTasks = tasks.filter(t => t.projectId === pId).map(t => t.description).filter((v,i,a) => a.indexOf(v) === i);
-                    const allTaskDescriptions = [...new Set(projectTasks.map(t => t.description).concat(loggedTasks))];
-                    tasksEl.innerHTML = `<div class="task-list">${allTaskDescriptions.map(desc => `<div class="task-item"><span class="flex-grow">${desc}</span><button class="action-btn start-timer-btn" data-project-id="${pId}" data-task-desc="${desc}"><i data-lucide="play" class="w-5 h-5"></i></button></div>`).join('') || '<p class="text-muted-foreground text-sm py-2">No tasks for this project yet.</p>'}</div>`;
-                    lucide.createIcons();
+            if(e.target.closest('.edit-project-btn')) { startTimer(parseInt(e.target.closest('.edit-project-btn').dataset.projectId)); }
+            if(e.target.closest('.start-timer-btn')) { startTimer(parseInt(e.target.closest('.start-timer-btn').dataset.projectId)); }
+            if(e.target.closest('#session-pause-resume-btn')) { if(activeTimer.isPaused) resumeTimer(); else pauseTimer(); }
+            if(e.target.closest('#session-stop-btn')) { stopTimer(); }
+            if(e.target.closest('#cancel-confirmation-btn')) { closeModal(document.getElementById('confirmation-modal')); navigationIntent=null;}
+            if(e.target.closest('#confirm-navigation-btn')) { await stopTimer(); if (navigationIntent) navigateTo(navigationIntent); navigationIntent = null; closeModal(document.getElementById('confirmation-modal')); }
+
+            const sessionPage = e.target.closest('#page-session');
+            if(sessionPage && e.target.matches('.session-task-checkbox')) {
+                const taskId = parseFloat(e.target.closest('.task-item').dataset.taskId);
+                const task = activeTimer.sessionTasks.find(t => t.id === taskId);
+                if (task) {
+                    task.completed = e.target.checked;
+                    localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));
+                    renderSessionPage();
                 }
             }
-            const timerBtn = e.target.closest('.start-timer-btn, .stop-timer-btn, .pause-timer-btn, .resume-timer-btn');
-            if(timerBtn && !isAnimating) {
-                if (timerBtn.classList.contains('start-timer-btn')) {
-                    const pId = parseInt(timerBtn.dataset.projectId);
-                    const taskDesc = timerBtn.dataset.taskDesc || '';
-                    startTimer(pId, taskDesc);
-                } else if (timerBtn.classList.contains('stop-timer-btn')) stopTimer();
-                else if (timerBtn.classList.contains('pause-timer-btn')) pauseTimer();
-                else if (timerBtn.classList.contains('resume-timer-btn')) resumeTimer();
-            }
 
-            const detailView=e.target.closest('#detail-view-content');if(detailView){if(e.target.closest('.back-to-projects-btn'))navigateTo('page-projects');if(e.target.closest('#add-manual-entry-btn')){const modal=document.getElementById('manual-entry-modal');modal.querySelector('form').reset(); openModal(modal);}
-            if(e.target.closest('#cancel-manual-entry-btn'))closeModal(document.getElementById('manual-entry-modal'));if(e.target.closest('#edit-project-btn')){detailView.querySelector('#project-detail-view-mode').classList.add('hidden');detailView.querySelector('#project-detail-edit-mode').classList.remove('hidden');const p=projects.find(proj=>proj.id===currentDetailProjectId);const palette=detailView.querySelector('#edit-color-palette');palette.innerHTML=PALETTE.map(c=>`<div class="color-swatch ${p.color===c?'selected':''}" style="background-color: ${c}" data-color="${c}"></div>`).join('');}
-            if(e.target.closest('#edit-color-palette .color-swatch')){detailView.querySelectorAll('#edit-color-palette .color-swatch').forEach(el=>el.classList.remove('selected'));e.target.classList.add('selected');detailView.querySelector('#edit-project-color').value=e.target.dataset.color;}
-            if(e.target.closest('#cancel-edit-project-btn')){detailView.querySelector('#project-detail-view-mode').classList.remove('hidden');detailView.querySelector('#project-detail-edit-mode').classList.add('hidden');}
-            if(e.target.closest('#save-updated-project-btn')){const data={name:detailView.querySelector('#edit-project-name').value,description:detailView.querySelector('#edit-project-description').value,color:detailView.querySelector('#edit-project-color').value,estimate:parseFloat(detailView.querySelector('#edit-project-estimate').value)||0,};await updateProject(currentDetailProjectId,data);detailView.querySelector('#project-detail-view-mode').classList.remove('hidden');detailView.querySelector('#project-detail-edit-mode').classList.add('hidden');}
-            if(e.target.closest('#detail-date-filters .detail-filter-btn')){const btn=e.target.closest('.detail-filter-btn');detailView.querySelectorAll('#detail-date-filters .detail-filter-btn').forEach(b=>b.classList.remove('bg-card','shadow'));btn.classList.add('bg-card','shadow');detailView.querySelector('#detail-custom-range').classList.toggle('hidden',btn.dataset.filter!=='custom');renderProjectEntries(currentDetailProjectId,btn.dataset.filter);}
-            const entryEl=e.target.closest('.task-entry');if(entryEl){const tId=parseInt(entryEl.dataset.taskId);if(e.target.closest('.delete-task-btn')){if(confirm('Delete entry?')){await deleteData('tasks',tId);tasks=tasks.filter(t=>t.id!==tId);renderProjectEntries(currentDetailProjectId,document.querySelector('#detail-date-filters .detail-filter-btn.active').dataset.filter);updateDashboardTotalTime();renderProjectsPage();}}
-            else if(e.target.closest('.edit-task-btn')){entryEl.querySelector('.view-mode').classList.add('hidden');entryEl.querySelector('.edit-mode').classList.remove('hidden');const notesInput=entryEl.querySelector('.edit-task-notes');if(notesInput){notesInput.dispatchEvent(new Event('input',{bubbles:true}));}}
-            else if(e.target.closest('.cancel-edit-btn')){entryEl.querySelector('.view-mode').classList.remove('hidden');entryEl.querySelector('.edit-mode').classList.add('hidden');}
-            else if(e.target.closest('.save-task-btn')){const t=tasks.find(t=>t.id===tId);if(!t)return;const i=entryEl.querySelectorAll('.edit-mode input, .edit-mode textarea');t.description=i[0].value;t.notes=i[1].value;t.tags=i[2].value.trim().split(/[\s,]+/).filter(Boolean);const nD=i[3].value;t.startTime=new Date(`${nD}T${i[4].value}`).getTime();t.endTime=new Date(`${nD}T${i[5].value}`).getTime();await updateData('tasks',t);entryEl.querySelector('.view-mode').classList.remove('hidden');entryEl.querySelector('.edit-mode').classList.add('hidden');renderProjectEntries(currentDetailProjectId,document.querySelector('#detail-date-filters .detail-filter-btn.active').dataset.filter);updateDashboardTotalTime();renderProjectsPage();}}}
-            const completedProjectsView=e.target.closest('#page-completed-projects');if(completedProjectsView){if(e.target.closest('.back-to-dashboard-btn'))navigateTo('page-projects');if(e.target.closest('.completed-project-link')){const pId=parseInt(e.target.closest('.completed-project-link').dataset.projectId);openProjectDetailView(pId);}}
+            const completedProjectsView=e.target.closest('#page-completed-projects');if(completedProjectsView){if(e.target.closest('.back-to-dashboard-btn'))navigateTo('page-projects');if(e.target.closest('.completed-project-link')){const pId=parseInt(e.target.closest('.completed-project-link').dataset.projectId);navigateTo('page-session'); currentDetailProjectId = pId; renderSessionPage();}}
             if(e.target.closest('.accent-swatch')) { const theme = e.target.dataset.theme; applyAccentTheme(theme); document.querySelectorAll('.accent-swatch').forEach(el => el.classList.remove('selected')); e.target.classList.add('selected'); }
             if(e.target.closest('.report-task-item')) { const taskId = parseInt(e.target.closest('.report-task-item').dataset.taskId); openManualEntryModalForEdit(taskId); }
         });
@@ -830,7 +868,7 @@
         document.getElementById('manual-entry-form').addEventListener('submit',saveManualEntry);
         document.getElementById('add-predefined-task-form').addEventListener('submit',savePredefinedTask);
         document.getElementById('add-accomplishment-form').addEventListener('submit',saveAccomplishment);
-        document.getElementById('modal-backdrop').addEventListener('click',()=>{closeModal(document.getElementById('add-project-modal'));closeModal(document.getElementById('guide-modal'));closeModal(document.getElementById('manual-entry-modal'));closeModal(document.getElementById('add-predefined-task-modal'));closeModal(document.getElementById('add-accomplishment-modal'));});
+        document.getElementById('modal-backdrop').addEventListener('click',()=>{closeModal(document.getElementById('add-project-modal'));closeModal(document.getElementById('guide-modal'));closeModal(document.getElementById('manual-entry-modal'));closeModal(document.getElementById('add-predefined-task-modal'));closeModal(document.getElementById('add-accomplishment-modal'));closeModal(document.getElementById('confirmation-modal'));closeModal(document.getElementById('notes-view-modal'));});
         
         document.body.addEventListener('change',async e=>{
             if(e.target.closest('#dark-mode-toggle'))toggleTheme();
@@ -838,18 +876,45 @@
             if(e.target.matches('#import-file-input'))importDataFromJSON(e);
             if(e.target.matches('#reports-date-start')||e.target.matches('#reports-date-end')){const sE=document.getElementById('reports-date-start'),eE=document.getElementById('reports-date-end');if(sE&&eE&&sE.value&&eE.value)renderReportData('custom',{start:sE.value,end:eE.value});}
             if(e.target.matches('.predefined-task-checkbox')){const taskEl=e.target.closest('[data-task-id]');const taskId=parseInt(taskEl.dataset.taskId);const task=predefinedTasks.find(t=>t.id===taskId);if(task){task.isCompleted=e.target.checked;task.completedDate=e.target.checked?Date.now():null;await updateData('predefinedTasks',task);renderTasksPage();}}
-            const detailView=e.target.closest('#detail-view-content');if(detailView){if(e.target.matches('.project-status-radio')){const newStatus=e.target.value;const p=projects.find(proj=>proj.id===currentDetailProjectId);if(p&&p.status!==newStatus){const oldStatus=p.status;p.status=newStatus;await updateData('projects',p);renderProjectsPage();renderTimerPage();if(oldStatus==='open'&&newStatus==='completed'){navigateTo('page-completed-projects');}else if(oldStatus==='completed'&&newStatus==='open'){navigateTo('page-projects');}}}
-            const sE=detailView.querySelector('#detail-date-start'),eE=detailView.querySelector('#detail-date-end');if(sE&&eE&&sE.value&&eE.value){detailView.querySelectorAll('#detail-date-filters .detail-filter-btn').forEach(b=>b.classList.remove('bg-card','shadow'));renderProjectEntries(currentDetailProjectId,'range',{start:sE.value,end:eE.value});}}});
+            const sessionPage = e.target.closest('#page-session');
+            if(sessionPage && e.target.matches('#session-start-time')) {
+                const newTime = e.target.value;
+                const [hours, minutes] = newTime.split(':');
+                const newStartDate = new Date(activeTimer.startTime);
+                newStartDate.setHours(hours, minutes);
+                activeTimer.startTime = newStartDate.getTime();
+                localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));
+                renderSessionPage();
+            }
+        });
+
+        document.addEventListener('submit', e => {
+             if (e.target.id === 'add-session-task-form') {
+                e.preventDefault();
+                const input = document.getElementById('new-session-task-input');
+                const description = input.value.trim();
+                if (description && activeTimer) {
+                    activeTimer.sessionTasks.push({id: Date.now(), description, completed: false});
+                    localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));
+                    input.value = '';
+                    renderSessionPage();
+                }
+            }
+        });
         
-        document.addEventListener('input',e=>{const input=e.target;if(input.matches('.task-description-input')){ if(activeTimer)activeTimer.description=input.value;localStorage.setItem('activeTimerState',JSON.stringify(activeTimer));}
-        else if(e.target.matches('.task-notes-input')||e.target.matches('.task-tags-input')){if(!activeTimer)return;if(e.target.matches('.task-notes-input'))activeTimer.notes=e.target.value;else if(e.target.matches('.task-tags-input'))activeTimer.tags=e.target.value.trim().split(/[\s,]+/).filter(Boolean);localStorage.setItem('activeTimerState',JSON.stringify(activeTimer));}});
+        document.addEventListener('input',e=>{const input=e.target;if(input.matches('#session-notes')){ if(activeTimer)activeTimer.notes=input.value;localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));}
+        else if(input.matches('#session-tags')){if(!activeTimer)return;activeTimer.tags=input.value.trim().split(/[\s,]+/).filter(Boolean);localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));}});
         
         const initializeApp = async () => { 
             applyTheme(localStorage.getItem('theme') || 'light'); 
             applyAccentTheme(localStorage.getItem('accentTheme') || 'theme-teal');
             await loadData();
             checkPersistentTimer();
-            navigateTo('page-timer');
+            if (activeTimer) {
+                navigateTo('page-session');
+            } else {
+                navigateTo('page-timer');
+            }
         };
         initializeApp();
     });
