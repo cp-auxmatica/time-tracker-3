@@ -501,7 +501,7 @@
         
         const updatePageHeader=(pageId)=>{
             const now=new Date();
-            const dateString=now.toLocaleDateString(undefined,{weekday:'long',year:'numeric',month:'long',day:'numeric', timeZone: 'America/Chicago'});
+            const dateString=now.toLocaleDateString(undefined,{weekday:'long',year:'numeric',month:'long',day:'numeric'});
             document.getElementById('page-date').textContent = dateString;
             
             let title = 'Timer';
@@ -925,6 +925,7 @@
             }
             if(e.target.closest('.color-swatch')){document.querySelectorAll('.color-swatch').forEach(el=>el.classList.remove('selected'));e.target.classList.add('selected');document.getElementById('new-project-color').value=e.target.dataset.color;}
             if(e.target.closest('#cancel-add-project-btn'))return closeModal(document.getElementById('add-project-modal'));
+            if(e.target.closest('#cancel-manual-entry-btn'))return closeModal(document.getElementById('manual-entry-modal'));
             if(e.target.closest('.sort-btn')){const sortBtn=e.target.closest('.sort-btn');document.querySelectorAll('#page-timer .sort-btn').forEach(b=>{b.classList.remove('active');});sortBtn.classList.add('active');currentSort=sortBtn.dataset.sort;renderTimerPage();return;}
             if(e.target.closest('.reports-filter-btn')){const btn=e.target.closest('.reports-filter-btn');document.querySelectorAll('.reports-filter-btn').forEach(b=>b.classList.remove('bg-card','shadow'));btn.classList.add('bg-card','shadow');document.getElementById('reports-custom-range').classList.toggle('hidden',btn.dataset.filter!=='custom');renderReportData(btn.dataset.filter);}
             if(e.target.closest('.edit-accomplishment-btn')){const id=parseInt(e.target.closest('.edit-accomplishment-btn').dataset.accomplishmentId);const acc=accomplishments.find(a=>a.id===id);if(acc){const modal=document.getElementById('add-accomplishment-modal');modal.querySelector('form').reset();modal.querySelector('#accomplishment-modal-title').textContent="Edit Accomplishment";const select=modal.querySelector('#accomplishment-project-select');select.innerHTML=`<option value="">No Project</option>`+projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');modal.querySelector('#accomplishment-id').value=acc.id;modal.querySelector('#accomplishment-project-select').value=acc.projectId||'';modal.querySelector('#accomplishment-text').value=acc.text;modal.querySelector('#accomplishment-tags').value=(acc.tags||[]).join(', ');modal.querySelector('#accomplishment-date').value=new Date(acc.date).toISOString().slice(0,10);openModal(modal);}}
@@ -941,7 +942,7 @@
             if(e.target.closest('#cancel-confirmation-btn')) { closeModal(document.getElementById('confirmation-modal')); navigationIntent=null;}
             if(e.target.closest('#confirm-navigation-btn') && e.target.closest('#confirm-navigation-btn').dataset.action !== 'clear-data') { await stopTimer(); if (navigationIntent) navigateTo(navigationIntent); navigationIntent = null; closeModal(document.getElementById('confirmation-modal')); }
 
-            // --- START: FIXED/NEW EVENT HANDLERS ---
+            // --- START: FIXED/NEW EVENT HANDLERS from previous turn ---
             if (e.target.closest('.delete-task-btn')) {
                 const taskEl = e.target.closest('[data-task-id]');
                 if (taskEl) {
