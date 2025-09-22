@@ -13,7 +13,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
     <style>
@@ -110,7 +109,8 @@
         
         /* Session Page Styles */
         body.in-session-mode .app-header { background: var(--session-project-color); }
-        body.in-session-mode .app-header-top, body.in-session-mode #add-btn-header { display: none; }
+        body.in-session-mode .app-header-top { visibility: hidden; }
+        body.in-session-mode #add-btn-header { display: none; }
         #session-timer-display { font-variant-numeric: tabular-nums; }
         #session-task-list .task-item { display: flex; align-items: center; gap: 12px; }
         #session-task-list .task-item input[type=checkbox] { width: 1.25rem; height: 1.25rem; }
@@ -198,7 +198,6 @@
         </nav>
     </div>
 
-    <!-- Modals -->
     <div id="modal-backdrop" class="modal-backdrop hidden"></div>
     <div id="add-project-modal" class="modal hidden w-11/12 max-w-md">
          <form id="add-project-form" class="bg-[var(--card)] rounded-lg shadow-xl border border-[var(--border)] p-6 space-y-4">
@@ -342,7 +341,6 @@
         </div>
     </div>
     
-    <!-- Templates -->
     <template id="accomplishments-page-template">
         <div id="accomplishments-list" class="space-y-4"></div>
     </template>
@@ -865,7 +863,7 @@
         const renderTasksPage=()=>{const content=document.getElementById('tasks-page-template').content.cloneNode(true);const tc=document.getElementById('tasks-content');tc.innerHTML='';tc.appendChild(content);const listEl=document.getElementById('predefined-tasks-list'); const groupedByProject=predefinedTasks.reduce((acc,task)=>{(acc[task.projectId||'none']=acc[task.projectId||'none']||[]).push(task);return acc;},{}); listEl.innerHTML=projects.concat({id:'none',name:'General Tasks'}).filter(p=>groupedByProject[p.id]).map(p=>{return`<div><h2 class="font-bold text-lg mt-4 mb-2" style="color:${p.color||'inherit'}">${p.name}</h2><div class="space-y-2">${groupedByProject[p.id].map(task=>{const isDoneToday=task.isCompleted&&new Date(task.completedDate).toDateString()===new Date().toDateString();return`<div class="flex items-center bg-card p-3 rounded-lg border" data-task-id="${task.id}"><input type="checkbox" class="predefined-task-checkbox h-5 w-5 rounded border-gray-300 text-primary-accent focus:ring-primary-accent mr-4 flex-shrink-0" ${isDoneToday?'checked':''}> <div class="flex-grow min-w-0"><p class="font-medium ${isDoneToday?'line-through text-gray-500':''}">${task.description}</p>${task.dueDate?`<p class="text-sm text-muted-foreground">Due: ${new Date(task.dueDate+'T00:00:00').toLocaleDateString()}</p>`:''}${task.notes?`<p class="text-sm text-muted-foreground">${task.notes}</p>`:''}<div class="flex flex-wrap gap-1 mt-1">${(task.tags||[]).map(g=>`<span class="tag">${g}</span>`).join('')}</div></div><div class="flex items-center"><button class="edit-predefined-task-btn p-2 rounded-md hover:bg-card-secondary"><i data-lucide="pencil" class="w-4 h-4"></i></button><button class="delete-predefined-task-btn p-2 rounded-md hover:bg-card-secondary"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div>`}).join('')}</div></div>`}).join('')||'<p class="text-center text-muted-foreground py-8">No tasks yet. Add one!</p>'; lucide.createIcons();};
         const savePredefinedTask=async e=>{e.preventDefault();const modal=document.getElementById('add-predefined-task-modal');const id=modal.querySelector('#predefined-task-id').value;const description=modal.querySelector('#predefined-task-desc').value.trim();if(!description)return;const projectId=parseInt(modal.querySelector('#predefined-task-project').value)||null;const notes=modal.querySelector('#predefined-task-notes').value.trim();const tags=modal.querySelector('#predefined-task-tags').value.split(',').map(t=>t.trim()).filter(Boolean);const dueDate=modal.querySelector('#predefined-task-due-date').value;const taskData={description,projectId,notes,tags,dueDate:dueDate||null};if(id){const task=predefinedTasks.find(t=>t.id===parseInt(id));Object.assign(task,taskData);await updateData('predefinedTasks',task);}else{const newId=await addData('predefinedTasks',{...taskData,isCompleted:false,completedDate:null});taskData.id=newId;predefinedTasks.push(taskData);}closeModal(modal);renderTasksPage();};
         const renderCompletedProjectsPage=()=>{const completedProjects=projects.filter(p=>p.status==='completed');const contentEl=document.getElementById('completed-projects-content');contentEl.innerHTML=`<div class="flex items-center justify-between mb-6"><button class="back-to-dashboard-btn font-semibold text-primary-accent hover:underline">&larr; Back to Projects</button></div><div class="space-y-2">${completedProjects.length>0?completedProjects.map(p=>`<div class="bg-card p-3 rounded-lg border flex items-center justify-between"><div class="flex items-center space-x-3"><span class="w-3 h-3 rounded-full" style="background-color:${p.color};"></span><button class="font-semibold completed-project-link hover:underline" data-project-id="${p.id}">${p.name}</button></div></div>`).join(''):'<p class="text-center text-muted-foreground py-8 col-span-full">No completed projects.</p>'}</div>`;};
-        const saveManualEntry=async e=>{e.preventDefault();const modal=document.getElementById('manual-entry-modal');const id=modal.querySelector('#manual-entry-task-id').value;const pId=parseInt(modal.querySelector('#manual-entry-project').value);const desc=document.getElementById('manual-entry-desc').value,date=document.getElementById('manual-entry-date').value,start=document.getElementById('manual-entry-start').value,end=document.getElementById('manual-entry-end').value,notes=document.getElementById('manual-entry-notes').value;if(!desc||!date||!start||!end||!pId)return;const startTime=new Date(`${date}T${start}`).getTime(),endTime=new Date(`${date}T${end}`).getTime();if(startTime>=endTime)return;const taskData={projectId:pId,description:desc,notes,startTime,endTime,tags:[]};if(id){const task=tasks.find(t=>t.id===parseInt(id));Object.assign(task,taskData);await updateData('tasks',task);}else{const newId=await addData('tasks',taskData);taskData.id=newId;tasks.push(taskData);}closeModal(modal);const activePage=document.querySelector('.page.active').id;if(activePage==='page-reports'){renderReportData(document.querySelector('.reports-filter-btn.active').dataset.filter);}else if(activePage==='page-session'){renderSessionPage();}updateDashboardTotalTime();renderTimerPage();renderProjectsPage();};
+        const saveManualEntry=async e=>{e.preventDefault();const modal=document.getElementById('manual-entry-modal');const id=modal.querySelector('#manual-entry-task-id').value;const pId=parseInt(modal.querySelector('#manual-entry-project').value);const desc=document.getElementById('manual-entry-desc').value,date=document.getElementById('manual-entry-date').value,start=document.getElementById('manual-entry-start').value,end=document.getElementById('manual-entry-end').value,notes=document.getElementById('manual-entry-notes').value;if(!desc||!date||!start||!end||!pId)return;const startTime=new Date(`${date}T${start}`).getTime(),endTime=new Date(`${date}T${end}`).getTime();if(startTime>=endTime)return;const taskData={projectId:pId,description:desc,notes,startTime,endTime,tags:[]};if(id){const task=tasks.find(t=>t.id===parseInt(id));Object.assign(task,taskData);await updateData('tasks',task);}else{const newId=await addData('tasks',taskData);taskData.id=newId;tasks.push(taskData);}closeModal(modal);const activePage=document.querySelector('.page.active').id;if(activePage==='page-reports'){renderReportData(document.querySelector('.reports-filter-btn.active').dataset.filter);}else if(activePage==='page-detail'){renderProjectEntries(currentDetailProjectId);}else if(activePage==='page-session'){renderSessionPage();}updateDashboardTotalTime();renderTimerPage();renderProjectsPage();};
         const showUserGuide=()=>{document.getElementById('guide-content').innerHTML=`<h2 class="text-2xl font-bold mb-4">Welcome to time!</h2><div class="prose dark:prose-invert max-w-none space-y-4 text-foreground"><p>This guide explains the features to help you track time effectively.</p><h3 class="font-semibold">1. Projects Page</h3><p>Use the '+' button to create a new project. Click the pencil icon on any project to edit its details or see its history.</p><h3 class="font-semibold">2. Timer Page</h3><p>This is your main dashboard for tracking time. Click a project to see its tasks, then click the play button on a task (or the project itself) to start a timer.</p><h3 class="font-semibold">3. Tasks Page</h3><p>Go to the Tasks page to create reusable tasks that you can assign to projects. This saves you from typing the same task name repeatedly.</p><h3 class="font-semibold">4. PWA & Automatic Backups</h3><ul><li><strong>Installable App (PWA):</strong> Your browser may show an option to "Install" or "Add to Home Screen" to use this app like a native app.</li><li><strong>Automatic Backups:</strong> In <strong>Settings</strong>, enable "Automatic Daily Backups" to save a JSON backup to your downloads folder every day after 12:00 PM.</li></ul></div>`;openModal(document.getElementById('guide-modal'));};
         const openManualEntryModalForEdit = (taskId) => {
             const task = tasks.find(t => t.id === taskId);
@@ -943,6 +941,79 @@
             if(e.target.closest('#cancel-confirmation-btn')) { closeModal(document.getElementById('confirmation-modal')); navigationIntent=null;}
             if(e.target.closest('#confirm-navigation-btn') && e.target.closest('#confirm-navigation-btn').dataset.action !== 'clear-data') { await stopTimer(); if (navigationIntent) navigateTo(navigationIntent); navigationIntent = null; closeModal(document.getElementById('confirmation-modal')); }
 
+            // --- START: FIXED/NEW EVENT HANDLERS ---
+            if (e.target.closest('.delete-task-btn')) {
+                const taskEl = e.target.closest('[data-task-id]');
+                if (taskEl) {
+                    const taskId = parseInt(taskEl.dataset.taskId);
+                    if (confirm('Are you sure you want to delete this time entry?')) {
+                        await deleteData('tasks', taskId);
+                        tasks = tasks.filter(t => t.id !== taskId);
+                        if (document.querySelector('.page.active').id === 'page-detail') {
+                            renderProjectEntries(currentDetailProjectId);
+                        }
+                        updateDashboardTotalTime();
+                    }
+                }
+            }
+            if (e.target.closest('.edit-task-btn')) {
+                const taskEl = e.target.closest('[data-task-id]');
+                if (taskEl) {
+                    const taskId = parseInt(taskEl.dataset.taskId);
+                    openManualEntryModalForEdit(taskId);
+                }
+            }
+            const detailPage = e.target.closest('#page-detail');
+            if (detailPage) {
+                const viewMode = detailPage.querySelector('#project-detail-view-mode');
+                const editMode = detailPage.querySelector('#project-detail-edit-mode');
+                
+                if (e.target.closest('.back-to-projects-btn')) {
+                    navigateTo('page-projects');
+                }
+                if (e.target.closest('#edit-project-btn-detail')) {
+                    if (viewMode && editMode) {
+                        viewMode.classList.add('hidden');
+                        editMode.classList.remove('hidden');
+                        const paletteEl = editMode.querySelector('#edit-color-palette');
+                        const currentColor = editMode.querySelector('#edit-project-color').value;
+                        paletteEl.innerHTML = PALETTE.map(c => 
+                            `<div class="color-swatch ${c === currentColor ? 'selected' : ''}" style="background-color: ${c}" data-color="${c}"></div>`
+                        ).join('');
+                    }
+                }
+                if (e.target.closest('#cancel-edit-project-btn')) {
+                    if (viewMode && editMode) {
+                        editMode.classList.add('hidden');
+                        viewMode.classList.remove('hidden');
+                    }
+                }
+                if (e.target.closest('#edit-color-palette .color-swatch')) {
+                    const swatch = e.target.closest('.color-swatch');
+                    if(editMode && swatch) {
+                        editMode.querySelector('#edit-project-color').value = swatch.dataset.color;
+                        editMode.querySelectorAll('.color-swatch').forEach(el => el.classList.remove('selected'));
+                        swatch.classList.add('selected');
+                    }
+                }
+                if (e.target.closest('#save-updated-project-btn')) {
+                    const updatedName = editMode.querySelector('#edit-project-name').value.trim();
+                    if (!updatedName) {
+                        alert('Project name cannot be empty.');
+                        return;
+                    }
+                    const updatedData = {
+                        name: updatedName,
+                        description: editMode.querySelector('#edit-project-description').value.trim(),
+                        color: editMode.querySelector('#edit-project-color').value,
+                        estimate: parseFloat(editMode.querySelector('#edit-project-estimate').value) || 0,
+                    };
+                    await updateProject(currentDetailProjectId, updatedData);
+                    // updateProject calls renderProjectDetailPage implicitly, which redraws the page in view mode.
+                }
+            }
+            // --- END: FIXED/NEW EVENT HANDLERS ---
+
             const sessionPage = e.target.closest('#page-session');
             if(sessionPage && e.target.matches('.session-task-checkbox')) {
                 const taskId = parseFloat(e.target.closest('.task-item').dataset.taskId);
@@ -990,6 +1061,16 @@
                 activeTimer.startTime = newStartDate.getTime();
                 localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));
                 renderSessionPage();
+            }
+             const detailPage = e.target.closest('#page-detail');
+            if(detailPage && e.target.matches('.project-status-radio')) {
+                const p = projects.find(proj => proj.id === currentDetailProjectId);
+                if(p) {
+                   p.status = e.target.value;
+                   await updateData('projects',p);
+                   renderProjectsPage();
+                   renderTimerPage();
+                }
             }
         });
 
