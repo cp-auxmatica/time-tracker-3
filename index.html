@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>time</title>
+    <title>Time Tracker (Firebase)</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" id="theme-color-meta" content="#14b8a6">
@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Lucide Icons Script moved to the end of the body for proper initialization -->
 
     <style>
         :root {
@@ -117,11 +117,51 @@
         #session-view-content { display: flex; flex-direction: column; min-height: calc(100vh - 120px - 80px); /* Full height minus header and nav */ }
         #session-notes-container { flex-grow: 1; display: flex; flex-direction: column; }
         #session-notes { flex-grow: 1; }
+
+        .spinner {
+            width: 56px; height: 56px; border-radius: 50%;
+            border: 8px solid; border-color: var(--border) #0000;
+            animation: spinner-a4dj6w 1s infinite;
+        }
+        @keyframes spinner-a4dj6w { to { transform: rotate(.5turn) } }
     </style>
 </head>
 <body class="theme-teal">
+
+    <div id="sign-in-screen" class="hidden fixed inset-0 bg-background flex items-center justify-center z-50 transition-opacity duration-300">
+        <div class="bg-card p-8 rounded-lg shadow-xl border border-border w-full max-w-sm">
+            <div class="text-center mb-6">
+                <i data-lucide="gem" class="w-10 h-10 mx-auto" style="color: var(--primary-accent);"></i>
+                <h1 class="text-2xl font-bold mt-2">Time Tracker</h1>
+            </div>
+            <form id="auth-form">
+                <div id="display-name-field" class="hidden mb-4">
+                    <label for="display-name" class="block text-sm font-medium text-muted-foreground mb-1">Display Name</label>
+                    <input type="text" id="display-name" class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border" required>
+                </div>
+                <div class="mb-4">
+                    <label for="email" class="block text-sm font-medium text-muted-foreground mb-1">Email</label>
+                    <input type="email" id="email" class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border" required>
+                </div>
+                <div class="mb-6">
+                    <label for="password" class="block text-sm font-medium text-muted-foreground mb-1">Password</label>
+                    <input type="password" id="password" class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border" required>
+                </div>
+                <button id="auth-submit-btn" type="submit" class="w-full bg-primary-accent text-white font-semibold py-2.5 px-6 rounded-lg shadow-lg hover:opacity-90 transition-opacity">
+                    Sign In
+                </button>
+                <div id="auth-loader" class="hidden mt-4 flex justify-center">
+                    <div class="spinner"></div>
+                </div>
+            </form>
+            <p class="text-center text-sm text-muted-foreground mt-6">
+                <span id="auth-prompt-text">Don't have an account?</span>
+                <button id="auth-toggle-btn" class="font-semibold text-primary-accent hover:underline">Sign Up</button>
+            </p>
+        </div>
+    </div>
     
-    <div id="app-container">
+    <div id="app-container" class="hidden">
         <header class="app-header">
             <div class="app-header-top">
                 <div class="app-title">
@@ -129,6 +169,10 @@
                     time
                 </div>
                 <div class="header-actions">
+                     <div id="user-info" class="flex items-center gap-2 mr-2 hidden">
+                        <img id="user-avatar-header" class="w-7 h-7 rounded-full">
+                        <span id="user-name-header" class="text-sm font-medium hidden sm:block"></span>
+                     </div>
                     <button id="settings-btn" class="header-btn"><i data-lucide="settings" class="w-5 h-5"></i></button>
                 </div>
             </div>
@@ -198,6 +242,7 @@
         </nav>
     </div>
 
+    <!-- Modals -->
     <div id="modal-backdrop" class="modal-backdrop hidden"></div>
     <div id="add-project-modal" class="modal hidden w-11/12 max-w-md">
          <form id="add-project-form" class="bg-[var(--card)] rounded-lg shadow-xl border border-[var(--border)] p-6 space-y-4">
@@ -341,6 +386,7 @@
         </div>
     </div>
     
+    <!-- Templates -->
     <template id="accomplishments-page-template">
         <div id="accomplishments-list" class="space-y-4"></div>
     </template>
@@ -379,6 +425,16 @@
     </template>
     <template id="settings-template">
          <div class="space-y-6">
+            <div id="account-settings" class="bg-card p-4 rounded-lg border border-border">
+                <h2 class="text-lg font-semibold mb-3">Account</h2>
+                <div class="flex items-center justify-between">
+                     <div class="flex items-center gap-3">
+                        <img id="user-avatar" class="w-10 h-10 rounded-full">
+                        <span id="user-name" class="font-semibold"></span>
+                     </div>
+                     <button id="sign-out-btn" class="text-sm font-semibold text-red-500 hover:underline">Sign Out</button>
+                </div>
+            </div>
             <div class="bg-card p-4 rounded-lg border border-border">
                  <h2 class="text-lg font-semibold mb-3">Accent Color</h2>
                  <div id="accent-color-selector" class="flex gap-4">
@@ -432,41 +488,91 @@
         </div>
     </template>
     
+    <script src="https://unpkg.com/lucide@latest"></script>
     <script>
-    if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').then(reg => console.log('SW registered.'), err => console.log('SW registration failed: ', err)); }); }
+      // This call will render all static icons in the initial HTML payload.
+      lucide.createIcons();
+    </script>
+    
+    <!-- Firebase SDKs -->
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, addDoc, doc, setDoc, deleteDoc, writeBatch, getDocs, setLogLevel } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-    document.addEventListener('DOMContentLoaded', () => {
+        // --- App State and Variables ---
         let projects = [], tasks = [], accomplishments = [], predefinedTasks = [], activeTimer = null, timerInterval = null;
         let currentDetailProjectId = null, currentSort = 'latest';
         let dom = {};
         let navigationIntent = null;
         
+        // --- Firebase State ---
+        let db, auth, userId, unsubscribeListeners = [];
+
+        // --- UI Element Refs ---
+        let signInScreen, appContainer, authForm, authLoader, displayNameField, 
+            authSubmitBtn, authToggleBtn, authPromptText;
+        let isSignUp = false;
+
         const THEME_COLORS = { 
             'theme-teal': '#0d9488', 'theme-indigo': '#4f46e5', 'theme-orange': '#ea580c', 
             'theme-blue': '#2563eb', 'theme-mono': '#1e293b'
         };
         const DARK_THEME_COLOR = '#000000';
-
         const PALETTE = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ef4444', '#ec4899', '#6366f1', '#14b8a6'];
 
+        // --- Utility Functions ---
         const formatTime=(ms)=>new Date(ms).toISOString().slice(11,19);
         const formatDuration=(ms)=>{if(ms<0)ms=0;const tM=Math.floor(ms/60000);if(tM<1)return"0m";const h=Math.floor(tM/60);const m=tM%60;return`${h>0?`${h}h `:''}${m}m`;};
-        const getTotalTimeForProject=(id)=>{let t=tasks.filter(t=>t.projectId===id).reduce((s,t)=>s+(t.endTime-t.startTime),0);if(activeTimer&&activeTimer.projectId===id){let elapsed;if(activeTimer.isPaused){elapsed=activeTimer.pauseStartTime-activeTimer.startTime-activeTimer.totalPausedTime;}else{elapsed=Date.now()-activeTimer.startTime-activeTimer.totalPausedTime;}t+=elapsed>0?elapsed:0;}return t;};
-        const getTodaysTimeForProjectMs=(projectId)=>{const startOfDay=new Date().setHours(0,0,0,0);let totalMs=tasks.filter(t=>t.projectId===projectId&&t.endTime>=startOfDay).reduce((sum,task)=>sum+(task.endTime-task.startTime),0);if(activeTimer&&activeTimer.projectId===projectId){let elapsed;if(activeTimer.isPaused){elapsed=activeTimer.pauseStartTime-activeTimer.startTime-activeTimer.totalPausedTime;}else{elapsed=Date.now()-activeTimer.startTime-activeTimer.totalPausedTime;}const effectiveStartTime=Math.max(activeTimer.startTime,startOfDay);const durationToday=Date.now()-effectiveStartTime;let pausedToday=0;if(activeTimer.isPaused){const pauseDuration=Date.now()-activeTimer.pauseStartTime;if(activeTimer.pauseStartTime>startOfDay){pausedToday+=pauseDuration;}}
+        const getTodaysTimeForProjectMs=(projectId)=>{const startOfDay=new Date().setHours(0,0,0,0);let totalMs=tasks.filter(t=>t.projectId===projectId&&t.endTime>=startOfDay).reduce((sum,task)=>sum+(task.endTime-task.startTime),0);if(activeTimer&&activeTimer.projectId===projectId){let elapsed;if(activeTimer.isPaused){elapsed=activeTimer.pauseStartTime-activeTimer.startTime-activeTimer.totalPausedTime;}else{elapsed=Date.now()-activeTimer.startTime-activeTimer.totalPausedTime;}
             totalMs+=elapsed>0?elapsed:0;}
             return totalMs;
         };
         const downloadFile=(data,name,type)=>{const b=new Blob([data],{type});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(u);};
+        
+        // --- Firebase Data Functions ---
+        const getCollectionRef = (collectionName) => {
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            return collection(db, `artifacts/${appId}/users/${userId}/${collectionName}`);
+        };
+        const addData = (collectionName, data) => addDoc(getCollectionRef(collectionName), data);
+        const updateData = (collectionName, id, data) => setDoc(doc(getCollectionRef(collectionName), id), data, { merge: true });
+        const deleteData = (collectionName, id) => deleteDoc(doc(getCollectionRef(collectionName), id));
+        async function clearAllData() {
+            const collections = ['projects', 'tasks', 'accomplishments', 'predefinedTasks'];
+            for (const collectionName of collections) {
+                const querySnapshot = await getDocs(getCollectionRef(collectionName));
+                const batch = writeBatch(db);
+                querySnapshot.forEach((doc) => batch.delete(doc.ref));
+                await batch.commit();
+            }
+        }
+        
+        const setupFirestoreListeners = () => {
+            unsubscribeListeners.forEach(unsub => unsub());
+            unsubscribeListeners = [];
+            const collectionsToSync = {
+                'projects': (data) => { projects = data; },
+                'tasks': (data) => { tasks = data; },
+                'accomplishments': (data) => { accomplishments = data; },
+                'predefinedTasks': (data) => { predefinedTasks = data; },
+            };
+            Object.keys(collectionsToSync).forEach(collectionName => {
+                const unsub = onSnapshot(getCollectionRef(collectionName), (snapshot) => {
+                    const dataArray = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    collectionsToSync[collectionName](dataArray);
+                    const activePage = document.querySelector('.page.active');
+                    if (activePage) navigateTo(activePage.id, true);
+                    updateDashboardTotalTime();
+                }, (error) => {
+                    console.error(`Error listening to ${collectionName}: `, error);
+                    alert(`There was an error fetching your data. Please ensure Firestore is enabled and security rules are set.`);
+                });
+                unsubscribeListeners.push(unsub);
+            });
+        };
 
-        let db;const DB_VERSION=26;
-        const openDB=()=>new Promise(r=>{const req=indexedDB.open('timeTrackerDB',DB_VERSION);req.onupgradeneeded=e=>{db=e.target.result;if(!db.objectStoreNames.contains('projects'))db.createObjectStore('projects',{keyPath:'id'});if(!db.objectStoreNames.contains('tasks'))db.createObjectStore('tasks',{keyPath:'id',autoIncrement:true}).createIndex('projectId','projectId');if(!db.objectStoreNames.contains('accomplishments'))db.createObjectStore('accomplishments',{keyPath:'id',autoIncrement:true}).createIndex('date','date');if(db.objectStoreNames.contains('dailyTasks'))db.deleteObjectStore('dailyTasks');if(!db.objectStoreNames.contains('predefinedTasks'))db.createObjectStore('predefinedTasks',{keyPath:'id',autoIncrement:true});};req.onsuccess=e=>{db=e.target.result;r(db)};});
-        const addData=(s,d)=>new Promise((rs,rj)=>{const r=db.transaction(s,'readwrite').objectStore(s).add(d);r.onsuccess=e=>rs(e.target.result);r.onerror=e=>rj(e.target.error);});
-        const updateData=(s,d)=>new Promise((rs,rj)=>{const r=db.transaction(s,'readwrite').objectStore(s).put(d);r.onsuccess=()=>rs();r.onerror=e=>rj(e.target.error);});
-        const deleteData=(s,i)=>new Promise(r=>db.transaction(s,'readwrite').objectStore(s).delete(i).onsuccess=()=>r());
-        const getAllData=(s)=>new Promise(r=>db.transaction(s,'readonly').objectStore(s).getAll().onsuccess=e=>r(e.target.result));
-        const clearData=(s)=>new Promise(r=>db.transaction(s,'readwrite').objectStore(s).clear().onsuccess=()=>r());
-
-        const loadData=async()=>{await openDB();[projects,tasks,accomplishments,predefinedTasks]=await Promise.all([getAllData('projects'),getAllData('tasks'),getAllData('accomplishments'),getAllData('predefinedTasks')]);updateDashboardTotalTime();};
         const checkPersistentTimer=()=>{const s=localStorage.getItem('activeTimerState');if(s){activeTimer=JSON.parse(s);startTimerInterval();}};
 
         const applyTheme=(t)=>{
@@ -489,12 +595,43 @@
         };
         const toggleTheme=()=>{const newTheme = document.documentElement.classList.contains('dark') ? 'light' : 'dark'; localStorage.setItem('theme', newTheme); applyTheme(newTheme);};
 
-        const exportDataAsJSON=async(isAuto=false)=>{const all={projects:await getAllData('projects'),tasks:await getAllData('tasks'),accomplishments:await getAllData('accomplishments'), predefinedTasks:await getAllData('predefinedTasks')};const d=new Date().toISOString().split('T')[0];const f=isAuto?`work_app_auto_backup_${d}.json`:'work_app_manual_backup.json';downloadFile(JSON.stringify(all,null,2),f,'application/json');if(isAuto)localStorage.setItem('lastAutoBackup',new Date().toISOString());};
-        const importDataFromJSON=(e)=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=async(ev)=>{try{const d=JSON.parse(ev.target.result);if(!d.projects||!d.tasks)throw new Error("Invalid format.");if(confirm("This will overwrite all current data. Are you sure?")){await Promise.all([clearData('projects'),clearData('tasks'),clearData('accomplishments'),clearData('predefinedTasks')]);const importedProjects=d.projects.map(p=>({id:p.id,name:p.name,color:p.color,status:p.isComplete?'completed':'open',description:p.description||'',estimate:p.estimate||0}));const importedTasks=d.tasks.map(t=>{if(t.duration&&t.timestamp&&!t.startTime){return{projectId:t.projectId,description:t.description,startTime:t.timestamp-t.duration,endTime:t.timestamp,notes:t.notes||'',tags:t.tags||[]};}
-                        return t;});await Promise.all(importedProjects.map(p=>addData('projects',p)));await Promise.all(importedTasks.map(t=>addData('tasks',t)));if(d.accomplishments)await Promise.all(d.accomplishments.map(a=>addData('accomplishments',a)));if(d.predefinedTasks)await Promise.all(d.predefinedTasks.map(t=>addData('predefinedTasks',t)));alert("Imported!");await loadData();navigateTo('page-timer');}}catch(err){alert("Failed: "+err.message);}finally{if(dom.importFileInput)dom.importFileInput.value=null;}};r.readAsText(f);};
+        const exportDataAsJSON = () => {
+            const allData = { projects, tasks, accomplishments, predefinedTasks };
+            const dateStr = new Date().toISOString().split('T')[0];
+            const filename = `work_app_firebase_backup_${dateStr}.json`;
+            downloadFile(JSON.stringify(allData, null, 2), filename, 'application/json');
+        };
+        
+        const importDataFromJSON = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    if (!data.projects || !data.tasks) throw new Error("Invalid file format.");
+                    if (confirm("This will overwrite all current cloud data. Are you sure?")) {
+                        await clearAllData();
+                        const batch = writeBatch(db);
+                        ['projects', 'tasks', 'accomplishments', 'predefinedTasks'].forEach(colName => {
+                            (data[colName] || []).forEach(item => {
+                                const docRef = item.id ? doc(getCollectionRef(colName), item.id.toString()) : doc(getCollectionRef(colName));
+                                batch.set(docRef, item);
+                            });
+                        });
+                        await batch.commit();
+                        alert("Import successful!");
+                    }
+                } catch (err) {
+                    alert("Failed to import data: " + err.message);
+                } finally {
+                    if (dom.importFileInput) dom.importFileInput.value = null;
+                }
+            };
+            reader.readAsText(file);
+        };
+
         const exportTasksAsCSV=()=>{const s=dom.csvDateStart.value,e=dom.csvDateEnd.value;if(!s||!e)return alert("Please select dates.");const sMs=new Date(s).getTime(),eMs=new Date(e).setHours(23,59,59,999);const fTs=tasks.filter(t=>t.startTime>=sMs&&t.startTime<=eMs);if(fTs.length===0)return alert("No tasks in date range.");const pM=new Map(projects.map(p=>[p.id,p]));let c='Project,Description,Notes,Tags,Date,Start,End,Duration\n';fTs.forEach(t=>{const p=pM.get(t.projectId)||{};const dMs=t.endTime-t.startTime;const sT=new Date(t.startTime),eT=new Date(t.endTime);const r=[`"${p.name||''}"`,`"${(t.description||'').replace(/"/g,'""')}"`,`"${(t.notes||'').replace(/"/g,'""')}"`,`"${(t.tags||[]).join(', ')}"`,sT.toLocaleDateString(),sT.toLocaleTimeString(),eT.toLocaleTimeString(),formatTime(dMs)];c+=r.join(',')+'\n';});downloadFile(c,`work_app_export_${s}_to_${e}.csv`,'text/csv;charset=utf-8;');};
-        const scheduleAutomaticBackup=()=>{if(localStorage.getItem('autoBackupEnabled')!=='true')return;const lB=localStorage.getItem('lastAutoBackup');const n=new Date();if(lB){const lBD=new Date(lB);if(lBD.toDateString()===n.toDateString())return;}if(n.getHours()>=12){exportDataAsJSON(true).then(updateLastBackupInfo);}};
-        const updateLastBackupInfo=()=>{const lB=localStorage.getItem('lastAutoBackup');if(lB){if(dom.lastBackupInfo)dom.lastBackupInfo.textContent=`Last backup: ${new Date(lB).toLocaleDateString()}`;}else{if(dom.lastBackupInfo)dom.lastBackupInfo.textContent='Backs up at 12:00 PM daily.';}};
 
         const openModal=(el)=>{document.getElementById('modal-backdrop').classList.remove('hidden');el.classList.remove('hidden');};
         const closeModal=(el)=>{document.getElementById('modal-backdrop').classList.add('hidden');el.classList.add('hidden');};
@@ -511,37 +648,41 @@
                 document.body.classList.add('in-session-mode');
                 document.body.style.setProperty('--session-project-color', project?.color || '#cccccc');
             } else {
-                 document.body.classList.remove('in-session-mode');
-                 document.body.style.removeProperty('--session-project-color');
-                 const titles = {
+                document.body.classList.remove('in-session-mode');
+                document.body.style.removeProperty('--session-project-color');
+                const titles = {
                     'page-timer': 'Timer', 'page-projects': 'Projects', 'page-tasks': 'Tasks', 
                     'page-reports': 'Reports', 'page-accomplishments': 'Goals', 'page-settings': 'Settings',
                     'page-detail': 'Project Details',
                     'page-completed-projects': 'Completed Projects'
                 };
                 title = titles[pageId] || 'Timer';
-                 if(pageId === 'page-detail' && currentDetailProjectId) {
-                     const project = projects.find(p => p.id === currentDetailProjectId);
-                     if(project) title = project.name;
-                 }
+                if(pageId === 'page-detail' && currentDetailProjectId) {
+                    const project = projects.find(p => p.id === currentDetailProjectId);
+                    if(project) title = project.name;
+                }
             }
             document.getElementById('page-title').textContent = title;
 
             const addBtn = document.getElementById('add-btn-header');
             if(addBtn) {
-                 addBtn.style.display = 'flex';
-                 if (pageId === 'page-timer') {
+                addBtn.style.display = 'flex';
+                if (pageId === 'page-timer') {
                     addBtn.innerHTML = '<i data-lucide="clock" class="w-5 h-5"></i>';
-                 } else {
+                } else {
                     addBtn.innerHTML = '<i data-lucide="plus" class="w-6 h-6"></i>';
-                 }
-                 lucide.createIcons();
+                }
+                lucide.createIcons();
             }
         };
 
-        const navigateTo=(pageId)=>{
-            document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active',p.id===pageId));
-            document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.page===pageId));
+        const navigateTo=(pageId, isRefresh = false)=>{
+            if (!isRefresh) { // Prevent state change on refresh
+                document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+                document.getElementById(pageId)?.classList.add('active');
+                document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.page===pageId));
+            }
+            
             switch(pageId) {
                 case 'page-timer': renderTimerPage(); break;
                 case 'page-projects': renderProjectsPage(); break;
@@ -606,8 +747,7 @@
             };
             
             if (duration > 1000) { // Only save if more than a second
-                const newId = await addData('tasks', t);
-                t.id = newId; tasks.push(t);
+                await addData('tasks', t);
             }
             
             localStorage.removeItem('activeTimerState');
@@ -619,39 +759,50 @@
             return Promise.resolve();
         };
         
-        const saveNewProject=async(e)=>{e.preventDefault();const modal=document.getElementById('add-project-modal');const name=modal.querySelector('#new-project-name').value.trim();const color=modal.querySelector('#new-project-color').value;const description=modal.querySelector('#new-project-description').value.trim();if(!name||!color){alert("Project name and color are required.");return;}const p={id:Date.now(),name,description,color:color,estimate:parseFloat(modal.querySelector('#new-project-estimate').value)||0,status:'open'};await addData('projects',p);projects.push(p);renderProjectsPage();renderTimerPage();closeModal(modal);modal.querySelector('form').reset();};
-        
-        const updateProject=async(id,data)=>{
-            const p = projects.find(proj => proj.id === id);
-            if(p){
-                Object.assign(p,data);
-                await updateData('projects',p);
-                renderProjectsPage();
-                renderTimerPage(); 
-                if (document.querySelector('.page.active').id === 'page-detail') {
-                    renderProjectDetailPage();
-                }
+        const saveNewProject=async(e)=>{
+            e.preventDefault();
+            const modal=document.getElementById('add-project-modal');
+            const name=modal.querySelector('#new-project-name').value.trim();
+            const color=modal.querySelector('#new-project-color').value;
+            const description=modal.querySelector('#new-project-description').value.trim();
+            if(!name||!color){alert("Project name and color are required.");return;}
+            const p={ name, description, color, estimate:parseFloat(modal.querySelector('#new-project-estimate').value)||0, status:'open' };
+            try {
+                await addData('projects', p);
+                closeModal(modal);
+                modal.querySelector('form').reset();
+            } catch (error) {
+                console.error("Error adding project:", error);
+                alert("Could not save the project. Please check the console for errors.");
             }
         };
-
+        
         const updateDashboardTotalTime=()=>{const el=document.getElementById('dashboard-total-time');if(!el)return;const sD=new Date().setHours(0,0,0,0);let t=tasks.filter(t=>t.endTime>=sD).reduce((s,t)=>s+(t.endTime-t.startTime),0);if(activeTimer){let elapsed;if(activeTimer.isPaused){elapsed=activeTimer.pauseStartTime-activeTimer.startTime-activeTimer.totalPausedTime;}else{elapsed=Date.now()-activeTimer.startTime-activeTimer.totalPausedTime;} t+=elapsed>0?elapsed:0;} el.textContent=formatDuration(t);};
         
         const renderProjectsPage = () => {
             const listEl = document.getElementById('projects-list');
             if(!listEl) return;
-            
-            listEl.innerHTML=projects.filter(p=>p.status!=='completed').map(p=>{
-                const timeTodayMs = getTodaysTimeForProjectMs(p.id);
-                return `<div class="project-card" data-project-id="${p.id}" style="border-left-color: ${p.color};">
-                    <div class="project-card-info view-project-detail-btn">
-                        <div class="project-card-name">${p.name}</div>
-                        <div class="project-card-time">Today: ${formatDuration(timeTodayMs)}</div>
-                    </div>
-                    <div class="project-card-action">
-                        <button class="action-btn edit-project-btn"><i data-lucide="pencil" class="w-5 h-5"></i></button>
-                    </div>
+            const openProjects = projects.filter(p=>p.status!=='completed');
+            if (openProjects.length > 0) {
+                listEl.innerHTML = openProjects.map(p=>{
+                    const timeTodayMs = getTodaysTimeForProjectMs(p.id);
+                    return `<div class="project-card" data-project-id="${p.id}" style="border-left-color: ${p.color};">
+                        <div class="project-card-info view-project-detail-btn">
+                            <div class="project-card-name">${p.name}</div>
+                            <div class="project-card-time">Today: ${formatDuration(timeTodayMs)}</div>
+                        </div>
+                        <div class="project-card-action">
+                            <button class="action-btn edit-project-btn"><i data-lucide="pencil" class="w-5 h-5"></i></button>
+                        </div>
+                    </div>`;
+                }).join('');
+            } else {
+                listEl.innerHTML = `<div class="text-center py-12 text-muted-foreground">
+                    <i data-lucide="folder-plus" class="mx-auto h-12 w-12 opacity-50"></i>
+                    <h3 class="mt-2 text-sm font-medium">No active projects</h3>
+                    <p class="mt-1 text-sm">Click the '+' button above to get started.</p>
                 </div>`;
-            }).join('');
+            }
             lucide.createIcons();
         };
         
@@ -665,144 +816,126 @@
                 const currentSortBtn = sortControls.querySelector('.sort-btn.active');
                 if(currentSortBtn) currentSort = currentSortBtn.dataset.sort;
             }
-             if(currentSort==='name'){sP.sort((a,b)=>a.name.localeCompare(b.name));}
+            if(currentSort==='name'){sP.sort((a,b)=>a.name.localeCompare(b.name));}
             else if(currentSort.startsWith('time')){const direction=currentSort==='time_desc'?-1:1;sP.sort((a,b)=>(getTodaysTimeForProjectMs(b.id)-getTodaysTimeForProjectMs(a.id))*direction);}
             else{const l={};tasks.forEach(t=>{if(!l[t.projectId]||t.endTime>l[t.projectId])l[t.projectId]=t.endTime;});sP.sort((a,b)=>(l[b.id]||0)-(l[a.id]||0));}
-
-            listEl.innerHTML = sP.map(p => {
-                 const timeTodayMs = getTodaysTimeForProjectMs(p.id);
-                 return `<div class="project-card" data-project-id="${p.id}" style="border-left-color: ${p.color};">
-                    <div class="project-card-info view-project-detail-btn">
-                        <div class="project-card-name">${p.name}</div>
-                    </div>
-                    <div class="project-card-action flex items-center gap-4">
-                        <span class="font-semibold text-muted-foreground">${formatDuration(timeTodayMs)}</span>
-                        <button class="action-btn start-timer-btn"><i data-lucide="play" class="w-5 h-5"></i></button>
-                    </div>
+            if (sP.length > 0) {
+                listEl.innerHTML = sP.map(p => {
+                    const timeTodayMs = getTodaysTimeForProjectMs(p.id);
+                    return `<div class="project-card" data-project-id="${p.id}" style="border-left-color: ${p.color};">
+                        <div class="project-card-info view-project-detail-btn">
+                            <div class="project-card-name">${p.name}</div>
+                        </div>
+                        <div class="project-card-action flex items-center gap-4">
+                            <span class="font-semibold text-muted-foreground">${formatDuration(timeTodayMs)}</span>
+                            <button class="action-btn start-timer-btn"><i data-lucide="play" class="w-5 h-5"></i></button>
+                        </div>
+                    </div>`;
+                }).join('');
+            } else {
+                 listEl.innerHTML = `<div class="text-center py-12 text-muted-foreground">
+                    <i data-lucide="folder-search" class="mx-auto h-12 w-12 opacity-50"></i>
+                    <h3 class="mt-2 text-sm font-medium">No projects to track</h3>
+                    <p class="mt-1 text-sm">Go to the 'Projects' page to add a new project.</p>
                 </div>`;
-            }).join('');
+            }
             lucide.createIcons();
         };
 
         const renderSessionPage = () => {
             const contentEl = document.getElementById('session-view-content');
-            if (!activeTimer) {
-                contentEl.innerHTML = `<p class="text-center text-muted-foreground p-8">No active session.</p>`;
-                return;
-            }
-
+            if (!activeTimer) { contentEl.innerHTML = `<p class="text-center text-muted-foreground p-8">No active session.</p>`; return; }
             const project = projects.find(p => p.id === activeTimer.projectId);
-            if (!project) {
-                contentEl.innerHTML = `<p class="text-center text-muted-foreground p-8">Error: Project not found for this session.</p>`;
-                return;
-            }
-
-            let elapsed;
-            if (activeTimer.isPaused) { elapsed = activeTimer.pauseStartTime - activeTimer.startTime - activeTimer.totalPausedTime; } 
-            else { elapsed = Date.now() - activeTimer.startTime - activeTimer.totalPausedTime; }
+            if (!project) { contentEl.innerHTML = `<p class="text-center text-muted-foreground p-8">Error: Project not found.</p>`; return; }
+            let elapsed = activeTimer.isPaused ? activeTimer.pauseStartTime - activeTimer.startTime - activeTimer.totalPausedTime : Date.now() - activeTimer.startTime - activeTimer.totalPausedTime;
             const liveDisplayTime = formatTime(elapsed > 0 ? elapsed : 0);
-
             const startTime = new Date(activeTimer.startTime);
             const startTimeString = startTime.toTimeString().slice(0,5);
-
             const preDefinedTasksForProject = predefinedTasks.filter(t => t.projectId === project.id);
             preDefinedTasksForProject.forEach(pTask => {
                 if(!activeTimer.sessionTasks.some(sTask => sTask.description === pTask.description)) {
                     activeTimer.sessionTasks.push({id: Date.now() + Math.random(), description: pTask.description, completed: false});
                 }
             });
-
             const tasksHTML = activeTimer.sessionTasks.map(task => `
                 <div class="task-item" data-task-id="${task.id}">
                     <input type="checkbox" class="session-task-checkbox" ${task.completed ? 'checked' : ''}>
                     <span class="flex-grow ${task.completed ? 'line-through text-muted-foreground' : ''}">${task.description}</span>
                 </div>
             `).join('');
-
             contentEl.innerHTML = `
                 <div class="bg-card p-4 rounded-xl border border-border mb-4">
-                     <div class="flex justify-between items-center mb-4">
+                    <div class="flex justify-between items-center mb-4">
                         <div>
                             <label class="text-sm font-medium text-muted-foreground">Start Time</label>
                             <input type="time" id="session-start-time" value="${startTimeString}" class="bg-transparent font-bold text-lg p-1 rounded-md focus:bg-card-secondary">
                         </div>
                         <div class="text-right">
-                             <div id="session-timer-display" class="text-3xl font-bold" style="color: ${activeTimer.isPaused ? 'var(--warning)' : 'var(--success)'};">${liveDisplayTime}</div>
+                            <div id="session-timer-display" class="text-3xl font-bold" style="color: ${activeTimer.isPaused ? 'var(--warning)' : 'var(--success)'};">${liveDisplayTime}</div>
                         </div>
                     </div>
-                     <div class="flex gap-2">
-                         <button id="session-pause-resume-btn" class="flex-1 text-center py-3 px-4 rounded-lg font-semibold text-white flex items-center justify-center gap-2" style="background-color: var(--warning);">
+                    <div class="flex gap-2">
+                        <button id="session-pause-resume-btn" class="flex-1 text-center py-3 px-4 rounded-lg font-semibold text-white flex items-center justify-center gap-2" style="background-color: var(--warning);">
                             <i data-lucide="${activeTimer.isPaused ? 'play' : 'pause'}"></i>
                             <span>${activeTimer.isPaused ? 'Resume' : 'Pause'}</span>
-                         </button>
-                         <button id="session-stop-btn" class="flex-1 text-center py-3 px-4 rounded-lg font-semibold text-white flex items-center justify-center gap-2" style="background-color: var(--danger);">
+                        </button>
+                        <button id="session-stop-btn" class="flex-1 text-center py-3 px-4 rounded-lg font-semibold text-white flex items-center justify-center gap-2" style="background-color: var(--danger);">
                             <i data-lucide="stop-circle"></i>
                             <span>Stop & Save</span>
                         </button>
-                     </div>
+                    </div>
                 </div>
-
                 <div class="bg-card p-4 rounded-xl border border-border mb-4">
-                     <h3 class="font-semibold mb-2">Session Tasks</h3>
-                     <div id="session-task-list">${tasksHTML || '<p class="text-sm text-muted-foreground py-2">No predefined tasks. Add some below!</p>'}</div>
-                     <form id="add-session-task-form" class="flex gap-2 mt-4">
+                    <h3 class="font-semibold mb-2">Session Tasks</h3>
+                    <div id="session-task-list">${tasksHTML || '<p class="text-sm text-muted-foreground py-2">No tasks. Add one below!</p>'}</div>
+                    <form id="add-session-task-form" class="flex gap-2 mt-4">
                         <input type="text" id="new-session-task-input" class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border" placeholder="Add a new task for this session...">
                         <button type="submit" class="action-btn bg-primary-accent text-white border-transparent hover:bg-primary-accent"><i data-lucide="plus"></i></button>
-                     </form>
+                    </form>
                 </div>
-                
-                 <div id="session-notes-container" class="bg-card p-4 rounded-xl border border-border space-y-3">
-                     <h3 class="font-semibold">Notes & Tags</h3>
-                     <textarea id="session-notes" class="w-full p-2 text-sm border rounded-md bg-card-secondary border-input-border" placeholder="Add notes for this session...">${activeTimer.notes || ''}</textarea>
-                     <input type="text" id="session-tags" class="w-full p-2 text-sm border rounded-md bg-card-secondary border-input-border" placeholder="Add tags... (comma-separated)" value="${(activeTimer.tags || []).join(', ')}">
-                 </div>
+                <div id="session-notes-container" class="bg-card p-4 rounded-xl border border-border space-y-3">
+                    <h3 class="font-semibold">Notes & Tags</h3>
+                    <textarea id="session-notes" class="w-full p-2 text-sm border rounded-md bg-card-secondary border-input-border" placeholder="Add notes...">${activeTimer.notes || ''}</textarea>
+                    <input type="text" id="session-tags" class="w-full p-2 text-sm border rounded-md bg-card-secondary border-input-border" placeholder="Add tags... (comma-separated)" value="${(activeTimer.tags || []).join(', ')}">
+                </div>
             `;
             lucide.createIcons();
         };
         
         const renderProjectDetailPage = () => {
-             const contentEl = document.getElementById('detail-view-content');
-            if (!currentDetailProjectId) {
-                contentEl.innerHTML = `<p class="text-center text-muted-foreground">Project not found.</p>`;
-                return;
-            }
-
+            const contentEl = document.getElementById('detail-view-content');
+            if (!currentDetailProjectId) { contentEl.innerHTML = `<p class="text-center text-muted-foreground">Project not found.</p>`; return; }
             const p = projects.find(proj => proj.id === currentDetailProjectId);
-            if (!p) {
-                contentEl.innerHTML = `<p class="text-center text-muted-foreground">Project not found.</p>`;
-                return;
-            }
-
+            if (!p) { contentEl.innerHTML = `<p class="text-center text-muted-foreground">Project not found.</p>`; return; }
             const statusRadios=`<div class="flex items-center gap-6 mt-4"><p class="text-sm font-medium text-muted-foreground">Status:</p><div class="flex items-center gap-4"><label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="project-status" value="open" class="project-status-radio" ${p.status!=='completed'?'checked':''}> Open</label><label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="project-status" value="completed" class="project-status-radio" ${p.status==='completed'?'checked':''}> Completed</label></div></div>`;
-            
             contentEl.innerHTML = `
                 <div id="project-detail-view-mode">
-                     <button class="back-to-projects-btn font-semibold text-primary-accent hover:underline mb-4">&larr; Back to Projects</button>
+                    <button class="back-to-projects-btn font-semibold text-primary-accent hover:underline mb-4">&larr; Back to Projects</button>
                     <div class="bg-card p-4 rounded-xl border mb-4">
                         <div class="flex justify-between items-start">
-                             <h2 class="text-2xl font-bold mb-2">${p.name}</h2>
-                             <button id="edit-project-btn-detail" class="action-btn"><i data-lucide="pencil" class="w-5 h-5"></i></button>
+                            <h2 class="text-2xl font-bold mb-2">${p.name}</h2>
+                            <button id="edit-project-btn-detail" class="action-btn"><i data-lucide="pencil" class="w-5 h-5"></i></button>
                         </div>
                         <p class="text-sm text-muted-foreground mb-4">${p.description||'No description.'}</p>
                         ${statusRadios}
                     </div>
                 </div>
                 <div id="project-detail-edit-mode" class="hidden bg-card p-4 rounded-xl border mb-4 space-y-3">
-                     <h2 class="text-xl font-bold">Edit Project</h2>
+                    <h2 class="text-xl font-bold">Edit Project</h2>
                     <div>
                         <label class="block text-sm font-medium text-muted-foreground mb-1">Project Name</label>
                         <input type="text" id="edit-project-name" class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border" value="${p.name}">
                     </div>
-                     <div>
+                    <div>
                         <label class="block text-sm font-medium text-muted-foreground mb-1">Description</label>
                         <textarea id="edit-project-description" rows="2" class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border">${p.description||''}</textarea>
                     </div>
-                     <div>
-                         <label class="block text-sm font-medium text-muted-foreground mb-2">Color</label>
-                         <div id="edit-color-palette" class="flex flex-wrap gap-2"></div>
-                         <input type="hidden" id="edit-project-color" value="${p.color}">
+                    <div>
+                        <label class="block text-sm font-medium text-muted-foreground mb-2">Color</label>
+                        <div id="edit-color-palette" class="flex flex-wrap gap-2"></div>
+                        <input type="hidden" id="edit-project-color" value="${p.color}">
                     </div>
-                     <div>
+                    <div>
                         <label class="block text-sm font-medium text-muted-foreground mb-1">Time Estimate (hours)</label>
                         <input type="number" id="edit-project-estimate" placeholder="Estimate (hrs)" value="${p.estimate||''}" class="w-full p-2 border rounded-md text-sm bg-card-secondary">
                     </div>
@@ -811,7 +944,6 @@
                         <button id="save-updated-project-btn" class="px-4 py-2 font-semibold rounded-lg text-white" style="background:var(--primary-accent)">Save</button>
                     </div>
                 </div>
-
                 <div class="bg-card p-4 rounded-xl border">
                     <h3 class="font-semibold mb-2">Time Entries</h3>
                     <div id="detail-entries-list" class="space-y-3"></div>
@@ -825,17 +957,15 @@
             const listEl = document.getElementById('detail-entries-list');
             if(!listEl) return;
             const projectTasks = tasks.filter(t => t.projectId === projectId).sort((a,b) => b.startTime - a.startTime);
-            listEl.innerHTML = projectTasks.length > 0 ? projectTasks.map(t => createTaskEntryHTML(t)).join('') : '<p class="text-sm text-muted-foreground">No time entries for this project yet.</p>';
+            listEl.innerHTML = projectTasks.length > 0 ? projectTasks.map(t => createTaskEntryHTML(t)).join('') : '<p class="text-sm text-muted-foreground">No time entries yet.</p>';
             lucide.createIcons();
         };
 
         const createTaskEntryHTML = (task) => {
-            const startTime = new Date(task.startTime);
-            const endTime = new Date(task.endTime);
+            const startTime = new Date(task.startTime), endTime = new Date(task.endTime);
             const duration = formatDuration(endTime - startTime);
             const dateStr = startTime.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
             const timeStr = `${startTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - ${endTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
-
             return `<div class="task-entry bg-card p-3 rounded-lg border" data-task-id="${task.id}">
                 <div class="view-mode">
                     <div class="flex justify-between items-start">
@@ -854,17 +984,103 @@
             </div>`;
         };
 
-        const renderReportsPage=()=>{ const content=document.getElementById('reports-page-template').content.cloneNode(true); document.getElementById('reports-content').innerHTML=''; document.getElementById('reports-content').appendChild(content); const dayPicker = document.getElementById('reports-day-picker'); dayPicker.value = new Date().toISOString().split('T')[0]; dayPicker.addEventListener('change', () => renderReportData('day')); renderReportData('week'); lucide.createIcons();};
+        const renderReportsPage = () => {
+            const template = document.getElementById('reports-page-template');
+            if (!template) return;
+            const content = template.content.cloneNode(true);
+            document.getElementById('reports-content').innerHTML = '';
+            document.getElementById('reports-content').appendChild(content);
+            const dayPicker = document.getElementById('reports-day-picker');
+            if (dayPicker) {
+                dayPicker.value = new Date().toISOString().split('T')[0];
+                dayPicker.addEventListener('change', () => renderReportData('day'));
+            }
+            renderReportData('week');
+            lucide.createIcons();
+        };
+
         const renderReportData=(filter,range={})=>{ const exportBtn = document.getElementById('export-day-notes-btn'); const dayPickerContainer = document.getElementById('reports-day-picker-container'); if(exportBtn) exportBtn.classList.toggle('hidden', filter !== 'day'); if(dayPickerContainer) dayPickerContainer.classList.toggle('hidden', filter !== 'day'); let sD,eD;const n=new Date(); if(filter==='day'){ const picker = document.getElementById('reports-day-picker'); const reportDate = picker ? new Date(picker.value + 'T00:00:00') : n; sD=new Date(reportDate).setHours(0,0,0,0); eD=new Date(reportDate).setHours(23,59,59,999); }else if(filter==='week'){const d=n.getDay()===0?6:n.getDay()-1,f=n.getDate()-d;sD=new Date(new Date(n).setDate(f)).setHours(0,0,0,0);eD=new Date(new Date(n).setDate(f+6)).setHours(23,59,59,999);}else if(filter==='month'){sD=new Date(n.getFullYear(),n.getMonth(),1);eD=new Date(n.getFullYear(),n.getMonth()+1,0).setHours(23,59,59,999);} else if(filter==='custom'&&range.start&&range.end){ sD=new Date(range.start + 'T00:00:00').getTime(); eD=new Date(range.end + 'T00:00:00').setHours(23,59,59,999); } const fTs=tasks.filter(t=>t.startTime>=sD&&t.startTime<=eD); const totalTimeMs = fTs.reduce((sum, task) => sum + (task.endTime - task.startTime), 0); const totalTimeEl = document.getElementById('reports-total-time'); if (totalTimeEl) { totalTimeEl.textContent = formatDuration(totalTimeMs); } const groupedByProject=fTs.reduce((acc,task)=>{(acc[task.projectId]=acc[task.projectId]||[]).push(task);return acc;},{}); const summaryEl=document.getElementById('reports-summary');if(!summaryEl)return;summaryEl.innerHTML=projects.filter(p=>groupedByProject[p.id]).map(p=>{const projectTasks=groupedByProject[p.id];const totalTime=projectTasks.reduce((sum,t)=>sum+(t.endTime-t.startTime),0);return`<details class="bg-card p-3 rounded-lg border"><summary class="font-semibold flex justify-between items-center cursor-pointer"><span><span class="inline-block w-3 h-3 rounded-full mr-2" style="background-color:${p.color};"></span>${p.name}</span><span>${formatDuration(totalTime)}</span></summary><div class="mt-3 pt-3 border-t border-border space-y-2">${projectTasks.sort((a,b)=>b.startTime-a.startTime).map(t=>`<div class="text-sm flex justify-between report-task-item p-1 rounded-md" data-task-id="${t.id}"><span>${t.description}</span><span class="text-muted-foreground">${formatDuration(t.endTime-t.startTime)}</span></div>`).join('')}</div></details>`;}).join('')||'<p class="text-center text-muted-foreground py-8 col-span-full">No time tracked in this period.</p>'; };
         const exportDayNotesAsMarkdown = () => { const dayPicker = document.getElementById('reports-day-picker'); if (!dayPicker || !dayPicker.value) { alert("Please select a day to export."); return; } const reportDate = new Date(dayPicker.value + 'T00:00:00'); reportDate.setHours(0,0,0,0); const startOfDay = reportDate.getTime(); const endOfDay = startOfDay + (24 * 60 * 60 * 1000 - 1); const dayTasks = tasks.filter(t => t.startTime >= startOfDay && t.startTime <= endOfDay && t.notes); if (dayTasks.length === 0) { alert("No notes found for " + reportDate.toLocaleDateString()); return; } const tasksByProject = dayTasks.reduce((acc, task) => { const p = projects.find(proj => proj.id === task.projectId); const projectName = p ? p.name : 'Uncategorized'; if (!acc[projectName]) { acc[projectName] = []; } acc[projectName].push(task); return acc; }, {}); let markdown = `Daily Notes: ${reportDate.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}\n\n`; for (const projectName in tasksByProject) { markdown += `# ${projectName}\n\n`; tasksByProject[projectName].sort((a, b) => a.startTime - b.startTime).forEach(task => { if (task.description) { markdown += `## ${task.description}\n`; } if (task.notes) { markdown += `${task.notes}\n\n`; } }); } const filename = `work_app_notes_${reportDate.toISOString().split('T')[0]}.md`; downloadFile(markdown, filename, 'text/markdown;charset=utf-8;'); };
-        const renderSettingsPage=()=>{const content=document.getElementById('settings-template').content.cloneNode(true);document.getElementById('settings-content').innerHTML='';document.getElementById('settings-content').appendChild(content);dom.darkModeToggle=document.getElementById('dark-mode-toggle');dom.autoBackupToggle=document.getElementById('auto-backup-toggle');dom.lastBackupInfo=document.getElementById('last-backup-info');dom.importFileInput=document.getElementById('import-file-input');dom.csvDateStart=document.getElementById('csv-date-start');dom.csvDateEnd=document.getElementById('csv-date-end');applyTheme(localStorage.getItem('theme')||'light');dom.autoBackupToggle.checked=localStorage.getItem('autoBackupEnabled')==='true';updateLastBackupInfo();document.getElementById('detected-time-zone').textContent=Intl.DateTimeFormat().resolvedOptions().timeZone; const savedTheme=localStorage.getItem('accentTheme')||'theme-teal';document.querySelector(`.accent-swatch[data-theme="${savedTheme}"]`)?.classList.add('selected');};
-        const renderAccomplishmentsPage=()=>{const content=document.getElementById('accomplishments-page-template').content.cloneNode(true);const ac=document.getElementById('accomplishments-content');ac.innerHTML='';ac.appendChild(content);const listEl=document.getElementById('accomplishments-list');listEl.innerHTML=accomplishments.sort((a,b)=>b.date-a.date).map(acc=>{const p=projects.find(j=>j.id===acc.projectId);return`<div class="bg-card p-3 rounded-lg border"><p>${acc.text}</p><div class="flex flex-wrap gap-1 mt-2">${(acc.tags||[]).map(g=>`<span class="tag">${g}</span>`).join('')}</div><div class="flex justify-between items-center mt-2"><p class="text-xs text-muted-foreground font-semibold" style="color:${p?.color||'gray'}">${p?.name||'No Project'}&bull;${new Date(acc.date).toLocaleDateString()}</p><button class="edit-accomplishment-btn p-2" data-accomplishment-id="${acc.id}"><i data-lucide="pencil" class="w-4 h-4"></i></button></div></div>`;}).join('')||'<p class="text-center text-muted-foreground py-8 col-span-full">No accomplishments yet.</p>'; lucide.createIcons();};
-        const saveAccomplishment=async e=>{e.preventDefault();const modal=document.getElementById('add-accomplishment-modal');const id=modal.querySelector('#accomplishment-id').value;const pId=parseInt(modal.querySelector('#accomplishment-project-select').value);const t=modal.querySelector('#accomplishment-text').value.trim();if(!t)return;const tagsInput=modal.querySelector('#accomplishment-tags').value.trim();const tags=tagsInput?tagsInput.split(/[\s,]+/).map(tag=>tag.startsWith('#')?tag:tag):[];const date=new Date(modal.querySelector('#accomplishment-date').value+'T00:00:00').getTime();const accData={projectId:pId||null,text:t,tags,date};if(id){const accomplishment=accomplishments.find(a=>a.id===parseInt(id));Object.assign(accomplishment,accData);await updateData('accomplishments',accomplishment);}else{const newId=await addData('accomplishments',accData);accData.id=newId;accomplishments.push(accData);}closeModal(modal);renderAccomplishmentsPage();};
-        const renderTasksPage=()=>{const content=document.getElementById('tasks-page-template').content.cloneNode(true);const tc=document.getElementById('tasks-content');tc.innerHTML='';tc.appendChild(content);const listEl=document.getElementById('predefined-tasks-list'); const groupedByProject=predefinedTasks.reduce((acc,task)=>{(acc[task.projectId||'none']=acc[task.projectId||'none']||[]).push(task);return acc;},{}); listEl.innerHTML=projects.concat({id:'none',name:'General Tasks'}).filter(p=>groupedByProject[p.id]).map(p=>{return`<div><h2 class="font-bold text-lg mt-4 mb-2" style="color:${p.color||'inherit'}">${p.name}</h2><div class="space-y-2">${groupedByProject[p.id].map(task=>{const isDoneToday=task.isCompleted&&new Date(task.completedDate).toDateString()===new Date().toDateString();return`<div class="flex items-center bg-card p-3 rounded-lg border" data-task-id="${task.id}"><input type="checkbox" class="predefined-task-checkbox h-5 w-5 rounded border-gray-300 text-primary-accent focus:ring-primary-accent mr-4 flex-shrink-0" ${isDoneToday?'checked':''}> <div class="flex-grow min-w-0"><p class="font-medium ${isDoneToday?'line-through text-gray-500':''}">${task.description}</p>${task.dueDate?`<p class="text-sm text-muted-foreground">Due: ${new Date(task.dueDate+'T00:00:00').toLocaleDateString()}</p>`:''}${task.notes?`<p class="text-sm text-muted-foreground">${task.notes}</p>`:''}<div class="flex flex-wrap gap-1 mt-1">${(task.tags||[]).map(g=>`<span class="tag">${g}</span>`).join('')}</div></div><div class="flex items-center"><button class="edit-predefined-task-btn p-2 rounded-md hover:bg-card-secondary"><i data-lucide="pencil" class="w-4 h-4"></i></button><button class="delete-predefined-task-btn p-2 rounded-md hover:bg-card-secondary"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div>`}).join('')}</div></div>`}).join('')||'<p class="text-center text-muted-foreground py-8">No tasks yet. Add one!</p>'; lucide.createIcons();};
-        const savePredefinedTask=async e=>{e.preventDefault();const modal=document.getElementById('add-predefined-task-modal');const id=modal.querySelector('#predefined-task-id').value;const description=modal.querySelector('#predefined-task-desc').value.trim();if(!description)return;const projectId=parseInt(modal.querySelector('#predefined-task-project').value)||null;const notes=modal.querySelector('#predefined-task-notes').value.trim();const tags=modal.querySelector('#predefined-task-tags').value.split(',').map(t=>t.trim()).filter(Boolean);const dueDate=modal.querySelector('#predefined-task-due-date').value;const taskData={description,projectId,notes,tags,dueDate:dueDate||null};if(id){const task=predefinedTasks.find(t=>t.id===parseInt(id));Object.assign(task,taskData);await updateData('predefinedTasks',task);}else{const newId=await addData('predefinedTasks',{...taskData,isCompleted:false,completedDate:null});taskData.id=newId;predefinedTasks.push(taskData);}closeModal(modal);renderTasksPage();};
+        
+        const renderSettingsPage=()=>{
+            const template = document.getElementById('settings-template'); if (!template) return;
+            const user = auth.currentUser;
+            const content=template.content.cloneNode(true);
+            document.getElementById('settings-content').innerHTML='';
+            document.getElementById('settings-content').appendChild(content);
+            if (user) {
+                document.getElementById('user-avatar').src = user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || user.email)}&background=random`;
+                document.getElementById('user-name').textContent = user.displayName || user.email;
+            }
+            dom.darkModeToggle=document.getElementById('dark-mode-toggle');
+            dom.importFileInput=document.getElementById('import-file-input');
+            dom.csvDateStart=document.getElementById('csv-date-start');
+            dom.csvDateEnd=document.getElementById('csv-date-end');
+            applyTheme(localStorage.getItem('theme')||'light');
+            document.getElementById('detected-time-zone').textContent=Intl.DateTimeFormat().resolvedOptions().timeZone; 
+            const savedTheme=localStorage.getItem('accentTheme')||'theme-teal';
+            const activeSwatch = document.querySelector(`.accent-swatch[data-theme="${savedTheme}"]`);
+            if (activeSwatch) activeSwatch.classList.add('selected');
+        };
+
+        const renderAccomplishmentsPage=()=>{
+            const template = document.getElementById('accomplishments-page-template'); if (!template) return;
+            const content=template.content.cloneNode(true);
+            const ac=document.getElementById('accomplishments-content');ac.innerHTML='';ac.appendChild(content);const listEl=document.getElementById('accomplishments-list');listEl.innerHTML=accomplishments.sort((a,b)=>b.date-a.date).map(acc=>{const p=projects.find(j=>j.id===acc.projectId);return`<div class="bg-card p-3 rounded-lg border"><p>${acc.text}</p><div class="flex flex-wrap gap-1 mt-2">${(acc.tags||[]).map(g=>`<span class="tag">${g}</span>`).join('')}</div><div class="flex justify-between items-center mt-2"><p class="text-xs text-muted-foreground font-semibold" style="color:${p?.color||'gray'}">${p?.name||'No Project'}&bull;${new Date(acc.date).toLocaleDateString()}</p><button class="edit-accomplishment-btn p-2" data-accomplishment-id="${acc.id}"><i data-lucide="pencil" class="w-4 h-4"></i></button></div></div>`;}).join('')||'<p class="text-center text-muted-foreground py-8 col-span-full">No accomplishments yet.</p>'; lucide.createIcons();
+        };
+
+        const saveAccomplishment=async e=>{
+            e.preventDefault();
+            const modal=document.getElementById('add-accomplishment-modal');
+            const id=modal.querySelector('#accomplishment-id').value;
+            const pId=modal.querySelector('#accomplishment-project-select').value;
+            const t=modal.querySelector('#accomplishment-text').value.trim();
+            if(!t)return;
+            const tagsInput=modal.querySelector('#accomplishment-tags').value.trim();
+            const tags=tagsInput?tagsInput.split(/[\s,]+/).map(tag=>tag.startsWith('#')?tag:tag):[];
+            const date=new Date(modal.querySelector('#accomplishment-date').value+'T00:00:00').getTime();
+            const accData={projectId:pId||null,text:t,tags,date};
+            if(id){ await updateData('accomplishments',id, accData); }
+            else{ await addData('accomplishments',accData); }
+            closeModal(modal);
+        };
+
+        const renderTasksPage=()=>{
+            const template = document.getElementById('tasks-page-template'); if (!template) return;
+            const content=template.content.cloneNode(true);const tc=document.getElementById('tasks-content');tc.innerHTML='';tc.appendChild(content);const listEl=document.getElementById('predefined-tasks-list'); const groupedByProject=predefinedTasks.reduce((acc,task)=>{(acc[task.projectId||'none']=acc[task.projectId||'none']||[]).push(task);return acc;},{}); listEl.innerHTML=projects.concat({id:'none',name:'General Tasks'}).filter(p=>groupedByProject[p.id]).map(p=>{return`<div><h2 class="font-bold text-lg mt-4 mb-2" style="color:${p.color||'inherit'}">${p.name}</h2><div class="space-y-2">${(groupedByProject[p.id] || []).map(task=>{const isDoneToday=task.isCompleted&&new Date(task.completedDate).toDateString()===new Date().toDateString();return`<div class="flex items-center bg-card p-3 rounded-lg border" data-task-id="${task.id}"><input type="checkbox" class="predefined-task-checkbox h-5 w-5 rounded border-gray-300 text-primary-accent focus:ring-primary-accent mr-4 flex-shrink-0" ${isDoneToday?'checked':''}> <div class="flex-grow min-w-0"><p class="font-medium ${isDoneToday?'line-through text-gray-500':''}">${task.description}</p>${task.dueDate?`<p class="text-sm text-muted-foreground">Due: ${new Date(task.dueDate+'T00:00:00').toLocaleDateString()}</p>`:''}${task.notes?`<p class="text-sm text-muted-foreground">${task.notes}</p>`:''}<div class="flex flex-wrap gap-1 mt-1">${(task.tags||[]).map(g=>`<span class="tag">${g}</span>`).join('')}</div></div><div class="flex items-center"><button class="edit-predefined-task-btn p-2 rounded-md hover:bg-card-secondary"><i data-lucide="pencil" class="w-4 h-4"></i></button><button class="delete-predefined-task-btn p-2 rounded-md hover:bg-card-secondary"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div></div>`}).join('')}</div></div>`}).join('')||'<p class="text-center text-muted-foreground py-8">No tasks yet. Add one!</p>'; lucide.createIcons();
+        };
+
+        const savePredefinedTask=async e=>{
+            e.preventDefault();
+            const modal=document.getElementById('add-predefined-task-modal');
+            const id=modal.querySelector('#predefined-task-id').value;
+            const description=modal.querySelector('#predefined-task-desc').value.trim();
+            if(!description)return;
+            const projectId=modal.querySelector('#predefined-task-project').value||null;
+            const notes=modal.querySelector('#predefined-task-notes').value.trim();
+            const tags=modal.querySelector('#predefined-task-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
+            const dueDate=modal.querySelector('#predefined-task-due-date').value;
+            const taskData={description,projectId,notes,tags,dueDate:dueDate||null};
+            if(id){ await updateData('predefinedTasks',id, taskData); }
+            else{ await addData('predefinedTasks',{...taskData,isCompleted:false,completedDate:null}); }
+            closeModal(modal);
+        };
         const renderCompletedProjectsPage=()=>{const completedProjects=projects.filter(p=>p.status==='completed');const contentEl=document.getElementById('completed-projects-content');contentEl.innerHTML=`<div class="flex items-center justify-between mb-6"><button class="back-to-dashboard-btn font-semibold text-primary-accent hover:underline">&larr; Back to Projects</button></div><div class="space-y-2">${completedProjects.length>0?completedProjects.map(p=>`<div class="bg-card p-3 rounded-lg border flex items-center justify-between"><div class="flex items-center space-x-3"><span class="w-3 h-3 rounded-full" style="background-color:${p.color};"></span><button class="font-semibold completed-project-link hover:underline" data-project-id="${p.id}">${p.name}</button></div></div>`).join(''):'<p class="text-center text-muted-foreground py-8 col-span-full">No completed projects.</p>'}</div>`;};
-        const saveManualEntry=async e=>{e.preventDefault();const modal=document.getElementById('manual-entry-modal');const id=modal.querySelector('#manual-entry-task-id').value;const pId=parseInt(modal.querySelector('#manual-entry-project').value);const desc=document.getElementById('manual-entry-desc').value,date=document.getElementById('manual-entry-date').value,start=document.getElementById('manual-entry-start').value,end=document.getElementById('manual-entry-end').value,notes=document.getElementById('manual-entry-notes').value;if(!desc||!date||!start||!end||!pId)return;const startTime=new Date(`${date}T${start}`).getTime(),endTime=new Date(`${date}T${end}`).getTime();if(startTime>=endTime)return;const taskData={projectId:pId,description:desc,notes,startTime,endTime,tags:[]};if(id){const task=tasks.find(t=>t.id===parseInt(id));Object.assign(task,taskData);await updateData('tasks',task);}else{const newId=await addData('tasks',taskData);taskData.id=newId;tasks.push(taskData);}closeModal(modal);const activePage=document.querySelector('.page.active').id;if(activePage==='page-reports'){renderReportData(document.querySelector('.reports-filter-btn.active').dataset.filter);}else if(activePage==='page-detail'){renderProjectEntries(currentDetailProjectId);}else if(activePage==='page-session'){renderSessionPage();}updateDashboardTotalTime();renderTimerPage();renderProjectsPage();};
-        const showUserGuide=()=>{document.getElementById('guide-content').innerHTML=`<h2 class="text-2xl font-bold mb-4">Welcome to time!</h2><div class="prose dark:prose-invert max-w-none space-y-4 text-foreground"><p>This guide explains the features to help you track time effectively.</p><h3 class="font-semibold">1. Projects Page</h3><p>Use the '+' button to create a new project. Click the pencil icon on any project to edit its details or see its history.</p><h3 class="font-semibold">2. Timer Page</h3><p>This is your main dashboard for tracking time. Click a project to see its tasks, then click the play button on a task (or the project itself) to start a timer.</p><h3 class="font-semibold">3. Tasks Page</h3><p>Go to the Tasks page to create reusable tasks that you can assign to projects. This saves you from typing the same task name repeatedly.</p><h3 class="font-semibold">4. PWA & Automatic Backups</h3><ul><li><strong>Installable App (PWA):</strong> Your browser may show an option to "Install" or "Add to Home Screen" to use this app like a native app.</li><li><strong>Automatic Backups:</strong> In <strong>Settings</strong>, enable "Automatic Daily Backups" to save a JSON backup to your downloads folder every day after 12:00 PM.</li></ul></div>`;openModal(document.getElementById('guide-modal'));};
+        const saveManualEntry=async e=>{
+            e.preventDefault();
+            const modal=document.getElementById('manual-entry-modal');
+            const id=modal.querySelector('#manual-entry-task-id').value;
+            const pId=modal.querySelector('#manual-entry-project').value;
+            const desc=document.getElementById('manual-entry-desc').value,date=document.getElementById('manual-entry-date').value,start=document.getElementById('manual-entry-start').value,end=document.getElementById('manual-entry-end').value,notes=document.getElementById('manual-entry-notes').value;
+            if(!desc||!date||!start||!end||!pId)return;
+            const startTime=new Date(`${date}T${start}`).getTime(),endTime=new Date(`${date}T${end}`).getTime();
+            if(startTime>=endTime)return;
+            const taskData={projectId:pId,description:desc,notes,startTime,endTime,tags:[]};
+            if(id){ await updateData('tasks',id, taskData); }
+            else{ await addData('tasks',taskData); }
+            closeModal(modal);
+        };
+        const showUserGuide=()=>{document.getElementById('guide-content').innerHTML=`<h2 class="text-2xl font-bold mb-4">Welcome to time!</h2><div class="prose dark:prose-invert max-w-none space-y-4 text-foreground"><p>This guide explains the features to help you track time effectively.</p><h3 class="font-semibold">1. Projects Page</h3><p>Use the '+' button to create a new project. Click the pencil icon on any project to edit its details or see its history.</p><h3 class="font-semibold">2. Timer Page</h3><p>This is your main dashboard for tracking time. Click a project to see its tasks, then click the play button on a task (or the project itself) to start a timer.</p><h3 class="font-semibold">3. Tasks Page</h3><p>Go to the Tasks page to create reusable tasks that you can assign to projects. This saves you from typing the same task name repeatedly.</p><h3 class="font-semibold">4. PWA & Data Sync</h3><ul><li><strong>Installable App (PWA):</strong> Your browser may show an option to "Install" or "Add to Home Screen" to use this app like a native app.</li><li><strong>Cloud Sync:</strong> Your data is now saved to the cloud and will be available on any device where you use this app.</li></ul></div>`;openModal(document.getElementById('guide-modal'));};
         const openManualEntryModalForEdit = (taskId) => {
             const task = tasks.find(t => t.id === taskId);
             if (!task) return;
@@ -884,227 +1100,214 @@
             openModal(modal);
         };
         
-        document.body.addEventListener('click',async e=>{
-            const navBtn = e.target.closest('.nav-btn'); 
-            if (navBtn) {
-                const toPage = navBtn.dataset.page;
-                if (activeTimer && document.querySelector('.page.active').id === 'page-session') {
-                    navigationIntent = toPage;
-                    openModal(document.getElementById('confirmation-modal'));
-                    return;
+        // --- AUTHENTICATION FLOW ---
+        const handleAuthSubmit = async (e) => {
+            e.preventDefault();
+            authSubmitBtn.disabled = true;
+            authLoader.classList.remove('hidden');
+            const email = authForm.email.value, password = authForm.password.value, displayName = authForm['display-name'].value;
+            try {
+                if (isSignUp) {
+                    if (!displayName) { alert('Please enter a display name.'); throw new Error('Display name required'); }
+                    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                    await updateProfile(userCredential.user, { displayName });
+                } else {
+                    await signInWithEmailAndPassword(auth, email, password);
                 }
-                return navigateTo(toPage);
+            } catch (error) {
+                alert(`Authentication failed: ${error.message}`);
+            } finally {
+                authSubmitBtn.disabled = false;
+                authLoader.classList.add('hidden');
             }
-            if (e.target.closest('#settings-btn')) {
-                if (activeTimer && document.querySelector('.page.active').id === 'page-session') {
-                    navigationIntent = 'page-settings';
-                    openModal(document.getElementById('confirmation-modal'));
-                    return;
-                }
-                return navigateTo('page-settings');
-            }
-            if(e.target.closest('#add-btn-header')){
-                const activePage = document.querySelector('.page.active').id;
-                switch(activePage){
-                    case 'page-timer':
-                        const modal=document.getElementById('manual-entry-modal'); modal.querySelector('form').reset(); modal.querySelector('#manual-entry-task-id').value = ''; modal.querySelector('#manual-entry-title').textContent = 'Add Manual Time Entry';
-                        modal.querySelector('#manual-entry-project').innerHTML = projects.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
-                        modal.querySelector('#manual-entry-date').value=new Date().toISOString().slice(0,10);
-                        openModal(modal);
-                        break;
-                    case 'page-projects':
-                        const palette=document.getElementById('color-palette');palette.innerHTML=PALETTE.map(c=>`<div class="color-swatch" style="background-color: ${c}" data-color="${c}"></div>`).join('');document.getElementById('new-project-color').value='';openModal(document.getElementById('add-project-modal'));
-                        break;
-                    case 'page-tasks':
-                         const taskModal=document.getElementById('add-predefined-task-modal');taskModal.querySelector('form').reset();taskModal.querySelector('#predefined-task-modal-title').textContent="New Task";const select=taskModal.querySelector('#predefined-task-project');select.innerHTML=`<option value="">General Task</option>`+projects.filter(p=>p.status!=='completed').map(p=>`<option value="${p.id}">${p.name}</option>`).join('');openModal(taskModal);
-                        break;
-                    case 'page-accomplishments':
-                        const accModal=document.getElementById('add-accomplishment-modal');accModal.querySelector('form').reset();accModal.querySelector('#accomplishment-modal-title').textContent="Log an Accomplishment";const accSelect=accModal.querySelector('#accomplishment-project-select');accSelect.innerHTML=`<option value="">No Project</option>`+projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');accModal.querySelector('#accomplishment-date').value=new Date().toISOString().slice(0,10);openModal(accModal);
-                        break;
-                }
-            }
-            if(e.target.closest('.color-swatch')){document.querySelectorAll('.color-swatch').forEach(el=>el.classList.remove('selected'));e.target.classList.add('selected');document.getElementById('new-project-color').value=e.target.dataset.color;}
-            if(e.target.closest('#cancel-add-project-btn'))return closeModal(document.getElementById('add-project-modal'));
-            if(e.target.closest('#cancel-manual-entry-btn'))return closeModal(document.getElementById('manual-entry-modal'));
-            if(e.target.closest('.sort-btn')){const sortBtn=e.target.closest('.sort-btn');document.querySelectorAll('#page-timer .sort-btn').forEach(b=>{b.classList.remove('active');});sortBtn.classList.add('active');currentSort=sortBtn.dataset.sort;renderTimerPage();return;}
-            if(e.target.closest('.reports-filter-btn')){const btn=e.target.closest('.reports-filter-btn');document.querySelectorAll('.reports-filter-btn').forEach(b=>b.classList.remove('bg-card','shadow'));btn.classList.add('bg-card','shadow');document.getElementById('reports-custom-range').classList.toggle('hidden',btn.dataset.filter!=='custom');renderReportData(btn.dataset.filter);}
-            if(e.target.closest('.edit-accomplishment-btn')){const id=parseInt(e.target.closest('.edit-accomplishment-btn').dataset.accomplishmentId);const acc=accomplishments.find(a=>a.id===id);if(acc){const modal=document.getElementById('add-accomplishment-modal');modal.querySelector('form').reset();modal.querySelector('#accomplishment-modal-title').textContent="Edit Accomplishment";const select=modal.querySelector('#accomplishment-project-select');select.innerHTML=`<option value="">No Project</option>`+projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');modal.querySelector('#accomplishment-id').value=acc.id;modal.querySelector('#accomplishment-project-select').value=acc.projectId||'';modal.querySelector('#accomplishment-text').value=acc.text;modal.querySelector('#accomplishment-tags').value=(acc.tags||[]).join(', ');modal.querySelector('#accomplishment-date').value=new Date(acc.date).toISOString().slice(0,10);openModal(modal);}}
-            if(e.target.closest('#cancel-add-accomplishment-btn'))return closeModal(document.getElementById('add-accomplishment-modal'));if(e.target.closest('#import-json-btn'))dom.importFileInput.click();if(e.target.closest('#export-json-btn'))exportDataAsJSON(false);if(e.target.closest('#export-csv-btn'))exportTasksAsCSV();if(e.target.closest('#export-day-notes-btn')){exportDayNotesAsMarkdown();}if(e.target.closest('#show-guide-btn'))showUserGuide();if(e.target.closest('#close-guide-btn'))closeModal(document.getElementById('guide-modal'));
-            if(e.target.closest('#cancel-add-predefined-task-btn'))return closeModal(document.getElementById('add-predefined-task-modal'));
-            if(e.target.closest('.delete-predefined-task-btn')){const taskEl=e.target.closest('[data-task-id]');if(taskEl){const taskId=parseInt(taskEl.dataset.taskId);if(confirm('Delete this pre-defined task?')){await deleteData('predefinedTasks',taskId);predefinedTasks=predefinedTasks.filter(t=>t.id!==taskId);renderTasksPage();}}}
-            if(e.target.closest('.edit-predefined-task-btn')){const taskEl=e.target.closest('[data-task-id]');if(taskEl){const taskId=parseInt(taskEl.dataset.taskId);const task=predefinedTasks.find(t=>t.id===taskId);if(task){const modal=document.getElementById('add-predefined-task-modal');modal.querySelector('form').reset();modal.querySelector('#predefined-task-modal-title').textContent="Edit Task";const select=modal.querySelector('#predefined-task-project');select.innerHTML=`<option value="">General Task</option>`+projects.filter(p=>p.status!=='completed').map(p=>`<option value="${p.id}">${p.name}</option>`).join('');modal.querySelector('#predefined-task-id').value=task.id;modal.querySelector('#predefined-task-desc').value=task.description;modal.querySelector('#predefined-task-project').value=task.projectId||'';modal.querySelector('#predefined-task-due-date').value=task.dueDate||'';modal.querySelector('#predefined-task-notes').value=task.notes||'';modal.querySelector('#predefined-task-tags').value=(task.tags||[]).join(', ');openModal(modal);}}}
-            if(e.target.closest('#view-completed-projects-btn'))navigateTo('page-completed-projects');
-            if(e.target.closest('.edit-project-btn')) { currentDetailProjectId = parseInt(e.target.closest('.project-card').dataset.projectId); navigateTo('page-detail'); }
-            if(e.target.closest('.start-timer-btn')) { startTimer(parseInt(e.target.closest('.project-card').dataset.projectId)); }
-            if(e.target.closest('.view-project-detail-btn')) { currentDetailProjectId = parseInt(e.target.closest('.project-card').dataset.projectId); navigateTo('page-detail'); }
-            if(e.target.closest('#session-pause-resume-btn')) { if(activeTimer.isPaused) resumeTimer(); else pauseTimer(); }
-            if(e.target.closest('#session-stop-btn')) { stopTimer(); }
-            if(e.target.closest('#cancel-confirmation-btn')) { closeModal(document.getElementById('confirmation-modal')); navigationIntent=null;}
-            if(e.target.closest('#confirm-navigation-btn') && e.target.closest('#confirm-navigation-btn').dataset.action !== 'clear-data') { await stopTimer(); if (navigationIntent) navigateTo(navigationIntent); navigationIntent = null; closeModal(document.getElementById('confirmation-modal')); }
+        };
+        const handleSignOut = async () => { if(confirm("Are you sure?")) { await signOut(auth); } };
+        const toggleAuthMode = () => {
+            isSignUp = !isSignUp;
+            displayNameField.classList.toggle('hidden', !isSignUp);
+            authSubmitBtn.textContent = isSignUp ? 'Sign Up' : 'Sign In';
+            authPromptText.textContent = isSignUp ? 'Already have an account?' : "Don't have an account?";
+            authToggleBtn.textContent = isSignUp ? 'Sign In' : 'Sign Up';
+            authForm.reset();
+        };
+        
+        // --- EVENT LISTENERS ---
+        const addEventListeners = () => {
+            authForm.addEventListener('submit', handleAuthSubmit);
+            authToggleBtn.addEventListener('click', toggleAuthMode);
 
-            // --- START: FIXED/NEW EVENT HANDLERS from previous turn ---
-            if (e.target.closest('.delete-task-btn')) {
-                const taskEl = e.target.closest('[data-task-id]');
-                if (taskEl) {
-                    const taskId = parseInt(taskEl.dataset.taskId);
-                    if (confirm('Are you sure you want to delete this time entry?')) {
-                        await deleteData('tasks', taskId);
-                        tasks = tasks.filter(t => t.id !== taskId);
-                        if (document.querySelector('.page.active').id === 'page-detail') {
-                            renderProjectEntries(currentDetailProjectId);
-                        }
-                        updateDashboardTotalTime();
+            document.body.addEventListener('click',async e=>{
+                if (e.target.closest('#sign-out-btn')) { handleSignOut(); }
+                const navBtn = e.target.closest('.nav-btn'); 
+                if (navBtn) { const toPage = navBtn.dataset.page; if (activeTimer && document.querySelector('.page.active').id === 'page-session') { navigationIntent = toPage; openModal(document.getElementById('confirmation-modal')); return; } return navigateTo(toPage); }
+                if (e.target.closest('#settings-btn')) { if (activeTimer && document.querySelector('.page.active').id === 'page-session') { navigationIntent = 'page-settings'; openModal(document.getElementById('confirmation-modal')); return; } return navigateTo('page-settings'); }
+                if(e.target.closest('#add-btn-header')){
+                    const activePage = document.querySelector('.page.active').id;
+                    switch(activePage){
+                        case 'page-timer': const modal=document.getElementById('manual-entry-modal'); modal.querySelector('form').reset(); modal.querySelector('#manual-entry-task-id').value = ''; modal.querySelector('#manual-entry-title').textContent = 'Add Manual Time Entry'; modal.querySelector('#manual-entry-project').innerHTML = projects.filter(p=>p.status !== 'completed').map(p => `<option value="${p.id}">${p.name}</option>`).join(''); modal.querySelector('#manual-entry-date').value=new Date().toISOString().slice(0,10); openModal(modal); break;
+                        case 'page-projects': const palette=document.getElementById('color-palette');palette.innerHTML=PALETTE.map(c=>`<div class="color-swatch" style="background-color: ${c}" data-color="${c}"></div>`).join('');document.getElementById('new-project-color').value='';openModal(document.getElementById('add-project-modal')); break;
+                        case 'page-tasks': const taskModal=document.getElementById('add-predefined-task-modal');taskModal.querySelector('form').reset();taskModal.querySelector('#predefined-task-modal-title').textContent="New Task";const select=taskModal.querySelector('#predefined-task-project');select.innerHTML=`<option value="">General Task</option>`+projects.filter(p=>p.status!=='completed').map(p=>`<option value="${p.id}">${p.name}</option>`).join('');openModal(taskModal); break;
+                        case 'page-accomplishments': const accModal=document.getElementById('add-accomplishment-modal');accModal.querySelector('form').reset();accModal.querySelector('#accomplishment-modal-title').textContent="Log a Goal";const accSelect=accModal.querySelector('#accomplishment-project-select');accSelect.innerHTML=`<option value="">No Project</option>`+projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');accModal.querySelector('#accomplishment-date').value=new Date().toISOString().slice(0,10);openModal(accModal); break;
                     }
                 }
-            }
-            if (e.target.closest('.edit-task-btn')) {
-                const taskEl = e.target.closest('[data-task-id]');
-                if (taskEl) {
-                    const taskId = parseInt(taskEl.dataset.taskId);
-                    openManualEntryModalForEdit(taskId);
+                if(e.target.closest('.color-swatch')){
+                    const swatch = e.target.closest('.color-swatch'), palette = swatch.parentElement;
+                    palette.querySelectorAll('.color-swatch').forEach(el=>el.classList.remove('selected'));
+                    swatch.classList.add('selected');
+                    if (palette.id === 'color-palette') { document.getElementById('new-project-color').value = swatch.dataset.color; }
+                    else if (palette.id === 'edit-color-palette') { document.getElementById('edit-project-color').value = swatch.dataset.color; }
                 }
-            }
-            const detailPage = e.target.closest('#page-detail');
-            if (detailPage) {
-                const viewMode = detailPage.querySelector('#project-detail-view-mode');
-                const editMode = detailPage.querySelector('#project-detail-edit-mode');
-                
-                if (e.target.closest('.back-to-projects-btn')) {
-                    navigateTo('page-projects');
-                }
+                if(e.target.closest('#cancel-add-project-btn'))return closeModal(document.getElementById('add-project-modal'));
+                if(e.target.closest('.sort-btn')){const sortBtn=e.target.closest('.sort-btn');document.querySelectorAll('#page-timer .sort-btn').forEach(b=>b.classList.remove('active'));sortBtn.classList.add('active');currentSort=sortBtn.dataset.sort;renderTimerPage();}
+                if(e.target.closest('.reports-filter-btn')){const btn=e.target.closest('.reports-filter-btn');document.querySelectorAll('.reports-filter-btn').forEach(b=>b.classList.remove('bg-card','shadow'));btn.classList.add('bg-card','shadow');document.getElementById('reports-custom-range').classList.toggle('hidden',btn.dataset.filter!=='custom');renderReportData(btn.dataset.filter);}
+                if(e.target.closest('.edit-accomplishment-btn')){const id=e.target.closest('.edit-accomplishment-btn').dataset.accomplishmentId;const acc=accomplishments.find(a=>a.id===id);if(acc){const modal=document.getElementById('add-accomplishment-modal');modal.querySelector('form').reset();modal.querySelector('#accomplishment-modal-title').textContent="Edit Accomplishment";const select=modal.querySelector('#accomplishment-project-select');select.innerHTML=`<option value="">No Project</option>`+projects.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');modal.querySelector('#accomplishment-id').value=acc.id;modal.querySelector('#accomplishment-project-select').value=acc.projectId||'';modal.querySelector('#accomplishment-text').value=acc.text;modal.querySelector('#accomplishment-tags').value=(acc.tags||[]).join(', ');modal.querySelector('#accomplishment-date').value=new Date(acc.date).toISOString().slice(0,10);openModal(modal);}}
+                if(e.target.closest('#cancel-add-accomplishment-btn'))return closeModal(document.getElementById('add-accomplishment-modal'));if(e.target.closest('#import-json-btn'))dom.importFileInput.click();if(e.target.closest('#export-json-btn'))exportDataAsJSON();if(e.target.closest('#export-csv-btn'))exportTasksAsCSV();if(e.target.closest('#export-day-notes-btn'))exportDayNotesAsMarkdown();if(e.target.closest('#show-guide-btn'))showUserGuide();if(e.target.closest('#close-guide-btn'))closeModal(document.getElementById('guide-modal'));
+                if(e.target.closest('#cancel-add-predefined-task-btn'))return closeModal(document.getElementById('add-predefined-task-modal'));
+                if(e.target.closest('.delete-predefined-task-btn')){const taskEl=e.target.closest('[data-task-id]');if(taskEl){const taskId=taskEl.dataset.taskId;if(confirm('Delete this task?')) await deleteData('predefinedTasks',taskId);}}
+                if(e.target.closest('.edit-predefined-task-btn')){const taskEl=e.target.closest('[data-task-id]');if(taskEl){const taskId=taskEl.dataset.taskId;const task=predefinedTasks.find(t=>t.id===taskId);if(task){const modal=document.getElementById('add-predefined-task-modal');modal.querySelector('form').reset();modal.querySelector('#predefined-task-modal-title').textContent="Edit Task";const select=modal.querySelector('#predefined-task-project');select.innerHTML=`<option value="">General Task</option>`+projects.filter(p=>p.status!=='completed').map(p=>`<option value="${p.id}">${p.name}</option>`).join('');modal.querySelector('#predefined-task-id').value=task.id;modal.querySelector('#predefined-task-desc').value=task.description;modal.querySelector('#predefined-task-project').value=task.projectId||'';modal.querySelector('#predefined-task-due-date').value=task.dueDate||'';modal.querySelector('#predefined-task-notes').value=task.notes||'';modal.querySelector('#predefined-task-tags').value=(task.tags||[]).join(', ');openModal(modal);}}}
+                if(e.target.closest('#view-completed-projects-btn'))navigateTo('page-completed-projects');
+                if(e.target.closest('.edit-project-btn')) { currentDetailProjectId = e.target.closest('.project-card').dataset.projectId; navigateTo('page-detail'); }
+                if(e.target.closest('.start-timer-btn')) { startTimer(e.target.closest('.project-card').dataset.projectId); }
+                if(e.target.closest('.view-project-detail-btn')) { currentDetailProjectId = e.target.closest('.project-card').dataset.projectId; navigateTo('page-detail'); }
+                if(e.target.closest('#session-pause-resume-btn')) { if(activeTimer.isPaused) resumeTimer(); else pauseTimer(); }
+                if(e.target.closest('#session-stop-btn')) { stopTimer(); }
+                if(e.target.closest('#cancel-confirmation-btn')) { closeModal(document.getElementById('confirmation-modal')); navigationIntent=null;}
+                if(e.target.closest('#confirm-navigation-btn') && e.target.closest('#confirm-navigation-btn').dataset.action !== 'clear-data') { await stopTimer(); if (navigationIntent) navigateTo(navigationIntent); navigationIntent = null; closeModal(document.getElementById('confirmation-modal')); }
                 if (e.target.closest('#edit-project-btn-detail')) {
-                    if (viewMode && editMode) {
-                        viewMode.classList.add('hidden');
-                        editMode.classList.remove('hidden');
-                        const paletteEl = editMode.querySelector('#edit-color-palette');
-                        const currentColor = editMode.querySelector('#edit-project-color').value;
-                        paletteEl.innerHTML = PALETTE.map(c => 
-                            `<div class="color-swatch ${c === currentColor ? 'selected' : ''}" style="background-color: ${c}" data-color="${c}"></div>`
-                        ).join('');
+                    document.getElementById('project-detail-view-mode').classList.add('hidden');
+                    document.getElementById('project-detail-edit-mode').classList.remove('hidden');
+                    const p = projects.find(proj => proj.id === currentDetailProjectId);
+                    if (p) {
+                        const editPalette = document.getElementById('edit-color-palette');
+                        editPalette.innerHTML = PALETTE.map(c => `<div class="color-swatch" style="background-color: ${c}" data-color="${c}"></div>`).join('');
+                        const currentSwatch = editPalette.querySelector(`[data-color="${p.color}"]`);
+                        if(currentSwatch) currentSwatch.classList.add('selected');
                     }
                 }
                 if (e.target.closest('#cancel-edit-project-btn')) {
-                    if (viewMode && editMode) {
-                        editMode.classList.add('hidden');
-                        viewMode.classList.remove('hidden');
-                    }
-                }
-                if (e.target.closest('#edit-color-palette .color-swatch')) {
-                    const swatch = e.target.closest('.color-swatch');
-                    if(editMode && swatch) {
-                        editMode.querySelector('#edit-project-color').value = swatch.dataset.color;
-                        editMode.querySelectorAll('.color-swatch').forEach(el => el.classList.remove('selected'));
-                        swatch.classList.add('selected');
-                    }
+                    document.getElementById('project-detail-view-mode').classList.remove('hidden');
+                    document.getElementById('project-detail-edit-mode').classList.add('hidden');
                 }
                 if (e.target.closest('#save-updated-project-btn')) {
-                    const updatedName = editMode.querySelector('#edit-project-name').value.trim();
-                    if (!updatedName) {
-                        alert('Project name cannot be empty.');
-                        return;
+                    const name = document.getElementById('edit-project-name').value.trim(), description = document.getElementById('edit-project-description').value.trim();
+                    const color = document.getElementById('edit-project-color').value, estimate = parseFloat(document.getElementById('edit-project-estimate').value) || 0;
+                    if (!name || !color) { alert("Project name and color are required."); return; }
+                    await updateData('projects', currentDetailProjectId, { name, description, color, estimate });
+                    document.getElementById('project-detail-view-mode').classList.remove('hidden');
+                    document.getElementById('project-detail-edit-mode').classList.add('hidden');
+                }
+                const sessionPage = e.target.closest('#page-session');
+                if(sessionPage && e.target.matches('.session-task-checkbox')) { const taskId = parseFloat(e.target.closest('.task-item').dataset.taskId); const task = activeTimer.sessionTasks.find(t => t.id === taskId); if (task) { task.completed = e.target.checked; localStorage.setItem('activeTimerState', JSON.stringify(activeTimer)); renderSessionPage(); } }
+                const completedProjectsView=e.target.closest('#page-completed-projects');if(completedProjectsView){if(e.target.closest('.back-to-dashboard-btn'))navigateTo('page-projects');if(e.target.closest('.completed-project-link')){const pId=e.target.closest('.completed-project-link').dataset.projectId;currentDetailProjectId=pId;navigateTo('page-detail');}}
+                if(e.target.closest('.accent-swatch')) { const theme = e.target.dataset.theme; applyAccentTheme(theme); document.querySelectorAll('.accent-swatch').forEach(el => el.classList.remove('selected')); e.target.classList.add('selected'); }
+                if(e.target.closest('.report-task-item')) { const taskId = e.target.closest('.report-task-item').dataset.taskId; openManualEntryModalForEdit(taskId); }
+                if(e.target.closest('#clear-data-btn')) { document.getElementById('confirmation-title').textContent = 'Clear All Data?'; document.getElementById('confirmation-message').textContent = 'This will permanently delete all data from the cloud. This action cannot be undone.'; document.getElementById('confirm-navigation-btn').dataset.action = 'clear-data'; openModal(document.getElementById('confirmation-modal')); }
+                if(e.target.closest('#confirm-navigation-btn') && e.target.closest('#confirm-navigation-btn').dataset.action === 'clear-data') { await clearAllData(); closeModal(document.getElementById('confirmation-modal')); }
+                 if (e.target.closest('.delete-task-btn')) { const taskEl = e.target.closest('[data-task-id]'); if (taskEl) { const taskId = taskEl.dataset.taskId; if (confirm('Delete this time entry?')) { await deleteData('tasks', taskId); } } }
+                if (e.target.closest('.edit-task-btn')) { const taskEl = e.target.closest('[data-task-id]'); if (taskEl) { openManualEntryModalForEdit(taskEl.dataset.taskId); } }
+            });
+            
+            document.getElementById('add-project-form').addEventListener('submit',saveNewProject);
+            document.getElementById('manual-entry-form').addEventListener('submit',saveManualEntry);
+            document.getElementById('add-predefined-task-form').addEventListener('submit',savePredefinedTask);
+            document.getElementById('add-accomplishment-form').addEventListener('submit',saveAccomplishment);
+            document.getElementById('modal-backdrop').addEventListener('click',()=>{closeModal(document.getElementById('add-project-modal'));closeModal(document.getElementById('guide-modal'));closeModal(document.getElementById('manual-entry-modal'));closeModal(document.getElementById('add-predefined-task-modal'));closeModal(document.getElementById('add-accomplishment-modal'));closeModal(document.getElementById('confirmation-modal'));closeModal(document.getElementById('notes-view-modal'));});
+            
+            document.body.addEventListener('change',async e=>{
+                if(e.target.closest('#dark-mode-toggle'))toggleTheme();
+                if(e.target.matches('#import-file-input'))importDataFromJSON(e);
+                if(e.target.matches('#reports-date-start')||e.target.matches('#reports-date-end')){const sE=document.getElementById('reports-date-start'),eE=document.getElementById('reports-date-end');if(sE&&eE&&sE.value&&eE.value)renderReportData('custom',{start:sE.value,end:eE.value});}
+                if(e.target.matches('.predefined-task-checkbox')){const taskEl=e.target.closest('[data-task-id]');const taskId=taskEl.dataset.taskId;const task=predefinedTasks.find(t=>t.id===taskId);if(task){const isCompleted=e.target.checked;const completedDate=e.target.checked?Date.now():null;await updateData('predefinedTasks',taskId, {isCompleted, completedDate});}}
+                const sessionPage = e.target.closest('#page-session');
+                if(sessionPage && e.target.matches('#session-start-time')) {
+                    const newTime = e.target.value;
+                    const [hours, minutes] = newTime.split(':');
+                    const newStartDate = new Date(activeTimer.startTime);
+                    newStartDate.setHours(hours, minutes);
+                    activeTimer.startTime = newStartDate.getTime();
+                    localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));
+                    renderSessionPage();
+                }
+                const detailPage = e.target.closest('#page-detail');
+                if(detailPage && e.target.matches('.project-status-radio')) { const p = projects.find(proj => proj.id === currentDetailProjectId); if(p) { await updateData('projects', p.id, {status: e.target.value}); } }
+            });
+
+            document.addEventListener('submit', e => {
+                if (e.target.id === 'add-session-task-form') {
+                    e.preventDefault();
+                    const input = document.getElementById('new-session-task-input');
+                    const description = input.value.trim();
+                    if (description && activeTimer) {
+                        activeTimer.sessionTasks.push({id: Date.now(), description, completed: false});
+                        localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));
+                        input.value = '';
+                        renderSessionPage();
                     }
-                    const updatedData = {
-                        name: updatedName,
-                        description: editMode.querySelector('#edit-project-description').value.trim(),
-                        color: editMode.querySelector('#edit-project-color').value,
-                        estimate: parseFloat(editMode.querySelector('#edit-project-estimate').value) || 0,
-                    };
-                    await updateProject(currentDetailProjectId, updatedData);
-                    // updateProject calls renderProjectDetailPage implicitly, which redraws the page in view mode.
                 }
-            }
-            // --- END: FIXED/NEW EVENT HANDLERS ---
+            });
+            
+            document.addEventListener('input',e=>{const input=e.target;if(input.matches('#session-notes')){ if(activeTimer)activeTimer.notes=input.value;localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));}
+            else if(input.matches('#session-tags')){if(!activeTimer)return;activeTimer.tags=input.value.trim().split(/[\s,]+/).filter(Boolean);localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));}});
+        }
 
-            const sessionPage = e.target.closest('#page-session');
-            if(sessionPage && e.target.matches('.session-task-checkbox')) {
-                const taskId = parseFloat(e.target.closest('.task-item').dataset.taskId);
-                const task = activeTimer.sessionTasks.find(t => t.id === taskId);
-                if (task) {
-                    task.completed = e.target.checked;
-                    localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));
-                    renderSessionPage();
-                }
-            }
+        const startApp = () => { 
+            // --- Assign UI Element Refs ---
+            signInScreen = document.getElementById('sign-in-screen');
+            appContainer = document.getElementById('app-container');
+            authForm = document.getElementById('auth-form');
+            authLoader = document.getElementById('auth-loader');
+            displayNameField = document.getElementById('display-name-field');
+            authSubmitBtn = document.getElementById('auth-submit-btn');
+            authToggleBtn = document.getElementById('auth-toggle-btn');
+            authPromptText = document.getElementById('auth-prompt-text');
 
-            const completedProjectsView=e.target.closest('#page-completed-projects');if(completedProjectsView){if(e.target.closest('.back-to-dashboard-btn'))navigateTo('page-projects');if(e.target.closest('.completed-project-link')){const pId=parseInt(e.target.closest('.completed-project-link').dataset.projectId);currentDetailProjectId=pId;navigateTo('page-detail');}}
-            if(e.target.closest('.accent-swatch')) { const theme = e.target.dataset.theme; applyAccentTheme(theme); document.querySelectorAll('.accent-swatch').forEach(el => el.classList.remove('selected')); e.target.classList.add('selected'); }
-            if(e.target.closest('.report-task-item')) { const taskId = parseInt(e.target.closest('.report-task-item').dataset.taskId); openManualEntryModalForEdit(taskId); }
-            if(e.target.closest('#clear-data-btn')) {
-                document.getElementById('confirmation-title').textContent = 'Clear All Data?';
-                document.getElementById('confirmation-message').textContent = 'This will permanently delete all projects, tasks, and time entries. This action cannot be undone.';
-                document.getElementById('confirm-navigation-btn').dataset.action = 'clear-data';
-                openModal(document.getElementById('confirmation-modal'));
-            }
-             if(e.target.closest('#confirm-navigation-btn') && e.target.closest('#confirm-navigation-btn').dataset.action === 'clear-data') {
-                await Promise.all([clearData('projects'), clearData('tasks'), clearData('accomplishments'), clearData('predefinedTasks')]);
-                location.reload();
-             }
-        });
-        
-        document.getElementById('add-project-form').addEventListener('submit',saveNewProject);
-        document.getElementById('manual-entry-form').addEventListener('submit',saveManualEntry);
-        document.getElementById('add-predefined-task-form').addEventListener('submit',savePredefinedTask);
-        document.getElementById('add-accomplishment-form').addEventListener('submit',saveAccomplishment);
-        document.getElementById('modal-backdrop').addEventListener('click',()=>{closeModal(document.getElementById('add-project-modal'));closeModal(document.getElementById('guide-modal'));closeModal(document.getElementById('manual-entry-modal'));closeModal(document.getElementById('add-predefined-task-modal'));closeModal(document.getElementById('add-accomplishment-modal'));closeModal(document.getElementById('confirmation-modal'));closeModal(document.getElementById('notes-view-modal'));});
-        
-        document.body.addEventListener('change',async e=>{
-            if(e.target.closest('#dark-mode-toggle'))toggleTheme();
-            if(e.target.closest('#auto-backup-toggle'))localStorage.setItem('autoBackupEnabled',e.target.checked);
-            if(e.target.matches('#import-file-input'))importDataFromJSON(e);
-            if(e.target.matches('#reports-date-start')||e.target.matches('#reports-date-end')){const sE=document.getElementById('reports-date-start'),eE=document.getElementById('reports-date-end');if(sE&&eE&&sE.value&&eE.value)renderReportData('custom',{start:sE.value,end:eE.value});}
-            if(e.target.matches('.predefined-task-checkbox')){const taskEl=e.target.closest('[data-task-id]');const taskId=parseInt(taskEl.dataset.taskId);const task=predefinedTasks.find(t=>t.id===taskId);if(task){task.isCompleted=e.target.checked;task.completedDate=e.target.checked?Date.now():null;await updateData('predefinedTasks',task);renderTasksPage();}}
-            const sessionPage = e.target.closest('#page-session');
-            if(sessionPage && e.target.matches('#session-start-time')) {
-                const newTime = e.target.value;
-                const [hours, minutes] = newTime.split(':');
-                const newStartDate = new Date(activeTimer.startTime);
-                newStartDate.setHours(hours, minutes);
-                activeTimer.startTime = newStartDate.getTime();
-                localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));
-                renderSessionPage();
-            }
-             const detailPage = e.target.closest('#page-detail');
-            if(detailPage && e.target.matches('.project-status-radio')) {
-                const p = projects.find(proj => proj.id === currentDetailProjectId);
-                if(p) {
-                   p.status = e.target.value;
-                   await updateData('projects',p);
-                   renderProjectsPage();
-                   renderTimerPage();
-                }
-            }
-        });
+            // --- FIREBASE INITIALIZATION ---
+            const firebaseConfig = {
+                apiKey: "AIzaSyDM0zahTuXrK5PJ9_uVIciVeXyKf6bui0U",
+                authDomain: "buddy-c0f56.firebaseapp.com",
+                projectId: "buddy-c0f56",
+                storageBucket: "buddy-c0f56.firebasestorage.app",
+                messagingSenderId: "1002206808117",
+                appId: "1:1002206808117:web:2e83aed7bce117afab897c"
+            };
 
-        document.addEventListener('submit', e => {
-             if (e.target.id === 'add-session-task-form') {
-                e.preventDefault();
-                const input = document.getElementById('new-session-task-input');
-                const description = input.value.trim();
-                if (description && activeTimer) {
-                    activeTimer.sessionTasks.push({id: Date.now(), description, completed: false});
-                    localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));
-                    input.value = '';
-                    renderSessionPage();
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+            // setLogLevel('debug'); // Uncomment for detailed logs
+            
+            addEventListeners();
+
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    userId = user.uid;
+                    document.getElementById('user-avatar-header').src = user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || user.email)}&background=random`;
+                    document.getElementById('user-name-header').textContent = user.displayName || user.email;
+                    document.getElementById('user-info').classList.remove('hidden');
+                    signInScreen.classList.add('hidden');
+                    appContainer.classList.remove('hidden');
+                    setupFirestoreListeners();
+                    checkPersistentTimer();
+                    if (activeTimer) { navigateTo('page-session'); } 
+                    else { navigateTo('page-timer'); }
+                } else {
+                    userId = null;
+                    unsubscribeListeners.forEach(unsub => unsub());
+                    unsubscribeListeners = [];
+                    projects = []; tasks = []; accomplishments = []; predefinedTasks = [];
+                    appContainer.classList.add('hidden');
+                    signInScreen.classList.remove('hidden');
+                    document.getElementById('user-info').classList.add('hidden');
                 }
-            }
-        });
-        
-        document.addEventListener('input',e=>{const input=e.target;if(input.matches('#session-notes')){ if(activeTimer)activeTimer.notes=input.value;localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));}
-        else if(input.matches('#session-tags')){if(!activeTimer)return;activeTimer.tags=input.value.trim().split(/[\s,]+/).filter(Boolean);localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));}});
-        
-        const initializeApp = async () => { 
+            });
+
+            // --- UI INITIALIZATION ---
             applyTheme(localStorage.getItem('theme') || 'light'); 
             applyAccentTheme(localStorage.getItem('accentTheme') || 'theme-teal');
-            await loadData();
-            checkPersistentTimer();
-            if (activeTimer) {
-                navigateTo('page-session');
-            } else {
-                navigateTo('page-timer');
-            }
         };
-        initializeApp();
-    });
+
+        // --- Start the App ---
+        document.addEventListener('DOMContentLoaded', startApp);
     </script>
 </body>
 </html>
