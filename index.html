@@ -1250,7 +1250,7 @@
             else if(input.matches('#session-tags')){if(!activeTimer)return;activeTimer.tags=input.value.trim().split(/[\s,]+/).filter(Boolean);localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));}});
         }
 
-        const main = () => { 
+        const initializeAppWithUI = () => { 
             // --- Assign UI Element Refs ---
             signInScreen = document.getElementById('sign-in-screen');
             appContainer = document.getElementById('app-container');
@@ -1295,6 +1295,13 @@
                     unsubscribeListeners.forEach(unsub => unsub());
                     unsubscribeListeners = [];
                     projects = []; tasks = []; accomplishments = []; predefinedTasks = [];
+                    
+                    // Reset auth form to default sign-in state when user logs out
+                    if (isSignUp) {
+                        toggleAuthMode();
+                    }
+                    authForm.reset();
+                    
                     appContainer.classList.add('hidden');
                     signInScreen.classList.remove('hidden');
                     document.getElementById('user-info').classList.add('hidden');
@@ -1307,7 +1314,7 @@
         };
 
         // --- Start the App ---
-        document.addEventListener('DOMContentLoaded', main);
+        document.addEventListener('DOMContentLoaded', initializeAppWithUI);
     </script>
 </body>
 </html>
