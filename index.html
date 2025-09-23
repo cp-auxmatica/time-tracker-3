@@ -128,7 +128,7 @@
 </head>
 <body class="theme-teal">
 
-    <div id="sign-in-screen" class="fixed inset-0 bg-background flex items-center justify-center z-50 transition-opacity duration-300">
+    <div id="sign-in-screen" class="hidden fixed inset-0 bg-background flex items-center justify-center z-50 transition-opacity duration-300">
         <div class="bg-card p-8 rounded-lg shadow-xl border border-border w-full max-w-sm">
             <div class="text-center mb-6">
                 <i data-lucide="gem" class="w-10 h-10 mx-auto" style="color: var(--primary-accent);"></i>
@@ -147,6 +147,7 @@
                     <label for="password" class="block text-sm font-medium text-muted-foreground mb-1">Password</label>
                     <input type="password" id="password" class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border" required>
                 </div>
+                <div id="auth-error" class="hidden text-red-500 text-sm mb-4 text-center"></div>
                 <button id="auth-submit-btn" type="submit" class="w-full text-white font-semibold py-2.5 px-6 rounded-lg shadow-lg hover:opacity-90 transition-opacity" style="background-color: var(--primary-accent);">
                     Sign In
                 </button>
@@ -512,7 +513,7 @@
 
         // --- UI Element Refs ---
         let signInScreen, appContainer, authForm, authLoader, displayNameField, 
-            authSubmitBtn, authToggleBtn, authPromptText;
+            authSubmitBtn, authToggleBtn, authPromptText, authError;
         let isSignUp = false;
 
         const THEME_COLORS = { 
@@ -1103,6 +1104,7 @@
         // --- AUTHENTICATION FLOW ---
         const handleAuthSubmit = async (e) => {
             e.preventDefault();
+            authError.classList.add('hidden'); // Clear previous errors
             authSubmitBtn.disabled = true;
             authLoader.classList.remove('hidden');
             const email = authForm.email.value, password = authForm.password.value, displayName = authForm['display-name'].value;
@@ -1115,7 +1117,10 @@
                     await signInWithEmailAndPassword(auth, email, password);
                 }
             } catch (error) {
-                alert(`Authentication failed: ${error.message}`);
+                // Display error message in the UI
+                authError.textContent = error.message;
+                authError.classList.remove('hidden');
+                console.error("Authentication failed:", error);
             } finally {
                 authSubmitBtn.disabled = false;
                 authLoader.classList.add('hidden');
@@ -1128,6 +1133,7 @@
             authSubmitBtn.textContent = isSignUp ? 'Sign Up' : 'Sign In';
             authPromptText.textContent = isSignUp ? 'Already have an account?' : "Don't have an account?";
             authToggleBtn.textContent = isSignUp ? 'Sign In' : 'Sign Up';
+            authError.classList.add('hidden'); // Clear errors on toggle
             authForm.reset();
         };
         
@@ -1250,7 +1256,7 @@
             else if(input.matches('#session-tags')){if(!activeTimer)return;activeTimer.tags=input.value.trim().split(/[\s,]+/).filter(Boolean);localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));}});
         }
 
-        const main = () => { 
+        const initializeApp = () => { 
             // --- Assign UI Element Refs ---
             signInScreen = document.getElementById('sign-in-screen');
             appContainer = document.getElementById('app-container');
@@ -1260,6 +1266,7 @@
             authSubmitBtn = document.getElementById('auth-submit-btn');
             authToggleBtn = document.getElementById('auth-toggle-btn');
             authPromptText = document.getElementById('auth-prompt-text');
+            authError = document.getElementById('auth-error');
 
             // --- FIREBASE INITIALIZATION ---
             const firebaseConfig = {
@@ -1307,7 +1314,8 @@
         };
 
         // --- Start the App ---
-        main();
+        document.addEventListener('DOMContentLoaded', initializeApp);
     </script>
 </body>
 </html>
+
