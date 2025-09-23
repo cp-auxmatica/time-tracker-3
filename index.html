@@ -128,7 +128,7 @@
 </head>
 <body class="theme-teal">
 
-    <div id="sign-in-screen" class="fixed inset-0 bg-background flex items-center justify-center z-50 transition-opacity duration-300">
+    <div id="sign-in-screen" class="hidden fixed inset-0 bg-background flex items-center justify-center z-50 transition-opacity duration-300">
         <div class="bg-card p-8 rounded-lg shadow-xl border border-border w-full max-w-sm">
             <div class="text-center mb-6">
                 <i data-lucide="gem" class="w-10 h-10 mx-auto" style="color: var(--primary-accent);"></i>
@@ -1307,7 +1307,7 @@
         };
 
         // --- Start the App ---
-        main();
+        document.addEventListener('DOMContentLoaded', main);
     </script>
 </body>
 </html>
