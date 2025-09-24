@@ -459,27 +459,21 @@
     </template>
     <template id="reports-page-template">
          <div class="flex flex-wrap justify-between items-center mb-4 gap-4">
-            <button id="export-day-notes-btn" class="hidden bg-primary-accent-light text-primary-accent px-4 py-2 rounded-lg text-sm font-semibold shadow-sm hover:bg-border">Export Day Notes</button>
-        </div>
-         <div class="flex flex-col md:flex-row md:items-center gap-4 my-4">
-            <div class="p-2 bg-card-secondary rounded-xl flex text-center text-sm font-semibold">
-                <button data-filter="day" class="reports-filter-btn flex-1 py-2 px-4 rounded-lg">Day</button>
-                <button data-filter="week" class="reports-filter-btn flex-1 py-2 px-4 rounded-lg bg-card shadow">Week</button>
-                <button data-filter="month" class="reports-filter-btn flex-1 py-2 px-4 rounded-lg">Month</button>
-                <button data-filter="custom" class="reports-filter-btn flex-1 py-2 px-4 rounded-lg">Custom</button>
-            </div>
-            <div id="reports-day-picker-container" class="hidden flex items-center gap-2">
+            <div>
                  <label for="reports-day-picker" class="font-semibold text-sm">Day:</label>
                  <input type="date" id="reports-day-picker" class="p-2 border rounded-md text-sm bg-card-secondary border-input-border">
             </div>
+            <button id="export-day-notes-btn" class="bg-primary-accent-light text-primary-accent px-4 py-2 rounded-lg text-sm font-semibold shadow-sm hover:bg-border">Export Day Notes</button>
         </div>
-        <div id="reports-custom-range" class="hidden flex items-center gap-2 text-sm mb-4">
-            <input type="date" id="reports-date-start" class="w-full p-2 border rounded-md text-sm bg-card-secondary border-input-border">
-            <span class="text-muted-foreground">to</span>
-            <input type="date" id="reports-date-end" class="w-full p-2 border rounded-md text-sm bg-card-secondary border-input-border">
+        <div class="bg-card p-4 rounded-xl border mb-6">
+            <h3 class="font-semibold text-center mb-4">Daily Activity Visualizer</h3>
+            <div id="daily-chart-container" class="relative mx-auto" style="width: 300px; height: 300px;">
+                <canvas id="daily-activity-chart" width="300" height="300"></canvas>
+            </div>
+             <div id="chart-legend" class="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-4"></div>
         </div>
         <div class="mb-6 p-4 bg-card rounded-xl border">
-            <p class="text-sm text-muted-foreground">Total Time for Period</p>
+            <p class="text-sm text-muted-foreground">Total Time for Day</p>
             <p id="reports-total-time" class="text-3xl font-bold">0h 0m</p>
         </div>
         <div id="reports-summary" class="space-y-2"></div>
@@ -564,11 +558,12 @@
 
         // --- App State and Variables ---
         let projects = [], tasks = [], goals = [], predefinedTasks = [], activeTimer = null, timerInterval = null;
-        let currentDetailProjectId = null, currentSort = 'latest';
+        let currentDetailProjectId = null, currentGoalId = null, currentSort = 'latest';
         let dom = {};
         let navigationIntent = null;
         let taskSearchTerm = '';
         let showCompletedTasks = false;
+        let dailyChartInstance = null;
         
         // --- Firebase State ---
         let db, auth, userId, unsubscribeListeners = [];
@@ -693,8 +688,81 @@
             };
             reader.readAsText(file);
         };
+        
+        const exportDayNotesAsMarkdown = () => {
+            const dayPicker = document.getElementById('reports-day-picker');
+            if (!dayPicker || !dayPicker.value) {
+                alert("Please select a day to export.");
+                return;
+            }
+            const reportDate = new Date(dayPicker.value + 'T00:00:00');
+            reportDate.setHours(0, 0, 0, 0);
+            const startOfDay = reportDate.getTime();
+            const endOfDay = startOfDay + (24 * 60 * 60 * 1000 - 1);
 
-        const exportTasksAsCSV=()=>{const s=dom.csvDateStart.value,e=dom.csvDateEnd.value;if(!s||!e)return alert("Please select dates.");const sMs=new Date(s).getTime(),eMs=new Date(e).setHours(23,59,59,999);const fTs=tasks.filter(t=>t.startTime>=sMs&&t.startTime<=eMs);if(fTs.length===0)return alert("No tasks in date range.");const pM=new Map(projects.map(p=>[p.id,p]));let c='Project,Description,Notes,Tags,Date,Start,End,Duration\n';fTs.forEach(t=>{const p=pM.get(t.projectId)||{};const dMs=t.endTime-t.startTime;const sT=new Date(t.startTime),eT=new Date(t.endTime);const r=[`"${p.name||''}"`,`"${(t.description||'').replace(/"/g,'""')}"`,`"${(t.notes||'').replace(/"/g,'""')}"`,`"${(t.tags||[]).join(', ')}"`,sT.toLocaleDateString(),sT.toLocaleTimeString(),eT.toLocaleTimeString(),formatTime(dMs)];c+=r.join(',')+'\n';});downloadFile(c,`work_app_export_${s}_to_${e}.csv`,'text/csv;charset=utf-8;');};
+            const dayWorkSessions = tasks.filter(t => t.startTime >= startOfDay && t.startTime <= endOfDay);
+            const dayCompletedTasks = predefinedTasks.filter(t => t.isCompleted && t.completedDate >= startOfDay && t.completedDate <= endOfDay);
+
+            if (dayWorkSessions.length === 0 && dayCompletedTasks.length === 0) {
+                alert("No activities found for " + reportDate.toLocaleDateString());
+                return;
+            }
+
+            const activitiesByProject = {};
+
+            const getProjectGroup = (projectId) => {
+                const project = projects.find(p => p.id === projectId);
+                const projectName = project ? project.name : 'General';
+                if (!activitiesByProject[projectName]) {
+                    activitiesByProject[projectName] = {
+                        sessions: [],
+                        completedTasks: []
+                    };
+                }
+                return activitiesByProject[projectName];
+            };
+
+            dayWorkSessions.forEach(session => {
+                getProjectGroup(session.projectId).sessions.push(session);
+            });
+
+            dayCompletedTasks.forEach(task => {
+                getProjectGroup(task.projectId).completedTasks.push(task);
+            });
+
+            let markdown = `# Daily Report: ${reportDate.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}\n\n`;
+
+            const projectNames = Object.keys(activitiesByProject).sort();
+
+            for (const projectName of projectNames) {
+                markdown += `## ${projectName}\n\n`;
+                const activities = activitiesByProject[projectName];
+
+                if (activities.sessions.length > 0) {
+                    markdown += `### Work Sessions\n`;
+                    activities.sessions.sort((a, b) => a.startTime - b.startTime).forEach(session => {
+                        const duration = formatDuration(session.endTime - session.startTime);
+                        markdown += `- **${session.description}** (${duration})\n`;
+                        if (session.notes) {
+                            const indentedNotes = session.notes.split('\n').map(line => `    - ${line}`).join('\n');
+                            markdown += `${indentedNotes}\n`;
+                        }
+                    });
+                    markdown += `\n`;
+                }
+
+                if (activities.completedTasks.length > 0) {
+                    markdown += `### Completed Tasks\n`;
+                    activities.completedTasks.forEach(task => {
+                        markdown += `- [x] ${task.description}\n`;
+                    });
+                    markdown += `\n`;
+                }
+            }
+
+            const filename = `work_app_report_${reportDate.toISOString().split('T')[0]}.md`;
+            downloadFile(markdown, filename, 'text/markdown;charset=utf-8;');
+        };
 
         const openModal=(el)=>{document.getElementById('modal-backdrop').classList.remove('hidden');el.classList.remove('hidden');};
         const closeModal=(el)=>{document.getElementById('modal-backdrop').classList.add('hidden');el.classList.add('hidden');};
@@ -1063,89 +1131,93 @@
             const dayPicker = document.getElementById('reports-day-picker');
             if (dayPicker) {
                 dayPicker.value = new Date().toISOString().split('T')[0];
-                dayPicker.addEventListener('change', () => renderReportData('day'));
+                dayPicker.addEventListener('change', () => renderReportData());
             }
-            renderReportData('week');
+            renderReportData();
             lucide.createIcons();
         };
 
-        const renderReportData=(filter,range={})=>{ const exportBtn = document.getElementById('export-day-notes-btn'); const dayPickerContainer = document.getElementById('reports-day-picker-container'); if(exportBtn) exportBtn.classList.toggle('hidden', filter !== 'day'); if(dayPickerContainer) dayPickerContainer.classList.toggle('hidden', filter !== 'day'); let sD,eD;const n=new Date(); if(filter==='day'){ const picker = document.getElementById('reports-day-picker'); const reportDate = picker ? new Date(picker.value + 'T00:00:00') : n; sD=new Date(reportDate).setHours(0,0,0,0); eD=new Date(reportDate).setHours(23,59,59,999); }else if(filter==='week'){const d=n.getDay()===0?6:n.getDay()-1,f=n.getDate()-d;sD=new Date(new Date(n).setDate(f)).setHours(0,0,0,0);eD=new Date(new Date(n).setDate(f+6)).setHours(23,59,59,999);}else if(filter==='month'){sD=new Date(n.getFullYear(),n.getMonth(),1);eD=new Date(n.getFullYear(),n.getMonth()+1,0).setHours(23,59,59,999);} else if(filter==='custom'&&range.start&&range.end){ sD=new Date(range.start + 'T00:00:00').getTime(); eD=new Date(range.end + 'T00:00:00').setHours(23,59,59,999); } const fTs=tasks.filter(t=>t.startTime>=sD&&t.startTime<=eD); const totalTimeMs = fTs.reduce((sum, task) => sum + (task.endTime - task.startTime), 0); const totalTimeEl = document.getElementById('reports-total-time'); if (totalTimeEl) { totalTimeEl.textContent = formatDuration(totalTimeMs); } const groupedByProject=fTs.reduce((acc,task)=>{(acc[task.projectId]=acc[task.projectId]||[]).push(task);return acc;},{}); const summaryEl=document.getElementById('reports-summary');if(!summaryEl)return;summaryEl.innerHTML=projects.filter(p=>groupedByProject[p.id]).map(p=>{const projectTasks=groupedByProject[p.id];const totalTime=projectTasks.reduce((sum,t)=>sum+(t.endTime-t.startTime),0);return`<details class="bg-card p-3 rounded-lg border"><summary class="font-semibold flex justify-between items-center cursor-pointer"><span><span class="inline-block w-3 h-3 rounded-full mr-2" style="background-color:${p.color};"></span>${p.name}</span><span>${formatDuration(totalTime)}</span></summary><div class="mt-3 pt-3 border-t border-border space-y-2">${projectTasks.sort((a,b)=>b.startTime-a.startTime).map(t=>`<div class="text-sm flex justify-between report-task-item p-1 rounded-md" data-task-id="${t.id}"><span>${t.description}</span><span class="text-muted-foreground">${formatDuration(t.endTime-t.startTime)}</span></div>`).join('')}</div></details>`;}).join('')||'<p class="text-center text-muted-foreground py-8 col-span-full">No time tracked in this period.</p>'; };
-        
-        const exportDayNotesAsMarkdown = () => {
+        const renderReportData=()=>{ 
             const dayPicker = document.getElementById('reports-day-picker');
-            if (!dayPicker || !dayPicker.value) {
-                alert("Please select a day to export.");
-                return;
-            }
-            const reportDate = new Date(dayPicker.value + 'T00:00:00');
-            reportDate.setHours(0, 0, 0, 0);
-            const startOfDay = reportDate.getTime();
-            const endOfDay = startOfDay + (24 * 60 * 60 * 1000 - 1);
-
-            const dayWorkSessions = tasks.filter(t => t.startTime >= startOfDay && t.startTime <= endOfDay);
-            const dayCompletedTasks = predefinedTasks.filter(t => t.isCompleted && t.completedDate >= startOfDay && t.completedDate <= endOfDay);
-
-            if (dayWorkSessions.length === 0 && dayCompletedTasks.length === 0) {
-                alert("No activities found for " + reportDate.toLocaleDateString());
-                return;
-            }
-
-            const activitiesByProject = {};
-
-            const getProjectGroup = (projectId) => {
-                const project = projects.find(p => p.id === projectId);
-                const projectName = project ? project.name : 'General';
-                if (!activitiesByProject[projectName]) {
-                    activitiesByProject[projectName] = {
-                        sessions: [],
-                        completedTasks: []
-                    };
-                }
-                return activitiesByProject[projectName];
-            };
-
-            dayWorkSessions.forEach(session => {
-                getProjectGroup(session.projectId).sessions.push(session);
-            });
-
-            dayCompletedTasks.forEach(task => {
-                getProjectGroup(task.projectId).completedTasks.push(task);
-            });
-
-            let markdown = `# Daily Report: ${reportDate.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}\n\n`;
-
-            const projectNames = Object.keys(activitiesByProject).sort();
-
-            for (const projectName of projectNames) {
-                markdown += `## ${projectName}\n\n`;
-                const activities = activitiesByProject[projectName];
-
-                if (activities.sessions.length > 0) {
-                    markdown += `### Work Sessions\n`;
-                    activities.sessions.sort((a, b) => a.startTime - b.startTime).forEach(session => {
-                        const duration = formatDuration(session.endTime - session.startTime);
-                        markdown += `- **${session.description}** (${duration})\n`;
-                        if (session.notes) {
-                            const indentedNotes = session.notes.split('\n').map(line => `    - ${line}`).join('\n');
-                            markdown += `${indentedNotes}\n`;
-                        }
-                    });
-                    markdown += `\n`;
-                }
-
-                if (activities.completedTasks.length > 0) {
-                    markdown += `### Completed Tasks\n`;
-                    activities.completedTasks.forEach(task => {
-                        markdown += `- [x] ${task.description}\n`;
-                    });
-                    markdown += `\n`;
-                }
-            }
-
-            const filename = `work_app_report_${reportDate.toISOString().split('T')[0]}.md`;
-            downloadFile(markdown, filename, 'text/markdown;charset=utf-8;');
+            const reportDate = dayPicker ? new Date(dayPicker.value + 'T00:00:00') : new Date();
+            const startOfDay = new Date(reportDate).setHours(0,0,0,0);
+            const endOfDay = new Date(reportDate).setHours(23,59,59,999);
+            
+            const fTs=tasks.filter(t=>t.startTime>=startOfDay&&t.startTime<=endOfDay); 
+            const totalTimeMs = fTs.reduce((sum, task) => sum + (task.endTime - task.startTime), 0); 
+            const totalTimeEl = document.getElementById('reports-total-time'); 
+            if (totalTimeEl) { totalTimeEl.textContent = formatDuration(totalTimeMs); } 
+            
+            const groupedByProject=fTs.reduce((acc,task)=>{(acc[task.projectId]=acc[task.projectId]||[]).push(task);return acc;},{}); 
+            const summaryEl=document.getElementById('reports-summary');
+            if(!summaryEl)return;
+            summaryEl.innerHTML=projects.filter(p=>groupedByProject[p.id]).map(p=>{const projectTasks=groupedByProject[p.id];const totalTime=projectTasks.reduce((sum,t)=>sum+(t.endTime-t.startTime),0);return`<details class="bg-card p-3 rounded-lg border"><summary class="font-semibold flex justify-between items-center cursor-pointer"><span><span class="inline-block w-3 h-3 rounded-full mr-2" style="background-color:${p.color};"></span>${p.name}</span><span>${formatDuration(totalTime)}</span></summary><div class="mt-3 pt-3 border-t border-border space-y-2">${projectTasks.sort((a,b)=>b.startTime-a.startTime).map(t=>`<div class="text-sm flex justify-between report-task-item p-1 rounded-md" data-task-id="${t.id}"><span>${t.description}</span><span class="text-muted-foreground">${formatDuration(t.endTime-t.startTime)}</span></div>`).join('')}</div></details>`;}).join('')||'<p class="text-center text-muted-foreground py-8 col-span-full">No time tracked today.</p>'; 
+            renderDailyActivityChart(startOfDay);
         };
         
+        const renderDailyActivityChart = (startOfDay) => {
+            const canvas = document.getElementById('daily-activity-chart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const dayTasks = tasks.filter(t => t.startTime >= startOfDay && t.startTime < startOfDay + 24*60*60*1000);
+            const projectColors = projects.reduce((acc, p) => ({...acc, [p.id]: p.color}), {});
+            
+            const radius = canvas.width / 2;
+            const center = radius;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw clock face
+            ctx.beginPath();
+            ctx.arc(center, center, radius - 10, 0, 2 * Math.PI);
+            ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--border').trim();
+            ctx.lineWidth = 20;
+            ctx.stroke();
+
+            // Draw hour markers
+            ctx.font = "12px Roboto";
+            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--muted-foreground').trim();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            for (let i = 0; i < 24; i += 3) {
+                const angle = (i / 24) * 2 * Math.PI - Math.PI / 2;
+                const x = center + (radius - 30) * Math.cos(angle);
+                const y = center + (radius - 30) * Math.sin(angle);
+                ctx.fillText(i.toString().padStart(2, '0'), x, y);
+            }
+
+            const timeToAngle = (time) => {
+                const date = new Date(time);
+                const hours = date.getHours();
+                const minutes = date.getMinutes();
+                const totalMinutes = hours * 60 + minutes;
+                return (totalMinutes / (24 * 60)) * 2 * Math.PI - Math.PI / 2;
+            };
+
+            const legendEl = document.getElementById('chart-legend');
+            const usedProjects = new Set();
+
+            dayTasks.forEach(task => {
+                const startAngle = timeToAngle(task.startTime);
+                const endAngle = timeToAngle(task.endTime);
+                ctx.beginPath();
+                ctx.arc(center, center, radius - 10, startAngle, endAngle);
+                ctx.strokeStyle = projectColors[task.projectId] || '#cccccc';
+                ctx.stroke();
+                usedProjects.add(task.projectId);
+            });
+
+            if (legendEl) {
+                legendEl.innerHTML = Array.from(usedProjects).map(projectId => {
+                    const project = projects.find(p => p.id === projectId);
+                    return `<div class="flex items-center gap-2 text-sm">
+                                <span class="w-3 h-3 rounded-full" style="background-color:${project?.color || '#cccccc'}"></span>
+                                <span>${project?.name || 'Unknown'}</span>
+                            </div>`;
+                }).join('');
+            }
+        };
+
         const renderSettingsPage=()=>{
             const template = document.getElementById('settings-template'); if (!template) return;
             const user = auth.currentUser;
@@ -1428,7 +1500,7 @@
                 }
                 if(e.target.closest('#cancel-add-project-btn'))return closeModal(document.getElementById('add-project-modal'));
                 if(e.target.closest('.sort-btn')){const sortBtn=e.target.closest('.sort-btn');document.querySelectorAll('#page-timer .sort-btn').forEach(b=>b.classList.remove('active'));sortBtn.classList.add('active');currentSort=sortBtn.dataset.sort;renderTimerPage();}
-                if(e.target.closest('.reports-filter-btn')){const btn=e.target.closest('.reports-filter-btn');document.querySelectorAll('.reports-filter-btn').forEach(b=>b.classList.remove('bg-card','shadow'));btn.classList.add('bg-card','shadow');document.getElementById('reports-custom-range').classList.toggle('hidden',btn.dataset.filter!=='custom');renderReportData(btn.dataset.filter);}
+                
                 if(e.target.closest('.edit-goal-btn')){const id=e.target.closest('.edit-goal-btn').dataset.goalId;const goal=goals.find(a=>a.id===id);if(goal){const modal=document.getElementById('add-goal-modal');modal.querySelector('form').reset();modal.querySelector('#goal-modal-title').textContent="Edit Goal";modal.querySelector('#goal-id').value=goal.id;/*... populate all fields ...*/openModal(modal);}}
                 if(e.target.closest('#cancel-add-goal-btn'))return closeModal(document.getElementById('add-goal-modal'));if(e.target.closest('#import-json-btn'))dom.importFileInput.click();if(e.target.closest('#export-json-btn'))exportDataAsJSON();if(e.target.closest('#export-csv-btn'))exportTasksAsCSV();if(e.target.closest('#export-day-notes-btn'))exportDayNotesAsMarkdown();if(e.target.closest('#show-guide-btn'))showUserGuide();if(e.target.closest('#close-guide-btn'))closeModal(document.getElementById('guide-modal'));
                 if(e.target.closest('#cancel-add-predefined-task-btn'))return closeModal(document.getElementById('add-predefined-task-modal'));
@@ -1489,6 +1561,8 @@
                  if (e.target.closest('.delete-task-btn')) { const taskEl = e.target.closest('[data-task-id]'); if (taskEl) { const taskId = taskEl.dataset.taskId; if (confirm('Delete this time entry?')) { await deleteData('tasks', taskId); } } }
                 if (e.target.closest('.edit-task-btn')) { const taskEl = e.target.closest('[data-task-id]'); if (taskEl) { openManualEntryModalForEdit(taskEl.dataset.taskId); } }
                 if (e.target.closest('.back-to-projects-btn')) { navigateTo('page-projects'); }
+                if (e.target.closest('#cancel-manual-entry-btn')) { closeModal(document.getElementById('manual-entry-modal')); }
+                if (e.target.closest('.view-goal-detail-btn')) { currentGoalId = e.target.closest('[data-goal-id]').dataset.goalId; navigateTo('page-goal-detail'); }
             });
             
             document.getElementById('add-project-form').addEventListener('submit',saveNewProject);
@@ -1509,7 +1583,6 @@
             document.body.addEventListener('change',async e=>{
                 if(e.target.closest('#dark-mode-toggle'))toggleTheme();
                 if(e.target.matches('#import-file-input'))importDataFromJSON(e);
-                if(e.target.matches('#reports-date-start')||e.target.matches('#reports-date-end')){const sE=document.getElementById('reports-date-start'),eE=document.getElementById('reports-date-end');if(sE&&eE&&sE.value&&eE.value)renderReportData('custom',{start:sE.value,end:eE.value});}
                 if(e.target.matches('.predefined-task-checkbox')){const taskEl=e.target.closest('[data-task-id]');const taskId=taskEl.dataset.taskId;const task=predefinedTasks.find(t=>t.id===taskId);if(task){const isCompleted=e.target.checked;const completedDate=e.target.checked?Date.now():null;await updateData('predefinedTasks',taskId, {isCompleted, completedDate, completedInSessionId: null });}}
                 const sessionPage = e.target.closest('#page-session');
                 if(sessionPage && e.target.matches('#session-start-time')) {
