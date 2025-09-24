@@ -1118,6 +1118,3 @@ const initializeAppWithUI = () => {
 
 // --- Start the App ---
 document.addEventListener('DOMContentLoaded', initializeAppWithUI);
-    </script>
-</body>
-</html>
