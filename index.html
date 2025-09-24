@@ -459,13 +459,23 @@
     </template>
     <template id="reports-page-template">
          <div class="flex flex-wrap justify-between items-center mb-4 gap-4">
-            <div>
-                 <label for="reports-day-picker" class="font-semibold text-sm">Day:</label>
+            <div class="p-2 bg-card-secondary rounded-xl flex text-center text-sm font-semibold">
+                <button data-filter="day" class="reports-filter-btn flex-1 py-2 px-4 rounded-lg bg-card shadow">Day</button>
+                <button data-filter="week" class="reports-filter-btn flex-1 py-2 px-4 rounded-lg">Week</button>
+                <button data-filter="month" class="reports-filter-btn flex-1 py-2 px-4 rounded-lg">Month</button>
+                <button data-filter="custom" class="reports-filter-btn flex-1 py-2 px-4 rounded-lg">Custom</button>
+            </div>
+            <div class="flex items-center gap-2">
+                 <label for="reports-day-picker" class="font-semibold text-sm">Date:</label>
                  <input type="date" id="reports-day-picker" class="p-2 border rounded-md text-sm bg-card-secondary border-input-border">
             </div>
-            <button id="export-day-notes-btn" class="bg-primary-accent-light text-primary-accent px-4 py-2 rounded-lg text-sm font-semibold shadow-sm hover:bg-border">Export Day Notes</button>
         </div>
-        <div class="bg-card p-4 rounded-xl border mb-6">
+        <div id="reports-custom-range" class="hidden items-center gap-2 text-sm mb-4">
+            <input type="date" id="reports-date-start" class="w-full p-2 border rounded-md text-sm bg-card-secondary border-input-border">
+            <span class="text-muted-foreground">to</span>
+            <input type="date" id="reports-date-end" class="w-full p-2 border rounded-md text-sm bg-card-secondary border-input-border">
+        </div>
+        <div id="daily-visualizer-container" class="bg-card p-4 rounded-xl border mb-6">
             <h3 class="font-semibold text-center mb-4">Daily Activity Visualizer</h3>
             <div id="daily-chart-container" class="relative mx-auto" style="width: 300px; height: 300px;">
                 <canvas id="daily-activity-chart" width="300" height="300"></canvas>
@@ -473,10 +483,20 @@
              <div id="chart-legend" class="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-4"></div>
         </div>
         <div class="mb-6 p-4 bg-card rounded-xl border">
-            <p class="text-sm text-muted-foreground">Total Time for Day</p>
+            <p id="reports-total-time-label" class="text-sm text-muted-foreground">Total Time for Day</p>
             <p id="reports-total-time" class="text-3xl font-bold">0h 0m</p>
         </div>
+        <div id="reports-summary-controls" class="flex justify-end mb-2">
+             <div class="sort-options">
+                <span class="sort-label">Sort By</span>
+                <button data-sort="time" class="sort-btn active">Time</button>
+                <button data-sort="project" class="sort-btn">Project</button>
+            </div>
+        </div>
         <div id="reports-summary" class="space-y-2"></div>
+        <div class="mt-4">
+             <button id="export-day-notes-btn" class="w-full bg-primary-accent-light text-primary-accent px-4 py-2 rounded-lg text-sm font-semibold shadow-sm hover:bg-border">Export Day Notes</button>
+        </div>
     </template>
     <template id="settings-template">
          <div class="space-y-6">
@@ -689,81 +709,6 @@
             reader.readAsText(file);
         };
         
-        const exportDayNotesAsMarkdown = () => {
-            const dayPicker = document.getElementById('reports-day-picker');
-            if (!dayPicker || !dayPicker.value) {
-                alert("Please select a day to export.");
-                return;
-            }
-            const reportDate = new Date(dayPicker.value + 'T00:00:00');
-            reportDate.setHours(0, 0, 0, 0);
-            const startOfDay = reportDate.getTime();
-            const endOfDay = startOfDay + (24 * 60 * 60 * 1000 - 1);
-
-            const dayWorkSessions = tasks.filter(t => t.startTime >= startOfDay && t.startTime <= endOfDay);
-            const dayCompletedTasks = predefinedTasks.filter(t => t.isCompleted && t.completedDate >= startOfDay && t.completedDate <= endOfDay);
-
-            if (dayWorkSessions.length === 0 && dayCompletedTasks.length === 0) {
-                alert("No activities found for " + reportDate.toLocaleDateString());
-                return;
-            }
-
-            const activitiesByProject = {};
-
-            const getProjectGroup = (projectId) => {
-                const project = projects.find(p => p.id === projectId);
-                const projectName = project ? project.name : 'General';
-                if (!activitiesByProject[projectName]) {
-                    activitiesByProject[projectName] = {
-                        sessions: [],
-                        completedTasks: []
-                    };
-                }
-                return activitiesByProject[projectName];
-            };
-
-            dayWorkSessions.forEach(session => {
-                getProjectGroup(session.projectId).sessions.push(session);
-            });
-
-            dayCompletedTasks.forEach(task => {
-                getProjectGroup(task.projectId).completedTasks.push(task);
-            });
-
-            let markdown = `# Daily Report: ${reportDate.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}\n\n`;
-
-            const projectNames = Object.keys(activitiesByProject).sort();
-
-            for (const projectName of projectNames) {
-                markdown += `## ${projectName}\n\n`;
-                const activities = activitiesByProject[projectName];
-
-                if (activities.sessions.length > 0) {
-                    markdown += `### Work Sessions\n`;
-                    activities.sessions.sort((a, b) => a.startTime - b.startTime).forEach(session => {
-                        const duration = formatDuration(session.endTime - session.startTime);
-                        markdown += `- **${session.description}** (${duration})\n`;
-                        if (session.notes) {
-                            const indentedNotes = session.notes.split('\n').map(line => `    - ${line}`).join('\n');
-                            markdown += `${indentedNotes}\n`;
-                        }
-                    });
-                    markdown += `\n`;
-                }
-
-                if (activities.completedTasks.length > 0) {
-                    markdown += `### Completed Tasks\n`;
-                    activities.completedTasks.forEach(task => {
-                        markdown += `- [x] ${task.description}\n`;
-                    });
-                    markdown += `\n`;
-                }
-            }
-
-            const filename = `work_app_report_${reportDate.toISOString().split('T')[0]}.md`;
-            downloadFile(markdown, filename, 'text/markdown;charset=utf-8;');
-        };
-
         const openModal=(el)=>{document.getElementById('modal-backdrop').classList.remove('hidden');el.classList.remove('hidden');};
         const closeModal=(el)=>{document.getElementById('modal-backdrop').classList.add('hidden');el.classList.add('hidden');};
         
