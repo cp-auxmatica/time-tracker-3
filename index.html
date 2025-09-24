@@ -1190,9 +1190,9 @@
 
             // Draw clock face
             ctx.beginPath();
-            ctx.arc(center, center, radius - 20, 0, 2 * Math.PI);
+            ctx.arc(center, center, radius - 25, 0, 2 * Math.PI);
             ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--border').trim();
-            ctx.lineWidth = 40;
+            ctx.lineWidth = 50; // Increased thickness
             ctx.stroke();
 
             // Draw hour markers
@@ -1203,14 +1203,14 @@
             for (let i = 1; i <= 12; i++) {
                 // AM
                 let angle = (i / 12) * Math.PI * 2 - Math.PI / 2;
-                let x = center + (radius - 20) * Math.cos(angle);
-                let y = center + (radius - 20) * Math.sin(angle);
+                let x = center + (radius - 25) * Math.cos(angle);
+                let y = center + (radius - 25) * Math.sin(angle);
                 ctx.fillText(i, x, y);
 
                 // PM
                 angle = ((i+12) / 24) * Math.PI * 2 - Math.PI / 2;
-                x = center + (radius - 20) * Math.cos(angle);
-                y = center + (radius - 20) * Math.sin(angle);
+                x = center + (radius - 25) * Math.cos(angle);
+                y = center + (radius - 25) * Math.sin(angle);
                 ctx.fillText(i, x, y);
             }
 
@@ -1229,7 +1229,7 @@
                 const startAngle = timeToAngle(task.startTime);
                 const endAngle = timeToAngle(task.endTime);
                 ctx.beginPath();
-                ctx.arc(center, center, radius - 20, startAngle, endAngle);
+                ctx.arc(center, center, radius - 25, startAngle, endAngle);
                 ctx.strokeStyle = projectColors[task.projectId] || '#cccccc';
                 ctx.stroke();
                 usedProjects.add(task.projectId);
