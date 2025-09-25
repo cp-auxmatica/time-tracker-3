@@ -141,6 +141,41 @@ const importDataFromJSON = (e) => {
     reader.readAsText(file);
 };
 
+const exportTasksAsCSV = () => {
+    const startDateInput = document.getElementById('csv-date-start');
+    const endDateInput = document.getElementById('csv-date-end');
+    if (!startDateInput || !endDateInput || !startDateInput.value || !endDateInput.value) {
+        alert('Please select a start and end date for the CSV export.');
+        return;
+    }
+    const start = new Date(startDateInput.value).getTime();
+    const end = new Date(endDateInput.value).setHours(23, 59, 59, 999);
+
+    const tasksToExport = tasks.filter(t => t.startTime >= start && t.startTime <= end);
+    if (tasksToExport.length === 0) {
+        alert('No tasks found in the selected date range.');
+        return;
+    }
+
+    let csvContent = "Project,Description,Date,StartTime,EndTime,Duration(HH:MM:SS),Notes\n";
+    
+    tasksToExport.forEach(task => {
+        const project = projects.find(p => p.id === task.projectId);
+        const projectName = project ? project.name : 'N/A';
+        const description = `"${task.description.replace(/"/g, '""')}"`;
+        const notes = `"${(task.notes || '').replace(/"/g, '""')}"`;
+        const date = new Date(task.startTime).toLocaleDateString();
+        const startTime = new Date(task.startTime).toLocaleTimeString();
+        const endTime = new Date(task.endTime).toLocaleTimeString();
+        const duration = formatTime(task.endTime - task.startTime);
+
+        csvContent += [projectName, description, date, startTime, endTime, duration, notes].join(',') + "\n";
+    });
+
+    downloadFile(csvContent, `work_app_export_${startDateInput.value}_to_${endDateInput.value}.csv`, 'text/csv;charset=utf-8;');
+};
+
+
 const exportDayNotesAsMarkdown = () => {
     const dayPicker = document.getElementById('reports-day-picker');
     if (!dayPicker || !dayPicker.value) {
@@ -780,6 +815,150 @@ const openManualEntryModalForEdit = (taskId) => {
     openModal(modal);
 };
 
+// --- START: ADDED FUNCTIONS ---
+const renderReportsPage = () => {
+    const template = document.getElementById('reports-page-template');
+    if (!template) return;
+    const content = template.content.cloneNode(true);
+    const container = document.getElementById('reports-content');
+    container.innerHTML = '';
+    container.appendChild(content);
+
+    const dayPicker = document.getElementById('reports-day-picker');
+    if (dayPicker) {
+        dayPicker.value = new Date().toISOString().split('T')[0];
+    }
+    
+    renderReportData(); 
+    lucide.createIcons();
+};
+
+const renderReportData = () => {
+    const dayPicker = document.getElementById('reports-day-picker');
+    if (!dayPicker || !dayPicker.value) return;
+
+    const reportDate = new Date(dayPicker.value + 'T00:00:00');
+    reportDate.setHours(0, 0, 0, 0);
+    const startOfDay = reportDate.getTime();
+    const endOfDay = startOfDay + (24 * 60 * 60 * 1000 - 1);
+
+    const tasksToday = tasks.filter(t => t.startTime >= startOfDay && t.startTime <= endOfDay);
+    
+    const listEl = document.getElementById('reports-task-list');
+    const totalEl = document.getElementById('reports-total-time');
+    const chartCanvas = document.getElementById('daily-time-chart');
+
+    if (!listEl || !totalEl || !chartCanvas) return;
+
+    let totalMs = 0;
+    const projectTotals = {};
+
+    tasksToday.forEach(t => {
+        const duration = t.endTime - t.startTime;
+        totalMs += duration;
+        projectTotals[t.projectId] = (projectTotals[t.projectId] || 0) + duration;
+    });
+
+    totalEl.textContent = `Total: ${formatDuration(totalMs)}`;
+
+    if (tasksToday.length > 0) {
+        listEl.innerHTML = tasksToday.sort((a,b) => a.startTime - b.startTime).map(t => {
+            const project = projects.find(p => p.id === t.projectId);
+            return `<div class="report-task-item p-3 bg-card-secondary rounded-lg cursor-pointer hover:bg-border" data-task-id="${t.id}">
+                <div class="flex justify-between items-center">
+                    <div class="flex-grow">
+                        <p class="font-semibold">${t.description}</p>
+                        <p class="text-sm" style="color:${project?.color || 'inherit'}">${project ? project.name : 'No Project'}</p>
+                    </div>
+                    <span class="font-bold">${formatDuration(t.endTime - t.startTime)}</span>
+                </div>
+            </div>`;
+        }).join('');
+    } else {
+        listEl.innerHTML = '<p class="text-sm text-muted-foreground text-center py-4">No entries for this day.</p>';
+    }
+
+    const projectLabels = [], projectData = [], projectColors = [];
+    for (const projectId in projectTotals) {
+        const project = projects.find(p => p.id === projectId);
+        projectLabels.push(project ? project.name : 'Unassigned');
+        projectData.push(projectTotals[projectId] / (1000 * 60)); // minutes
+        projectColors.push(project ? project.color : '#cccccc');
+    }
+
+    if(dailyChartInstance) dailyChartInstance.destroy();
+    if(typeof Chart !== 'undefined' && projectData.length > 0) {
+        chartCanvas.style.display = 'block';
+         dailyChartInstance = new Chart(chartCanvas, {
+            type: 'doughnut',
+            data: {
+                labels: projectLabels,
+                datasets: [{
+                    label: 'Time (minutes)',
+                    data: projectData,
+                    backgroundColor: projectColors,
+                    borderColor: 'var(--background)',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: document.documentElement.classList.contains('dark') ? '#fff' : '#333' }
+                    }
+                }
+            }
+        });
+    } else {
+        chartCanvas.style.display = 'none';
+    }
+};
+
+const renderGoalDetailPage = () => {
+    const contentEl = document.getElementById('goal-detail-content');
+    if (!currentGoalId) { contentEl.innerHTML = `<p class="text-center text-muted-foreground p-8">Goal not found.</p>`; return; }
+    const goal = goals.find(g => g.id === currentGoalId);
+    if (!goal) { contentEl.innerHTML = `<p class="text-center text-muted-foreground p-8">Goal details could not be loaded.</p>`; return; }
+    
+    contentEl.innerHTML = `
+        <button class="back-to-goals-btn font-semibold text-primary-accent hover:underline mb-4">&larr; Back to Goals</button>
+        <div class="bg-card p-4 rounded-xl border">
+            <div class="flex justify-between items-start">
+                <h2 class="text-2xl font-bold">${goal.title}</h2>
+                <button class="action-btn edit-goal-btn" data-goal-id="${goal.id}"><i data-lucide="pencil" class="w-5 h-5"></i></button>
+            </div>
+            <p class="text-sm text-muted-foreground mb-4">${goal.fiscalYear} ${goal.quarter}</p>
+            <div class="mt-6 space-y-4 prose dark:prose-invert max-w-none text-foreground">
+                <div class="p-3 rounded-lg bg-card-secondary">
+                    <h3 class="font-semibold text-primary-accent">Specific</h3>
+                    <p class="mt-1">${goal.specific || 'Not defined.'}</p>
+                </div>
+                <div class="p-3 rounded-lg bg-card-secondary">
+                    <h3 class="font-semibold text-primary-accent">Measurable</h3>
+                    <p class="mt-1">${goal.measurable || 'Not defined.'}</p>
+                </div>
+                <div class="p-3 rounded-lg bg-card-secondary">
+                    <h3 class="font-semibold text-primary-accent">Achievable</h3>
+                    <p class="mt-1">${goal.achievable || 'Not defined.'}</p>
+                </div>
+                <div class="p-3 rounded-lg bg-card-secondary">
+                    <h3 class="font-semibold text-primary-accent">Relevant</h3>
+                    <p class="mt-1">${goal.relevant || 'Not defined.'}</p>
+                </div>
+                <div class="p-3 rounded-lg bg-card-secondary">
+                    <h3 class="font-semibold text-primary-accent">Time-Bound</h3>
+                    <p class="mt-1">${goal.timeBound || 'Not defined.'}</p>
+                </div>
+            </div>
+        </div>
+    `;
+     lucide.createIcons();
+};
+// --- END: ADDED FUNCTIONS ---
+
 // --- AUTHENTICATION FLOW ---
 const handleAuthSubmit = async (e) => {
     e.preventDefault();
@@ -857,7 +1036,7 @@ const addEventListeners = () => {
         if(e.target.closest('#cancel-add-project-btn'))return closeModal(document.getElementById('add-project-modal'));
         if(e.target.closest('.sort-btn')){const sortBtn=e.target.closest('.sort-btn');document.querySelectorAll('#page-timer .sort-btn').forEach(b=>b.classList.remove('active'));sortBtn.classList.add('active');currentSort=sortBtn.dataset.sort;renderTimerPage();}
         
-        if(e.target.closest('.edit-goal-btn')){const id=e.target.closest('.edit-goal-btn').dataset.goalId;const goal=goals.find(a=>a.id===id);if(goal){const modal=document.getElementById('add-goal-modal');modal.querySelector('form').reset();modal.querySelector('#goal-modal-title').textContent="Edit Goal";modal.querySelector('#goal-id').value=goal.id;/*... populate all fields ...*/openModal(modal);}}
+        if(e.target.closest('.edit-goal-btn')){const id=e.target.closest('.edit-goal-btn').dataset.goalId;const goal=goals.find(a=>a.id===id);if(goal){const modal=document.getElementById('add-goal-modal');modal.querySelector('form').reset();modal.querySelector('#goal-modal-title').textContent="Edit Goal";modal.querySelector('#goal-id').value=goal.id; modal.querySelector('#goal-title').value = goal.title; modal.querySelector('#goal-fy').value = goal.fiscalYear; modal.querySelector('#goal-quarter').value = goal.quarter; modal.querySelector('#goal-specific').value = goal.specific; modal.querySelector('#goal-measurable').value = goal.measurable; modal.querySelector('#goal-achievable').value = goal.achievable; modal.querySelector('#goal-relevant').value = goal.relevant; modal.querySelector('#goal-timebound').value = goal.timeBound; openModal(modal);}}
         if(e.target.closest('#cancel-add-goal-btn'))return closeModal(document.getElementById('add-goal-modal'));if(e.target.closest('#import-json-btn'))dom.importFileInput.click();if(e.target.closest('#export-json-btn'))exportDataAsJSON();if(e.target.closest('#export-csv-btn'))exportTasksAsCSV();if(e.target.closest('#export-day-notes-btn'))exportDayNotesAsMarkdown();if(e.target.closest('#show-guide-btn'))showUserGuide();if(e.target.closest('#close-guide-btn'))closeModal(document.getElementById('guide-modal'));
         if(e.target.closest('#cancel-add-predefined-task-btn'))return closeModal(document.getElementById('add-predefined-task-modal'));
         if(e.target.closest('.delete-predefined-task-btn')){const taskEl=e.target.closest('[data-task-id]');if(taskEl){const taskId=taskEl.dataset.taskId;if(confirm('Delete this task?')) await deleteData('predefinedTasks',taskId);}}
@@ -917,6 +1096,7 @@ const addEventListeners = () => {
          if (e.target.closest('.delete-task-btn')) { const taskEl = e.target.closest('[data-task-id]'); if (taskEl) { const taskId = taskEl.dataset.taskId; if (confirm('Delete this time entry?')) { await deleteData('tasks', taskId); } } }
         if (e.target.closest('.edit-task-btn')) { const taskEl = e.target.closest('[data-task-id]'); if (taskEl) { openManualEntryModalForEdit(taskEl.dataset.taskId); } }
         if (e.target.closest('.back-to-projects-btn')) { navigateTo('page-projects'); }
+        if (e.target.closest('.back-to-goals-btn')) { navigateTo('page-goals'); }
         if (e.target.closest('#cancel-manual-entry-btn')) { closeModal(document.getElementById('manual-entry-modal')); }
         if (e.target.closest('.view-goal-detail-btn')) { currentGoalId = e.target.closest('[data-goal-id]').dataset.goalId; navigateTo('page-goal-detail'); }
     });
@@ -952,7 +1132,7 @@ const addEventListeners = () => {
         }
         const detailPage = e.target.closest('#page-detail');
         if(detailPage && e.target.matches('.project-status-radio')) { const p = projects.find(proj => proj.id === currentDetailProjectId); if(p) { await updateData('projects', p.id, {status: e.target.value}); } }
-        if (e.target.matches('#reports-start-date') || e.target.matches('#reports-end-date')) {
+        if (e.target.matches('#reports-start-date') || e.target.matches('#reports-end-date') || e.target.matches('#reports-day-picker')) {
             renderReportData();
         }
     });
@@ -1027,4 +1207,3 @@ const initializeAppWithUI = () => {
 
 // --- Start the App ---
 document.addEventListener('DOMContentLoaded', initializeAppWithUI);
-
