@@ -15,18 +15,19 @@ let currentReportSort = 'time';
 let currentReportPeriod = 'day';
 let currentReportStartDate = new Date();
 let currentReportEndDate = new Date();
+let detailViewFilter = 'all'; // Can be 'all' or 'today'
 
 
 // --- Firebase State ---
 let db, auth, userId, unsubscribeListeners = [];
 
 // --- UI Element Refs ---
-let signInScreen, appContainer, authForm, authLoader, displayNameField, 
+let signInScreen, appContainer, authForm, authLoader, displayNameField,
     authSubmitBtn, authToggleBtn, authPromptText, displayNameInput;
 let isSignUp = false;
 
-const THEME_COLORS = { 
-    'theme-teal': '#0d9488', 'theme-indigo': '#4f46e5', 'theme-orange': '#ea580c', 
+const THEME_COLORS = {
+    'theme-teal': '#0d9488', 'theme-indigo': '#4f46e5', 'theme-orange': '#ea580c',
     'theme-blue': '#2563eb', 'theme-mono': '#1e293b'
 };
 const DARK_THEME_COLOR = '#000000';
@@ -97,9 +98,9 @@ const applyTheme=(t)=>{
     }
     if(dom.darkModeToggle)dom.darkModeToggle.checked = (t === 'dark');
 };
-const applyAccentTheme=(themeName)=>{ 
-    document.body.classList.remove('theme-teal', 'theme-mono', 'theme-indigo', 'theme-orange', 'theme-blue'); 
-    document.body.classList.add(themeName); 
+const applyAccentTheme=(themeName)=>{
+    document.body.classList.remove('theme-teal', 'theme-mono', 'theme-indigo', 'theme-orange', 'theme-blue');
+    document.body.classList.add(themeName);
     localStorage.setItem('accentTheme', themeName);
     applyTheme(localStorage.getItem('theme'));
 };
@@ -158,7 +159,7 @@ const exportTasksAsCSV = () => {
     }
 
     let csvContent = "Project,Description,Date,StartTime,EndTime,Duration(HH:MM:SS),Notes\n";
-    
+
     tasksToExport.forEach(task => {
         const project = projects.find(p => p.id === task.projectId);
         const projectName = project ? project.name : 'N/A';
@@ -258,7 +259,7 @@ const updatePageHeader=(pageId)=>{
     const now=new Date();
     const dateString=now.toLocaleDateString(undefined,{weekday:'long',year:'numeric',month:'long',day:'numeric'});
     document.getElementById('page-date').textContent = dateString;
-    
+
     let title = 'Timer';
     if (pageId === 'page-session' && activeTimer) {
         const project = projects.find(p => p.id === activeTimer.projectId);
@@ -269,7 +270,7 @@ const updatePageHeader=(pageId)=>{
         document.body.classList.remove('in-session-mode');
         document.body.style.removeProperty('--session-project-color');
         const titles = {
-            'page-timer': 'Timer', 'page-projects': 'Projects', 'page-tasks': 'Tasks', 
+            'page-timer': 'Timer', 'page-projects': 'Projects', 'page-tasks': 'Tasks',
             'page-reports': 'Reports', 'page-goals': 'Goals', 'page-settings': 'Settings',
             'page-detail': 'Project Details', 'page-goal-detail': 'Goal Details',
             'page-completed-projects': 'Completed Projects'
@@ -300,7 +301,7 @@ const navigateTo=(pageId, isRefresh = false)=>{
         document.getElementById(pageId)?.classList.add('active');
         document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.page===pageId));
     }
-    
+
     switch(pageId) {
         case 'page-timer': renderTimerPage(); break;
         case 'page-projects': renderProjectsPage(); break;
@@ -323,12 +324,12 @@ const stopTimerInterval=()=>{clearInterval(timerInterval);timerInterval=null;};
 const initiateTimer = async (projectId, sessionName) => {
      if (activeTimer) await stopTimer();
     const now = Date.now();
-    activeTimer = { 
-        projectId: projectId, 
+    activeTimer = {
+        projectId: projectId,
         sessionName: sessionName,
-        startTime: now, 
-        totalPausedTime: 0, 
-        isPaused: false, 
+        startTime: now,
+        totalPausedTime: 0,
+        isPaused: false,
         pauseStartTime: null,
         sessionTasks: [],
         notes: '',
@@ -344,7 +345,7 @@ const initiateTimer = async (projectId, sessionName) => {
 
     localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));
     startTimerInterval();
-    navigateTo('page-session'); 
+    navigateTo('page-session');
 }
 
 const pauseTimer=()=>{ if (!activeTimer || activeTimer.isPaused) return; activeTimer.isPaused=true; activeTimer.pauseStartTime=Date.now(); localStorage.setItem('activeTimerState', JSON.stringify(activeTimer)); stopTimerInterval(); renderSessionPage(); };
@@ -352,7 +353,7 @@ const resumeTimer=()=>{ if (!activeTimer || !activeTimer.isPaused) return; activ
 
 const stopTimer = async () => {
     if (!activeTimer) return Promise.resolve();
-    
+
     const sessionNotes = document.getElementById('session-notes')?.value || '';
     const sessionTags = document.getElementById('session-tags')?.value.trim().split(/[\s,]+/).filter(Boolean) || [];
     const completedSessionTasks = activeTimer.sessionTasks.filter(t => t.completed).map(t => t.description);
@@ -364,31 +365,31 @@ const stopTimer = async () => {
 
     const endTime = activeTimer.isPaused ? activeTimer.pauseStartTime : Date.now();
     const duration = (endTime - activeTimer.startTime) - activeTimer.totalPausedTime;
-    
-    const t = { 
-        projectId: activeTimer.projectId, 
-        description: activeTimer.sessionName, 
-        notes: combinedNotes.trim(), 
-        tags: sessionTags, 
-        startTime: activeTimer.startTime, 
-        endTime: activeTimer.startTime + duration 
+
+    const t = {
+        projectId: activeTimer.projectId,
+        description: activeTimer.sessionName,
+        notes: combinedNotes.trim(),
+        tags: sessionTags,
+        startTime: activeTimer.startTime,
+        endTime: activeTimer.startTime + duration
     };
-    
+
     if (duration > 1000) { // Only save if more than a second
         const newSessionTaskRef = await addData('tasks', t);
         const completedPredefinedTasks = activeTimer.sessionTasks.filter(st => st.completed && st.predefinedTaskId);
         for (const sessionTask of completedPredefinedTasks) {
-            await updateData('predefinedTasks', sessionTask.predefinedTaskId, { 
-                completedInSessionId: newSessionTaskRef.id 
+            await updateData('predefinedTasks', sessionTask.predefinedTaskId, {
+                completedInSessionId: newSessionTaskRef.id
             });
         }
     }
-    
+
     localStorage.removeItem('activeTimerState');
-    activeTimer = null; 
+    activeTimer = null;
     stopTimerInterval();
-    
-    navigateTo('page-timer'); 
+
+    navigateTo('page-timer');
     updateDashboardTotalTime();
     return Promise.resolve();
 };
@@ -485,13 +486,18 @@ const renderSessionPage = () => {
     const liveDisplayTime = formatTime(elapsed > 0 ? elapsed : 0);
     const startTime = new Date(activeTimer.startTime);
     const startTimeString = startTime.toTimeString().slice(0,5);
-    
-    const tasksHTML = activeTimer.sessionTasks.map(task => `
-        <div class="task-item" data-predefined-task-id="${task.predefinedTaskId}">
+
+    const tasksHTML = activeTimer.sessionTasks.map(task => {
+        const taskIdAttr = task.predefinedTaskId
+            ? `data-predefined-task-id="${task.predefinedTaskId}"`
+            : `data-temp-id="${task.tempId}"`;
+        return `
+        <div class="task-item" ${taskIdAttr}>
             <input type="checkbox" class="session-task-checkbox" ${task.completed ? 'checked' : ''}>
             <span class="flex-grow ${task.completed ? 'line-through text-muted-foreground' : ''}">${task.description}</span>
         </div>
-    `).join('');
+    `}).join('');
+
     contentEl.innerHTML = `
         <div class="bg-card p-4 rounded-xl border border-border mb-4">
             <div class="flex justify-between items-center mb-4">
@@ -517,6 +523,12 @@ const renderSessionPage = () => {
         <div class="bg-card p-4 rounded-xl border border-border mb-4">
             <h3 class="font-semibold mb-2">Session Tasks</h3>
             <div id="session-task-list">${tasksHTML || '<p class="text-sm text-muted-foreground py-2">No predefined tasks for this project.</p>'}</div>
+            <form id="add-session-task-form" class="flex gap-2 mt-3 pt-3 border-t border-border">
+                <input type="text" id="new-session-task-desc" class="flex-grow p-2 text-sm border rounded-md bg-card-secondary border-input-border" placeholder="Add a new task...">
+                <button type="submit" class="btn-primary-sm flex-shrink-0">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                </button>
+            </form>
         </div>
         <div id="session-notes-container" class="bg-card p-4 rounded-xl border border-border space-y-3">
             <h3 class="font-semibold">Notes & Tags</h3>
@@ -581,8 +593,21 @@ const renderProjectDetailPage = () => {
 const renderProjectEntries = (projectId) => {
     const listEl = document.getElementById('detail-entries-list');
     if(!listEl) return;
-    const projectTasks = tasks.filter(t => t.projectId === projectId).sort((a,b) => b.startTime - a.startTime);
-    listEl.innerHTML = projectTasks.length > 0 ? projectTasks.map(t => createTaskEntryHTML(t)).join('') : '<p class="text-sm text-muted-foreground">No time entries yet.</p>';
+
+    let projectTasks = tasks.filter(t => t.projectId === projectId);
+
+    // Filter by date if the flag is set
+    if (detailViewFilter === 'today') {
+        const startOfDay = new Date().setHours(0, 0, 0, 0);
+        projectTasks = projectTasks.filter(t => t.startTime >= startOfDay);
+    }
+
+    projectTasks.sort((a,b) => b.startTime - a.startTime);
+
+    listEl.innerHTML = projectTasks.length > 0
+        ? projectTasks.map(t => createTaskEntryHTML(t)).join('')
+        : `<p class="text-sm text-muted-foreground">No time entries recorded for ${detailViewFilter === 'today' ? 'today' : 'this project'}.</p>`;
+
     lucide.createIcons();
 };
 
@@ -624,7 +649,7 @@ const renderSettingsPage=()=>{
     dom.csvDateStart=document.getElementById('csv-date-start');
     dom.csvDateEnd=document.getElementById('csv-date-end');
     applyTheme(localStorage.getItem('theme')||'light');
-    document.getElementById('detected-time-zone').textContent=Intl.DateTimeFormat().resolvedOptions().timeZone; 
+    document.getElementById('detected-time-zone').textContent=Intl.DateTimeFormat().resolvedOptions().timeZone;
     const savedTheme=localStorage.getItem('accentTheme')||'theme-teal';
     const activeSwatch = document.querySelector(`.accent-swatch[data-theme="${savedTheme}"]`);
     if (activeSwatch) activeSwatch.classList.add('selected');
@@ -634,7 +659,7 @@ const renderGoalsPage=()=>{
     const template = document.getElementById('goals-page-template'); if (!template) return;
     const content=template.content.cloneNode(true);
     const ac=document.getElementById('goals-content');ac.innerHTML='';ac.appendChild(content);const listEl=document.getElementById('goals-list');
-    
+
     if (goals.length === 0) {
          listEl.innerHTML = `<div class="text-center py-12 text-muted-foreground">
             <i data-lucide="award" class="mx-auto h-12 w-12 opacity-50"></i>
@@ -711,7 +736,7 @@ const renderTasksPage=()=>{
         showCompletedTasks = e.target.checked;
         renderTasksPage();
     });
-    
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -736,7 +761,7 @@ const renderTasksPage=()=>{
     } else {
         todaysListEl.innerHTML = '<p class="text-sm text-muted-foreground">No tasks due today.</p>';
     }
-    
+
     if (otherTasks.length > 0) {
         const groupedByProject=otherTasks.reduce((acc,task)=>{(acc[task.projectId||'none']=acc[task.projectId||'none']||[]).push(task);return acc;},{});
         otherTasksListEl.innerHTML=projects.concat({id:'none',name:'General Tasks'}).filter(p=>groupedByProject[p.id]).map(p=>{return`<div><h2 class="font-bold text-lg mt-4 mb-2" style="color:${p.color||'inherit'}">${p.name}</h2><div class="space-y-2">${(groupedByProject[p.id] || []).map(task=>createTaskItemHTML(task)).join('')}</div></div>`}).join('');
@@ -750,7 +775,7 @@ const renderTasksPage=()=>{
 const createTaskItemHTML = (task) => {
     const goal = goals.find(g => g.id === task.goalId);
     return`<div class="flex items-center bg-card p-3 rounded-lg border" data-task-id="${task.id}">
-        <input type="checkbox" class="predefined-task-checkbox h-5 w-5 rounded border-gray-300 text-primary-accent focus:ring-primary-accent mr-4 flex-shrink-0" ${task.isCompleted?'checked':''}> 
+        <input type="checkbox" class="predefined-task-checkbox h-5 w-5 rounded border-gray-300 text-primary-accent focus:ring-primary-accent mr-4 flex-shrink-0" ${task.isCompleted?'checked':''}>
         <div class="flex-grow min-w-0">
             <p class="font-medium ${task.isCompleted?'line-through text-gray-500':''}">${task.description}</p>
             ${task.dueDate?`<p class="text-sm text-muted-foreground">Due: ${new Date(task.dueDate+'T00:00:00').toLocaleDateString()}</p>`:''}
@@ -815,7 +840,7 @@ const openManualEntryModalForEdit = (taskId) => {
     openModal(modal);
 };
 
-// --- START: NEW/UPDATED REPORTS FUNCTIONS ---
+// --- START: REPORTS FUNCTIONS ---
 const renderReportsPage = () => {
     const template = document.getElementById('reports-page-template');
     if (!template) return;
@@ -824,20 +849,18 @@ const renderReportsPage = () => {
     container.innerHTML = '';
     container.appendChild(content);
 
-    // Set initial state
     const dayPicker = document.getElementById('reports-day-picker');
     if (dayPicker) {
         dayPicker.value = new Date().toISOString().split('T')[0];
     }
     const activeSortBtn = document.querySelector('#reports-summary-controls .sort-btn.active');
     currentReportSort = activeSortBtn ? activeSortBtn.dataset.sort : 'time';
-    
-    renderReportData(); 
+
+    renderReportData();
     lucide.createIcons();
 };
 
 const renderReportData = () => {
-    // Get DOM elements from the template
     const dayPicker = document.getElementById('reports-day-picker');
     const chartCanvas = document.getElementById('daily-activity-chart');
     const summaryEl = document.getElementById('reports-summary');
@@ -849,7 +872,6 @@ const renderReportData = () => {
         return;
     }
 
-    // --- 1. Filter Data for the Day ---
     const reportDate = new Date(dayPicker.value + 'T00:00:00');
     const startOfDay = reportDate.getTime();
     const endOfDay = startOfDay + (24 * 60 * 60 * 1000);
@@ -857,55 +879,64 @@ const renderReportData = () => {
         .filter(t => t.startTime >= startOfDay && t.startTime < endOfDay)
         .sort((a, b) => a.startTime - b.startTime);
 
-    // --- 2. Render 24-Hour Activity Chart ---
-    const chartData = { labels: [], datasets: [{ data: [], backgroundColor: [] }] };
+    const activityData = { labels: [], datasets: [{ data: [], backgroundColor: [], borderWidth: 1, borderColor: 'var(--background)' }] };
     const projectsInChart = new Map();
     let lastTime = startOfDay;
 
     tasksToday.forEach(task => {
-        // Add idle time before the task
         const idleDuration = task.startTime - lastTime;
-        if (idleDuration > 60000) { // Only show idle gaps > 1 minute
-            chartData.labels.push('Idle');
-            chartData.datasets[0].data.push(idleDuration);
-            chartData.datasets[0].backgroundColor.push('var(--border)');
+        if (idleDuration > 60000) {
+            activityData.labels.push('Idle');
+            activityData.datasets[0].data.push(idleDuration);
+            activityData.datasets[0].backgroundColor.push('var(--border)');
         }
 
-        // Add work time
         const project = projects.find(p => p.id === task.projectId) || { name: 'Unassigned', color: '#888' };
         const workDuration = task.endTime - task.startTime;
-        chartData.labels.push(`${project.name}: ${task.description}`);
-        chartData.datasets[0].data.push(workDuration);
-        chartData.datasets[0].backgroundColor.push(project.color);
+        activityData.labels.push(`${project.name}: ${task.description}`);
+        activityData.datasets[0].data.push(workDuration);
+        activityData.datasets[0].backgroundColor.push(project.color);
         
-        if (!projectsInChart.has(project.id)) {
-            projectsInChart.set(project.id, project);
-        }
+        if (!projectsInChart.has(project.id)) projectsInChart.set(project.id, project);
         
         lastTime = task.endTime;
     });
 
-    // Add final idle time until end of day
     const finalIdleDuration = endOfDay - lastTime;
     if (finalIdleDuration > 60000) {
-        chartData.labels.push('Idle');
-        chartData.datasets[0].data.push(finalIdleDuration);
-        chartData.datasets[0].backgroundColor.push('var(--border)');
+        activityData.labels.push('Idle');
+        activityData.datasets[0].data.push(finalIdleDuration);
+        activityData.datasets[0].backgroundColor.push('var(--border)');
     }
     
-    // Destroy old chart and render new one
+    const workdayBackgroundData = {
+        datasets: [{
+            data: [
+                8 * 60 * 60 * 1000,  // Midnight to 8 AM (8 hours)
+                9 * 60 * 60 * 1000,  // 8 AM to 5 PM (9 hours)
+                7 * 60 * 60 * 1000,  // 5 PM to Midnight (7 hours)
+            ],
+            backgroundColor: [ 'var(--subtle-bg)', 'var(--workday-bg)', 'var(--subtle-bg)' ],
+            borderWidth: 0,
+        }]
+    };
+
     if (dailyChartInstance) dailyChartInstance.destroy();
     if (tasksToday.length > 0 && typeof Chart !== 'undefined') {
         dailyChartInstance = new Chart(chartCanvas, {
             type: 'doughnut',
-            data: chartData,
+            data: {
+                labels: activityData.labels,
+                datasets: [activityData.datasets[0], workdayBackgroundData.datasets[0]]
+            },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                cutout: '70%',
+                cutout: '60%',
                 plugins: {
                     legend: { display: false },
                     tooltip: {
+                        filter: (tooltipItem) => tooltipItem.datasetIndex === 0,
                         callbacks: {
                             label: function(context) {
                                 const durationMs = context.parsed;
@@ -916,7 +947,7 @@ const renderReportData = () => {
                 }
             }
         });
-        // Render custom legend
+        
         legendEl.innerHTML = Array.from(projectsInChart.values()).map(p => `
             <div class="flex items-center text-xs">
                 <span class="w-3 h-3 rounded-full mr-2" style="background-color: ${p.color};"></span>
@@ -925,22 +956,25 @@ const renderReportData = () => {
         `).join('');
     } else {
         legendEl.innerHTML = '';
+        if(chartCanvas.getContext('2d')) {
+            const ctx = chartCanvas.getContext('2d');
+            ctx.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
+        }
     }
 
-    // --- 3. Render Summary List (by Time or Project) ---
     let totalMs = 0;
+    tasksToday.forEach(t => totalMs += (t.endTime - t.startTime));
+    totalEl.textContent = formatDuration(totalMs);
+
     if (tasksToday.length > 0) {
         if (currentReportSort === 'project') {
             const groupedByProject = tasksToday.reduce((acc, task) => {
                 const projectId = task.projectId || 'unassigned';
                 if (!acc[projectId]) {
                     const project = projects.find(p => p.id === projectId) || { name: 'Unassigned', color: '#888' };
-                    acc[projectId] = { project: project, tasks: [], totalDuration: 0 };
+                    acc[projectId] = { project: project, totalDuration: 0 };
                 }
-                const duration = task.endTime - task.startTime;
-                acc[projectId].tasks.push(task);
-                acc[projectId].totalDuration += duration;
-                totalMs += duration;
+                acc[projectId].totalDuration += (task.endTime - task.startTime);
                 return acc;
             }, {});
 
@@ -948,22 +982,20 @@ const renderReportData = () => {
                 .sort((a,b) => b.totalDuration - a.totalDuration)
                 .map(group => `
                 <div class="p-3 bg-card-secondary rounded-lg">
-                    <div class="flex justify-between items-center font-semibold mb-2">
+                    <div class="flex justify-between items-center font-semibold">
                         <div class="flex items-center">
                             <span class="w-3 h-3 rounded-full mr-3" style="background-color:${group.project.color}"></span>
                             <span>${group.project.name}</span>
                         </div>
                         <span>${formatDuration(group.totalDuration)}</span>
                     </div>
-                </div>
-            `).join('');
-        } else { // Default sort by 'time'
+                </div>`).join('');
+        } else {
             summaryEl.innerHTML = tasksToday.map(task => {
                 const project = projects.find(p => p.id === task.projectId) || { name: 'Unassigned', color: '#888' };
                 const duration = task.endTime - task.startTime;
                 const startTime = new Date(task.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 const endTime = new Date(task.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                totalMs += duration;
                 return `
                     <div class="report-task-item p-3 bg-card-secondary rounded-lg cursor-pointer hover:bg-border" data-task-id="${task.id}">
                         <div class="flex justify-between items-center">
@@ -976,15 +1008,12 @@ const renderReportData = () => {
                                 <p class="text-xs text-muted-foreground">${startTime} - ${endTime}</p>
                             </div>
                         </div>
-                    </div>
-                `;
+                    </div>`;
             }).join('');
         }
     } else {
         summaryEl.innerHTML = '<p class="text-sm text-muted-foreground text-center py-4">No entries for this day.</p>';
     }
-    
-    totalEl.textContent = formatDuration(totalMs);
 };
 
 const renderGoalDetailPage = () => {
@@ -992,7 +1021,7 @@ const renderGoalDetailPage = () => {
     if (!currentGoalId) { contentEl.innerHTML = `<p class="text-center text-muted-foreground p-8">Goal not found.</p>`; return; }
     const goal = goals.find(g => g.id === currentGoalId);
     if (!goal) { contentEl.innerHTML = `<p class="text-center text-muted-foreground p-8">Goal details could not be loaded.</p>`; return; }
-    
+
     contentEl.innerHTML = `
         <button class="back-to-goals-btn font-semibold text-primary-accent hover:underline mb-4">&larr; Back to Goals</button>
         <div class="bg-card p-4 rounded-xl border">
@@ -1027,7 +1056,7 @@ const renderGoalDetailPage = () => {
     `;
      lucide.createIcons();
 };
-// --- END: NEW/UPDATED REPORTS FUNCTIONS ---
+// --- END: REPORTS FUNCTIONS ---
 
 // --- AUTHENTICATION FLOW ---
 const handleAuthSubmit = async (e) => {
@@ -1068,7 +1097,7 @@ const addEventListeners = () => {
 
     document.body.addEventListener('click',async e=>{
         if (e.target.closest('#sign-out-btn')) { handleSignOut(); }
-        const navBtn = e.target.closest('.nav-btn'); 
+        const navBtn = e.target.closest('.nav-btn');
         if (navBtn) { const toPage = navBtn.dataset.page; if (activeTimer && document.querySelector('.page.active').id === 'page-session') { navigationIntent = toPage; openModal(document.getElementById('confirmation-modal')); return; } return navigateTo(toPage); }
         if (e.target.closest('#settings-btn')) { if (activeTimer && document.querySelector('.page.active').id === 'page-session') { navigationIntent = 'page-settings'; openModal(document.getElementById('confirmation-modal')); return; } return navigateTo('page-settings'); }
         if(e.target.closest('#add-btn-header')){
@@ -1076,7 +1105,7 @@ const addEventListeners = () => {
             switch(activePage){
                 case 'page-timer': const modal=document.getElementById('manual-entry-modal'); modal.querySelector('form').reset(); modal.querySelector('#manual-entry-task-id').value = ''; modal.querySelector('#manual-entry-title').textContent = 'Add Manual Time Entry'; modal.querySelector('#manual-entry-project').innerHTML = projects.filter(p=>p.status !== 'completed').map(p => `<option value="${p.id}">${p.name}</option>`).join(''); modal.querySelector('#manual-entry-date').value=new Date().toISOString().slice(0,10); openModal(modal); break;
                 case 'page-projects': const palette=document.getElementById('color-palette');palette.innerHTML=PALETTE.map(c=>`<div class="color-swatch" style="background-color: ${c}" data-color="${c}"></div>`).join('');document.getElementById('new-project-color').value='';openModal(document.getElementById('add-project-modal')); break;
-                case 'page-tasks': 
+                case 'page-tasks':
                     const taskModal=document.getElementById('add-predefined-task-modal');
                     taskModal.querySelector('form').reset();
                     taskModal.querySelector('#predefined-task-modal-title').textContent="New Task";
@@ -1084,7 +1113,7 @@ const addEventListeners = () => {
                     projectSelect.innerHTML=`<option value="">General Task</option>`+projects.filter(p=>p.status!=='completed').map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
                     const goalSelect=taskModal.querySelector('#predefined-task-goal');
                     goalSelect.innerHTML=`<option value="">No Associated Goal</option>`+goals.map(g=>`<option value="${g.id}">${g.title}</option>`).join('');
-                    openModal(taskModal); 
+                    openModal(taskModal);
                     break;
                 case 'page-goals':
                     const goalModal = document.getElementById('add-goal-modal');
@@ -1104,8 +1133,8 @@ const addEventListeners = () => {
             else if (palette.id === 'edit-color-palette') { document.getElementById('edit-project-color').value = swatch.dataset.color; }
         }
         if(e.target.closest('#cancel-add-project-btn'))return closeModal(document.getElementById('add-project-modal'));
-        if(e.target.closest('.sort-btn')){const sortBtn=e.target.closest('.sort-btn');document.querySelectorAll('#page-timer .sort-btn').forEach(b=>b.classList.remove('active'));sortBtn.classList.add('active');currentSort=sortBtn.dataset.sort;renderTimerPage();}
-        
+        if(e.target.closest('#page-timer .sort-btn')){const sortBtn=e.target.closest('#page-timer .sort-btn');document.querySelectorAll('#page-timer .sort-btn').forEach(b=>b.classList.remove('active'));sortBtn.classList.add('active');currentSort=sortBtn.dataset.sort;renderTimerPage();}
+
         const reportSortBtn = e.target.closest('#reports-summary-controls .sort-btn');
         if (reportSortBtn) {
             if (reportSortBtn.classList.contains('active')) return;
@@ -1121,14 +1150,24 @@ const addEventListeners = () => {
         if(e.target.closest('.delete-predefined-task-btn')){const taskEl=e.target.closest('[data-task-id]');if(taskEl){const taskId=taskEl.dataset.taskId;if(confirm('Delete this task?')) await deleteData('predefinedTasks',taskId);}}
         if(e.target.closest('.edit-predefined-task-btn')){const taskEl=e.target.closest('[data-task-id]');if(taskEl){const taskId=taskEl.dataset.taskId;const task=predefinedTasks.find(t=>t.id===taskId);if(task){const modal=document.getElementById('add-predefined-task-modal');modal.querySelector('form').reset();modal.querySelector('#predefined-task-modal-title').textContent="Edit Task";const pSelect=modal.querySelector('#predefined-task-project');pSelect.innerHTML=`<option value="">General Task</option>`+projects.filter(p=>p.status!=='completed').map(p=>`<option value="${p.id}">${p.name}</option>`).join(''); const gSelect=modal.querySelector('#predefined-task-goal'); gSelect.innerHTML=`<option value="">No Goal</option>`+goals.map(g=>`<option value="${g.id}">${g.title}</option>`).join(''); modal.querySelector('#predefined-task-id').value=task.id;modal.querySelector('#predefined-task-desc').value=task.description;pSelect.value=task.projectId||''; gSelect.value=task.goalId||''; modal.querySelector('#predefined-task-due-date').value=task.dueDate||'';modal.querySelector('#predefined-task-notes').value=task.notes||'';modal.querySelector('#predefined-task-tags').value=(task.tags||[]).join(', ');openModal(modal);}}}
         if(e.target.closest('#view-completed-projects-btn'))navigateTo('page-completed-projects');
-        if(e.target.closest('.edit-project-btn')) { currentDetailProjectId = e.target.closest('.project-card').dataset.projectId; navigateTo('page-detail'); }
-        if(e.target.closest('.start-timer-btn')) { 
+        
+        if(e.target.closest('.edit-project-btn')) {
+            currentDetailProjectId = e.target.closest('.project-card').dataset.projectId;
+            detailViewFilter = 'all';
+            navigateTo('page-detail');
+        }
+        if(e.target.closest('.view-project-detail-btn')) {
+            currentDetailProjectId = e.target.closest('.project-card').dataset.projectId;
+            detailViewFilter = 'today';
+            navigateTo('page-detail');
+        }
+
+        if(e.target.closest('.start-timer-btn')) {
             const projectId = e.target.closest('.project-card').dataset.projectId;
             const modal = document.getElementById('name-session-modal');
             modal.querySelector('#session-project-id').value = projectId;
             openModal(modal);
         }
-        if(e.target.closest('.view-project-detail-btn')) { currentDetailProjectId = e.target.closest('.project-card').dataset.projectId; navigateTo('page-detail'); }
         if(e.target.closest('#session-pause-resume-btn')) { if(activeTimer.isPaused) resumeTimer(); else pauseTimer(); }
         if(e.target.closest('#session-stop-btn')) { stopTimer(); }
         if(e.target.closest('#cancel-confirmation-btn')) { closeModal(document.getElementById('confirmation-modal')); navigationIntent=null;}
@@ -1157,13 +1196,29 @@ const addEventListeners = () => {
             document.getElementById('project-detail-edit-mode').classList.add('hidden');
         }
         const sessionPage = e.target.closest('#page-session');
-        if(sessionPage && e.target.matches('.session-task-checkbox')) { 
-            const predefId = e.target.closest('[data-predefined-task-id]').dataset.predefinedTaskId;
-            const sessionTask = activeTimer.sessionTasks.find(t => t.predefinedTaskId === predefId);
+        if(sessionPage && e.target.matches('.session-task-checkbox')) {
+            const taskItem = e.target.closest('.task-item');
+            if (!taskItem || !activeTimer) return;
+
+            const predefId = taskItem.dataset.predefinedTaskId;
+            const tempId = taskItem.dataset.tempId;
+            let sessionTask;
+
+            if (predefId) {
+                sessionTask = activeTimer.sessionTasks.find(t => t.predefinedTaskId === predefId);
+                if (sessionTask) {
+                    await updateData('predefinedTasks', predefId, {
+                        isCompleted: e.target.checked,
+                        completedDate: e.target.checked ? Date.now() : null
+                    });
+                }
+            } else if (tempId) {
+                sessionTask = activeTimer.sessionTasks.find(t => t.tempId === parseInt(tempId));
+            }
+
             if (sessionTask) {
                 sessionTask.completed = e.target.checked;
-                await updateData('predefinedTasks', predefId, { isCompleted: e.target.checked, completedDate: e.target.checked ? Date.now() : null });
-                localStorage.setItem('activeTimerState', JSON.stringify(activeTimer)); 
+                localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));
                 renderSessionPage();
             }
         }
@@ -1179,7 +1234,7 @@ const addEventListeners = () => {
         if (e.target.closest('#cancel-manual-entry-btn')) { closeModal(document.getElementById('manual-entry-modal')); }
         if (e.target.closest('.view-goal-detail-btn')) { currentGoalId = e.target.closest('[data-goal-id]').dataset.goalId; navigateTo('page-goal-detail'); }
     });
-    
+
     document.getElementById('add-project-form').addEventListener('submit',saveNewProject);
     document.getElementById('manual-entry-form').addEventListener('submit',saveManualEntry);
     document.getElementById('add-predefined-task-form').addEventListener('submit',savePredefinedTask);
@@ -1193,8 +1248,29 @@ const addEventListeners = () => {
         modal.querySelector('form').reset();
         closeModal(modal);
     });
+
+    document.body.addEventListener('submit', e => {
+        if (e.target.matches('#add-session-task-form')) {
+            e.preventDefault();
+            const input = document.getElementById('new-session-task-desc');
+            const description = input.value.trim();
+            if (description && activeTimer) {
+                const newTask = {
+                    description: description,
+                    completed: false,
+                    predefinedTaskId: null,
+                    tempId: Date.now()
+                };
+                activeTimer.sessionTasks.push(newTask);
+                localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));
+                input.value = '';
+                renderSessionPage();
+            }
+        }
+    });
+
     document.getElementById('modal-backdrop').addEventListener('click',()=>{closeModal(document.getElementById('add-project-modal'));closeModal(document.getElementById('guide-modal'));closeModal(document.getElementById('manual-entry-modal'));closeModal(document.getElementById('add-predefined-task-modal'));closeModal(document.getElementById('add-goal-modal'));closeModal(document.getElementById('name-session-modal'));closeModal(document.getElementById('confirmation-modal'));closeModal(document.getElementById('notes-view-modal'));});
-    
+
     document.body.addEventListener('change',async e=>{
         if(e.target.closest('#dark-mode-toggle'))toggleTheme();
         if(e.target.matches('#import-file-input'))importDataFromJSON(e);
@@ -1215,12 +1291,12 @@ const addEventListeners = () => {
             renderReportData();
         }
     });
-    
+
     document.addEventListener('input',e=>{const input=e.target;if(input.matches('#session-notes')){ if(activeTimer)activeTimer.notes=input.value;localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));}
     else if(input.matches('#session-tags')){if(!activeTimer)return;activeTimer.tags=input.value.trim().split(/[\s,]+/).filter(Boolean);localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));}});
 }
 
-const initializeAppWithUI = () => { 
+const initializeAppWithUI = () => {
     // --- Assign UI Element Refs ---
     signInScreen = document.getElementById('sign-in-screen');
     appContainer = document.getElementById('app-container');
@@ -1246,7 +1322,7 @@ const initializeAppWithUI = () => {
     db = getFirestore(app);
     auth = getAuth(app);
     // setLogLevel('debug'); // Uncomment for detailed logs
-    
+
     addEventListeners();
 
     onAuthStateChanged(auth, (user) => {
@@ -1259,20 +1335,19 @@ const initializeAppWithUI = () => {
             appContainer.classList.remove('hidden');
             setupFirestoreListeners();
             checkPersistentTimer();
-            if (activeTimer) { navigateTo('page-session'); } 
+            if (activeTimer) { navigateTo('page-session'); }
             else { navigateTo('page-timer'); }
         } else {
             userId = null;
             unsubscribeListeners.forEach(unsub => unsub());
             unsubscribeListeners = [];
             projects = []; tasks = []; goals = []; predefinedTasks = [];
-            
-            // Reset auth form to default sign-in state when user logs out
+
             if (isSignUp) {
                 toggleAuthMode();
             }
             authForm.reset();
-            
+
             appContainer.classList.add('hidden');
             signInScreen.classList.remove('hidden');
             document.getElementById('user-info').classList.add('hidden');
@@ -1280,7 +1355,7 @@ const initializeAppWithUI = () => {
     });
 
     // --- UI INITIALIZATION ---
-    applyTheme(localStorage.getItem('theme') || 'light'); 
+    applyTheme(localStorage.getItem('theme') || 'light');
     applyAccentTheme(localStorage.getItem('accentTheme') || 'theme-teal');
 };
 
