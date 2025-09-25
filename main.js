@@ -952,6 +952,9 @@ const addEventListeners = () => {
         }
         const detailPage = e.target.closest('#page-detail');
         if(detailPage && e.target.matches('.project-status-radio')) { const p = projects.find(proj => proj.id === currentDetailProjectId); if(p) { await updateData('projects', p.id, {status: e.target.value}); } }
+        if (e.target.matches('#reports-start-date') || e.target.matches('#reports-end-date')) {
+            renderReportData();
+        }
     });
     
     document.addEventListener('input',e=>{const input=e.target;if(input.matches('#session-notes')){ if(activeTimer)activeTimer.notes=input.value;localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));}
@@ -1024,4 +1027,3 @@ const initializeAppWithUI = () => {
 
 // --- Start the App ---
 document.addEventListener('DOMContentLoaded', initializeAppWithUI);
-
