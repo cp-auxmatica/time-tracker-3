@@ -11,7 +11,11 @@ let navigationIntent = null;
 let taskSearchTerm = '';
 let showCompletedTasks = false;
 let dailyChartInstance = null;
-let currentReportSort = 'time'; // Fixed: Variable declared
+let currentReportSort = 'time';
+let currentReportPeriod = 'day';
+let currentReportStartDate = new Date();
+let currentReportEndDate = new Date();
+
 
 // --- Firebase State ---
 let db, auth, userId, unsubscribeListeners = [];
@@ -568,147 +572,6 @@ const createTaskEntryHTML = (task) => {
             </div>
         </div>
     </div>`;
-};
-
-const renderReportsPage = () => {
-    const template = document.getElementById('reports-page-template');
-    if (!template) return;
-    const content = template.content.cloneNode(true);
-    document.getElementById('reports-content').innerHTML = '';
-    document.getElementById('reports-content').appendChild(content);
-    const dayPicker = document.getElementById('reports-day-picker');
-    if (dayPicker) {
-        dayPicker.value = new Date().toISOString().split('T')[0];
-        dayPicker.addEventListener('change', () => renderReportData());
-    }
-     const sortControls = document.querySelector('#reports-summary-controls');
-    if (sortControls) {
-        sortControls.addEventListener('click', (e) => {
-            if (e.target.matches('.sort-btn')) {
-                document.querySelectorAll('#reports-summary-controls .sort-btn').forEach(b => b.classList.remove('active'));
-                e.target.classList.add('active');
-                currentReportSort = e.target.dataset.sort;
-                renderReportData();
-            }
-        });
-    }
-    renderReportData();
-    lucide.createIcons();
-};
-
-const renderReportData=()=>{ 
-    const dayPicker = document.getElementById('reports-day-picker');
-    const reportDate = dayPicker ? new Date(dayPicker.value + 'T00:00:00') : new Date();
-    const startOfDay = new Date(reportDate).setHours(0,0,0,0);
-    const endOfDay = new Date(reportDate).setHours(23,59,59,999);
-    
-    const fTs=tasks.filter(t=>t.startTime>=startOfDay&&t.startTime<=endOfDay); 
-    const totalTimeMs = fTs.reduce((sum, task) => sum + (task.endTime - task.startTime), 0); 
-    const totalTimeEl = document.getElementById('reports-total-time'); 
-    if (totalTimeEl) { totalTimeEl.textContent = formatDuration(totalTimeMs); } 
-    
-    const summaryEl = document.getElementById('reports-summary');
-    if (!summaryEl) return;
-    if (currentReportSort === 'time') {
-        const sortedTasks = fTs.sort((a, b) => a.startTime - b.startTime);
-        summaryEl.innerHTML = sortedTasks.map(task => {
-            const project = projects.find(p => p.id === task.projectId);
-            const startTime = new Date(task.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const endTime = new Date(task.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            return `
-                <div class="bg-card p-3 rounded-lg border flex justify-between items-center">
-                    <div>
-                        <p class="font-semibold">${startTime} - ${endTime}</p>
-                        <p class="text-sm text-muted-foreground">${task.description}</p>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="w-3 h-3 rounded-full" style="background-color:${project?.color || '#cccccc'}"></span>
-                        <span class="text-sm font-semibold">${project?.name || 'Unknown'}</span>
-                    </div>
-                </div>`;
-        }).join('') || '<p class="text-center text-muted-foreground py-8">No time tracked today.</p>';
-    } else { // Sort by project
-        const groupedByProject = fTs.reduce((acc, task) => {
-            (acc[task.projectId] = acc[task.projectId] || []).push(task);
-            return acc;
-        }, {});
-        summaryEl.innerHTML = Object.keys(groupedByProject).map(projectId => {
-            const project = projects.find(p => p.id === projectId);
-            const projectTasks = groupedByProject[projectId];
-            const totalTime = projectTasks.reduce((sum, t) => sum + (t.endTime - t.startTime), 0);
-            return `<details class="bg-card p-3 rounded-lg border" open>
-                        <summary class="font-semibold flex justify-between items-center cursor-pointer">
-                            <span>
-                                <span class="inline-block w-3 h-3 rounded-full mr-2" style="background-color:${project?.color || '#cccccc'};"></span>
-                                ${project?.name || 'Unknown'}
-                            </span>
-                            <span>${formatDuration(totalTime)}</span>
-                        </summary>
-                        <div class="mt-3 pt-3 border-t border-border space-y-2">
-                            ${projectTasks.sort((a,b)=>a.startTime-b.startTime).map(t=>`<div class="text-sm flex justify-between report-task-item p-1 rounded-md" data-task-id="${t.id}"><span>${t.description}</span><span class="text-muted-foreground">${formatDuration(t.endTime-t.startTime)}</span></div>`).join('')}
-                        </div>
-                    </details>`;
-        }).join('') || '<p class="text-center text-muted-foreground py-8 col-span-full">No time tracked today.</p>';
-    }
-    renderDailyActivityChart(startOfDay);
-};
-
-const renderDailyActivityChart = (startOfDay) => {
-    const canvas = document.getElementById('daily-activity-chart');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const dayTasks = tasks.filter(t => t.startTime >= startOfDay && t.startTime < startOfDay + 24 * 60 * 60 * 1000);
-    const projectColors = projects.reduce((acc, p) => ({ ...acc, [p.id]: p.color }), {});
-    const radius = canvas.width / 2;
-    const center = radius;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    // Draw clock face
-    ctx.beginPath();
-    ctx.arc(center, center, radius - 25, 0, 2 * Math.PI);
-    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--border').trim() || '#e2e8f0';
-    ctx.lineWidth = 50;
-    ctx.stroke();
-    // Draw hour markers
-    ctx.font = "10px Roboto";
-    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--muted-foreground').trim() || '#64748b';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    for (let i = 0; i < 24; i++) {
-        const angle = (i / 24) * 2 * Math.PI - Math.PI / 2;
-        const x = center + (radius - 15) * Math.cos(angle);
-        const y = center + (radius - 15) * Math.sin(angle);
-        let hourText = i % 12;
-        if (hourText === 0) hourText = 12;
-        ctx.fillText(hourText, x, y);
-    }
-    const timeToAngle = (time) => {
-        const date = new Date(time);
-        const hours = date.getHours();
-        const minutes = date.getMinutes();
-        const totalMinutes = hours * 60 + minutes;
-        return (totalMinutes / (24 * 60)) * 2 * Math.PI - Math.PI / 2;
-    };
-    const legendEl = document.getElementById('chart-legend');
-    const usedProjects = new Set();
-    dayTasks.forEach(task => {
-        const startAngle = timeToAngle(task.startTime);
-        const endAngle = timeToAngle(task.endTime);
-        ctx.beginPath();
-        ctx.arc(center, center, radius - 25, startAngle, endAngle);
-        ctx.strokeStyle = projectColors[task.projectId] || '#cccccc';
-        ctx.lineWidth = 50;
-        ctx.stroke();
-        usedProjects.add(task.projectId);
-    });
-    if (legendEl) {
-        legendEl.innerHTML = Array.from(usedProjects).map(projectId => {
-            const project = projects.find(p => p.id === projectId);
-            return `<div class="flex items-center gap-2 text-sm">
-                        <span class="w-3 h-3 rounded-full" style="background-color:${project?.color || '#cccccc'}"></span>
-                        <span>${project?.name || 'Unknown'}</span>
-                    </div>`;
-        }).join('');
-    }
 };
 
 const renderSettingsPage=()=>{
