@@ -596,7 +596,6 @@ const renderProjectEntries = (projectId) => {
 
     let projectTasks = tasks.filter(t => t.projectId === projectId);
 
-    // Filter by date if the flag is set
     if (detailViewFilter === 'today') {
         const startOfDay = new Date().setHours(0, 0, 0, 0);
         projectTasks = projectTasks.filter(t => t.startTime >= startOfDay);
@@ -677,7 +676,7 @@ const renderGoalsPage=()=>{
         return acc;
     }, {});
 
-    const sortedGroups = Object.keys(groupedGoals).sort((a,b) => b.localeCompare(a)); // Sort by newest first
+    const sortedGroups = Object.keys(groupedGoals).sort((a,b) => b.localeCompare(a));
 
     listEl.innerHTML = sortedGroups.map(group => {
         const goalItems = groupedGoals[group].map(goal => {
@@ -909,6 +908,11 @@ const renderReportData = () => {
         activityData.datasets[0].backgroundColor.push('var(--border)');
     }
     
+    // Read CSS variables for the chart
+    const computedStyle = getComputedStyle(document.documentElement);
+    const subtleBg = computedStyle.getPropertyValue('--subtle-bg').trim();
+    const workdayBg = computedStyle.getPropertyValue('--workday-bg').trim();
+
     const workdayBackgroundData = {
         datasets: [{
             data: [
@@ -916,13 +920,15 @@ const renderReportData = () => {
                 9 * 60 * 60 * 1000,  // 8 AM to 5 PM (9 hours)
                 7 * 60 * 60 * 1000,  // 5 PM to Midnight (7 hours)
             ],
-            backgroundColor: [ 'var(--subtle-bg)', 'var(--workday-bg)', 'var(--subtle-bg)' ],
+            backgroundColor: [ subtleBg, workdayBg, subtleBg ],
             borderWidth: 0,
         }]
     };
 
     if (dailyChartInstance) dailyChartInstance.destroy();
+    // Only render chart if there is data
     if (tasksToday.length > 0 && typeof Chart !== 'undefined') {
+        chartCanvas.style.display = 'block';
         dailyChartInstance = new Chart(chartCanvas, {
             type: 'doughnut',
             data: {
@@ -956,10 +962,7 @@ const renderReportData = () => {
         `).join('');
     } else {
         legendEl.innerHTML = '';
-        if(chartCanvas.getContext('2d')) {
-            const ctx = chartCanvas.getContext('2d');
-            ctx.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
-        }
+        chartCanvas.style.display = 'none';
     }
 
     let totalMs = 0;
