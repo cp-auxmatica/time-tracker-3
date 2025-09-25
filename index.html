@@ -14,6 +14,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="theme-teal">
 
@@ -132,7 +134,6 @@
         </nav>
     </div>
 
-    <!-- Modals -->
     <div id="modal-backdrop" class="modal-backdrop hidden"></div>
     <div id="add-project-modal" class="modal hidden w-11/12 max-w-md">
          <form id="add-project-form" class="bg-[var(--card)] rounded-lg shadow-xl border border-[var(--border)] p-6 space-y-4">
@@ -314,7 +315,6 @@
         </div>
     </div>
     
-    <!-- Templates -->
     <template id="goals-page-template">
         <div id="goals-list" class="space-y-6"></div>
     </template>
@@ -346,46 +346,36 @@
             <div id="predefined-tasks-list" class="space-y-4"></div>
         </div>
     </template>
+
     <template id="reports-page-template">
-         <div class="flex flex-wrap justify-between items-center mb-4 gap-4">
-            <div class="p-2 bg-card-secondary rounded-xl flex text-center text-sm font-semibold reports-controls">
-                <button data-period="day" class="reports-filter-btn period-btn flex-1 py-2 px-4 rounded-lg bg-card shadow">Day</button>
-                <button data-period="week" class="reports-filter-btn period-btn flex-1 py-2 px-4 rounded-lg">Week</button>
-                <button data-period="month" class="reports-filter-btn period-btn flex-1 py-2 px-4 rounded-lg">Month</button>
-                <button data-period="custom" class="reports-filter-btn period-btn flex-1 py-2 px-4 rounded-lg">Custom</button>
+        <div class="space-y-4">
+            <div class="bg-card p-4 rounded-xl border flex flex-col sm:flex-row gap-4 justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <label for="reports-day-picker" class="font-semibold">Date:</label>
+                    <input type="date" id="reports-day-picker" class="p-2 border rounded-md bg-card-secondary border-input-border">
+                </div>
+                <button id="export-day-notes-btn" class="btn-secondary w-full sm:w-auto">
+                    <i data-lucide="file-text" class="w-4 h-4 mr-2"></i>
+                    <span>Export Day Notes</span>
+                </button>
             </div>
-            <div id="reports-day-picker-container" class="flex items-center gap-2">
-                 <label for="reports-day-picker" class="font-semibold text-sm">Date:</label>
-                 <input type="date" id="reports-day-picker" class="p-2 border rounded-md text-sm bg-card-secondary border-input-border">
+            <div class="bg-card p-4 rounded-xl border">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold">Daily Summary</h3>
+                    <div id="reports-total-time" class="font-semibold text-muted-foreground"></div>
+                </div>
+                <div class="h-64 relative">
+                    <canvas id="daily-time-chart"></canvas>
+                </div>
             </div>
-        </div>
-        <div id="custom-date-range" class="hidden grid grid-cols-2 gap-2 mb-4">
-            <input type="date" id="reports-start-date" class="p-2 border rounded-md text-sm bg-card-secondary">
-            <input type="date" id="reports-end-date" class="p-2 border rounded-md text-sm bg-card-secondary">
-        </div>
-        <div id="daily-visualizer-container" class="bg-card p-4 rounded-xl border mb-6">
-            <h3 class="font-semibold text-center mb-4">Daily Activity Visualizer</h3>
-            <div id="daily-chart-container" class="relative mx-auto" style="width: 300px; height: 300px;">
-                <canvas id="daily-activity-chart" width="300" height="300"></canvas>
+            <div class="bg-card p-4 rounded-xl border">
+                 <h3 class="text-lg font-bold mb-2">Time Entries</h3>
+                <div id="reports-task-list" class="space-y-2">
+                    </div>
             </div>
-             <div id="chart-legend" class="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-4"></div>
-        </div>
-        <div class="mb-6 p-4 bg-card rounded-xl border">
-            <p id="reports-total-time-label" class="text-sm text-muted-foreground">Total Time for Day</p>
-            <p id="reports-total-time" class="text-3xl font-bold">0h 0m</p>
-        </div>
-        <div id="reports-summary-controls" class="flex justify-end mb-2">
-             <div class="sort-options">
-                <span class="sort-label">Sort By</span>
-                <button data-sort="time" class="sort-btn active">Time</button>
-                <button data-sort="project" class="sort-btn">Project</button>
-            </div>
-        </div>
-        <div id="reports-summary" class="space-y-2"></div>
-        <div class="mt-4">
-             <button id="export-day-notes-btn" class="w-full bg-primary-accent-light text-primary-accent px-4 py-2 rounded-lg text-sm font-semibold shadow-sm hover:bg-border">Export Day Notes</button>
         </div>
     </template>
+    
     <template id="settings-template">
          <div class="space-y-6">
             <div id="account-settings" class="bg-card p-4 rounded-lg border border-border">
