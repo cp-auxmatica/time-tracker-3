@@ -348,33 +348,46 @@
     </template>
 
     <template id="reports-page-template">
-        <div class="space-y-4">
-            <div class="bg-card p-4 rounded-xl border flex flex-col sm:flex-row gap-4 justify-between items-center">
-                <div class="flex items-center gap-2">
-                    <label for="reports-day-picker" class="font-semibold">Date:</label>
-                    <input type="date" id="reports-day-picker" class="p-2 border rounded-md bg-card-secondary border-input-border">
-                </div>
-                <button id="export-day-notes-btn" class="btn-secondary w-full sm:w-auto">
-                    <i data-lucide="file-text" class="w-4 h-4 mr-2"></i>
-                    <span>Export Day Notes</span>
-                </button>
-            </div>
-            <div class="bg-card p-4 rounded-xl border">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-bold">Daily Summary</h3>
-                    <div id="reports-total-time" class="font-semibold text-muted-foreground"></div>
-                </div>
-                <div class="h-64 relative">
-                    <canvas id="daily-time-chart"></canvas>
-                </div>
-            </div>
-            <div class="bg-card p-4 rounded-xl border">
-                 <h3 class="text-lg font-bold mb-2">Time Entries</h3>
-                <div id="reports-task-list" class="space-y-2">
-                    </div>
+    <div class="space-y-4">
+        <div class="bg-card p-4 rounded-xl border flex flex-col sm:flex-row gap-4 justify-between items-center">
+            <div class="flex items-center gap-2">
+                <label for="reports-day-picker" class="font-semibold">Date:</label>
+                <input type="date" id="reports-day-picker" class="p-2 border rounded-md bg-card-secondary border-input-border">
             </div>
         </div>
-    </template>
+
+        <div id="daily-visualizer-container" class="bg-card p-4 rounded-xl border">
+            <h3 class="font-semibold text-center mb-4">Daily Activity Visualizer</h3>
+            <div id="daily-chart-container" class="relative mx-auto" style="width: 300px; height: 300px;">
+                <canvas id="daily-activity-chart"></canvas>
+            </div>
+             <div id="chart-legend" class="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-4 text-xs"></div>
+        </div>
+
+        <div class="bg-card p-4 rounded-xl border">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold">Time Entries</h3>
+                <div id="reports-summary-controls">
+                     <div class="sort-options text-sm">
+                        <span class="sort-label">Sort By</span>
+                        <button data-sort="time" class="sort-btn active">Time</button>
+                        <button data-sort="project" class="sort-btn">Project</button>
+                    </div>
+                </div>
+            </div>
+            <p class="text-xs text-muted-foreground -mt-2 mb-4">Total Logged: <span id="reports-total-time" class="font-bold">0m</span></p>
+            <div id="reports-summary" class="space-y-2">
+                </div>
+        </div>
+
+         <div class="mt-4">
+             <button id="export-day-notes-btn" class="btn-secondary w-full">
+                <i data-lucide="file-text" class="w-4 h-4 mr-2"></i>
+                <span>Export Day Notes</span>
+            </button>
+        </div>
+    </div>
+</template>
     
     <template id="settings-template">
          <div class="space-y-6">
