@@ -114,3 +114,15 @@ body.in-session-mode #add-btn-header { display: none; }
     animation: spinner-a4dj6w 1s infinite;
 }
 @keyframes spinner-a4dj6w { to { transform: rotate(.5turn) } }
+
+/* Add this to the end of your style.css file */
+
+:root {
+  --subtle-bg: rgba(0, 0, 0, 0.05);
+  --workday-bg: rgba(0, 0, 0, 0.1);
+}
+
+.dark {
+  --subtle-bg: rgba(255, 255, 255, 0.05);
+  --workday-bg: rgba(255, 255, 255, 0.1);
+}
