@@ -348,21 +348,20 @@
     </template>
     <template id="reports-page-template">
          <div class="flex flex-wrap justify-between items-center mb-4 gap-4">
-            <div class="p-2 bg-card-secondary rounded-xl flex text-center text-sm font-semibold">
-                <button data-filter="day" class="reports-filter-btn flex-1 py-2 px-4 rounded-lg bg-card shadow">Day</button>
-                <button data-filter="week" class="reports-filter-btn flex-1 py-2 px-4 rounded-lg">Week</button>
-                <button data-filter="month" class="reports-filter-btn flex-1 py-2 px-4 rounded-lg">Month</button>
-                <button data-filter="custom" class="reports-filter-btn flex-1 py-2 px-4 rounded-lg">Custom</button>
+            <div class="p-2 bg-card-secondary rounded-xl flex text-center text-sm font-semibold reports-controls">
+                <button data-period="day" class="reports-filter-btn period-btn flex-1 py-2 px-4 rounded-lg bg-card shadow">Day</button>
+                <button data-period="week" class="reports-filter-btn period-btn flex-1 py-2 px-4 rounded-lg">Week</button>
+                <button data-period="month" class="reports-filter-btn period-btn flex-1 py-2 px-4 rounded-lg">Month</button>
+                <button data-period="custom" class="reports-filter-btn period-btn flex-1 py-2 px-4 rounded-lg">Custom</button>
             </div>
-            <div class="flex items-center gap-2">
+            <div id="reports-day-picker-container" class="flex items-center gap-2">
                  <label for="reports-day-picker" class="font-semibold text-sm">Date:</label>
                  <input type="date" id="reports-day-picker" class="p-2 border rounded-md text-sm bg-card-secondary border-input-border">
             </div>
         </div>
-        <div id="reports-custom-range" class="hidden items-center gap-2 text-sm mb-4">
-            <input type="date" id="reports-date-start" class="w-full p-2 border rounded-md text-sm bg-card-secondary border-input-border">
-            <span class="text-muted-foreground">to</span>
-            <input type="date" id="reports-date-end" class="w-full p-2 border rounded-md text-sm bg-card-secondary border-input-border">
+        <div id="custom-date-range" class="hidden grid grid-cols-2 gap-2 mb-4">
+            <input type="date" id="reports-start-date" class="p-2 border rounded-md text-sm bg-card-secondary">
+            <input type="date" id="reports-end-date" class="p-2 border rounded-md text-sm bg-card-secondary">
         </div>
         <div id="daily-visualizer-container" class="bg-card p-4 rounded-xl border mb-6">
             <h3 class="font-semibold text-center mb-4">Daily Activity Visualizer</h3>
