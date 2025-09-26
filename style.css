@@ -1,164 +1,272 @@
-/* css/style.css */
+/* ==========================================================================
+   1. Theme & Color Variables
+   ========================================================================== */
 
-/* --- 1. Variables & Base Styles --- */
 :root {
-    --bg-color: #f8f9fa;
-    --text-color: #212529; /* Darker text for light mode */
-    --text-color-muted: #6c757d;
-    --card-bg: #ffffff;
-    --border-color: #dee2e6;
-    --gradient: linear-gradient(45deg, #4f46e5, #7c3aed); /* Indigo to Violet */
-    --gradient-text: #ffffff;
+  /* Light Theme Colors */
+  --background: #f8fafc; /* slate-50 */
+  --card: #ffffff;
+  --card-secondary: #f1f5f9; /* slate-100 */
+  --border: #e2e8f0; /* slate-200 */
+  --input-border: #cbd5e1; /* slate-300 */
+  
+  --foreground: #0f172a; /* slate-900 */
+  --muted-foreground: #64748b; /* slate-500 */
 
-    /* New Project Color Options */
-    --project-color-1: #4f46e5; /* Indigo */
-    --project-color-2: #db2777; /* Pink */
-    --project-color-3: #16a34a; /* Green */
-    --project-color-4: #d97706; /* Amber */
-    --project-color-5: #0891b2; /* Cyan */
+  --danger: #dc2626;  /* red-600 */
+  --warning: #f59e0b; /* amber-500 */
+  --success: #16a34a; /* green-600 */
 
-    --font-main: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    --shadow: 0 4px 6px rgba(0,0,0,0.07);
-}
-
-[data-theme='dark'] {
-    --bg-color: #121212;
-    --text-color: #e5e7eb; /* Brighter text for dark mode */
-    --text-color-muted: #9ca3af;
-    --card-bg: #1e1e1e;
-    --border-color: #374151;
+  /* Report Chart Colors */
+  --subtle-bg: rgba(0, 0, 0, 0.05);
+  --workday-bg: rgba(0, 0, 0, 0.1);
 }
 
-/* ... (keep body, container, typography from previous version) ... */
-
-/* --- 2. Portfolio/Task List Streamlining (Desktop) --- */
-.portfolio-item {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: var(--shadow);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-    display: block;
-    color: var(--text-color);
-}
-.portfolio-content { padding: 1.5rem; }
-
-/* NEW: Horizontal layout for task metadata */
-.task-meta {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.75rem;
-    font-size: 0.9rem;
-    color: var(--text-color-muted);
-}
-.task-date {
-    font-weight: 500;
+.dark {
+  /* Dark Theme Colors */
+  --background: #020617; /* slate-950 */
+  --card: #0f172a; /* slate-900 */
+  --card-secondary: #1e293b; /* slate-800 */
+  --border: #334155; /* slate-700 */
+  --input-border: #475569; /* slate-600 */
+  
+  --foreground: #f8fafc; /* slate-50 */
+  --muted-foreground: #94a3b8; /* slate-400 */
+  
+  /* Report Chart Colors */
+  --subtle-bg: rgba(255, 255, 255, 0.05);
+  --workday-bg: rgba(255, 255, 255, 0.1);
 }
 
-/* NEW: Project color tags */
-.project-tag {
-    display: inline-block;
-    padding: 4px 12px;
-    border-radius: 50px;
-    font-size: 0.8rem;
-    font-weight: bold;
-    color: white;
-}
-.project-tag.p1 { background-color: var(--project-color-1); }
-.project-tag.p2 { background-color: var(--project-color-2); }
-.project-tag.p3 { background-color: var(--project-color-3); }
-.project-tag.p4 { background-color: var(--project-color-4); }
-.project-tag.p5 { background-color: var(--project-color-5); }
+/* Accent Color Themes */
+.theme-teal { --primary-accent: #0d9488; --primary-accent-light: #ccfbf1; }
+.theme-indigo { --primary-accent: #4f46e5; --primary-accent-light: #e0e7ff; }
+.theme-orange { --primary-accent: #ea580c; --primary-accent-light: #ffedd5; }
+.theme-blue { --primary-accent: #2563eb; --primary-accent-light: #dbeafe; }
+.theme-mono { --primary-accent: #475569; --primary-accent-light: #e2e8f0; }
 
+/* ==========================================================================
+   2. Base Styles
+   ========================================================================== */
 
-/* --- 3. Goals Page Overhaul --- */
-.goal {
-    background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    margin-bottom: 1rem;
-    overflow: hidden;
+body {
+  font-family: 'Roboto', sans-serif;
+  background-color: var(--background);
+  color: var(--foreground);
+  overscroll-behavior: none;
+  transition: background-color 0.3s, color 0.3s;
 }
 
-.goal-summary {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1rem 1.5rem;
-    cursor: pointer;
+/* Custom Scrollbar */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.dark ::-webkit-scrollbar-thumb { background: var(--border); }
+::-webkit-scrollbar-thumb:hover { background: var(--input-border); }
+
+/* ==========================================================================
+   3. Main Layout
+   ========================================================================== */
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: var(--card);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  padding: 0 1rem;
+}
+.app-header-top { display: flex; justify-content: space-between; align-items: center; height: 56px; }
+.app-title { display: flex; align-items: center; font-weight: 700; font-size: 1.125rem; }
+.app-icon { color: var(--primary-accent); margin-right: 0.5rem; }
+.header-actions { display: flex; align-items: center; }
+
+.page-header { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0; }
+.page-title { font-size: 1.875rem; font-weight: 700; line-height: 1.2; color: var(--foreground); }
+.page-date { font-size: 0.875rem; color: var(--muted-foreground); }
+
+main { padding: 1rem; padding-bottom: 100px; }
+.main-content { max-width: 800px; margin: 0 auto; }
+
+.page { display: none; }
+.page.active { display: block; }
+
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 65px;
+  background-color: var(--card);
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  z-index: 10;
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+}
+.dark .bottom-nav { box-shadow: 0 -2px 10px rgba(0,0,0,0.2); }
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  font-weight: 500;
+  gap: 2px;
+  flex-grow: 1;
+  padding: 8px 0;
+}
+.nav-item.active { color: var(--primary-accent); }
+
+/* ==========================================================================
+   4. Components
+   ========================================================================== */
+
+/* Buttons */
+.header-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  background-color: var(--card-secondary);
+  color: var(--foreground);
+}
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.625rem 1.25rem;
+  background-color: var(--primary-accent);
+  color: white;
+  font-weight: 600;
+  border-radius: 0.5rem;
+}
+.btn-primary-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  background-color: var(--primary-accent);
+  color: white;
+  border-radius: 0.375rem;
 }
 
-/* NEW: Status indicator styles */
-.goal-status {
-    padding: 5px 12px;
-    border-radius: 50px;
-    font-size: 0.8rem;
-    font-weight: 700;
-    color: var(--text-color);
-    background-color: var(--border-color);
-}
-.goal-status.in-progress { background-color: #bfdbfe; color: #1e40af; }
-.goal-status.completed { background-color: #bbf7d0; color: #166534; }
-.goal-status.blocked { background-color: #fecaca; color: #991b1b; }
-[data-theme='dark'] .goal-status.in-progress { background-color: #1e40af; color: #dbeafe; }
-[data-theme='dark'] .goal-status.completed { background-color: #166534; color: #dcfce7; }
-[data-theme='dark'] .goal-status.blocked { background-color: #991b1b; color: #fee2e2; }
-
-
-.goal-details {
-    max-height: 0; /* Hidden by default */
-    overflow: hidden;
-    transition: max-height 0.5s ease-in-out, padding 0.5s ease-in-out;
-    padding: 0 1.5rem;
-}
-.goal.expanded .goal-details {
-    max-height: 1500px; /* Animate open to a large height */
-    padding: 1rem 1.5rem;
-    border-top: 1px solid var(--border-color);
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  background-color: transparent;
+  border: 1px solid var(--border);
+  font-weight: 500;
+  border-radius: 0.5rem;
+  background-color: var(--card-secondary);
 }
 
-/* NEW: Reduced spacing for SMART goals */
-.smart-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 0.5rem 1.5rem; /* Reduced vertical gap */
-    margin-bottom: 1.5rem;
+.sort-options { display: flex; align-items: center; background-color: var(--card-secondary); border-radius: 0.5rem; padding: 4px; }
+.sort-label { font-size: 0.75rem; font-weight: 500; color: var(--muted-foreground); margin-right: 8px; margin-left: 4px; }
+.sort-btn {
+  padding: 4px 12px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 0.375rem;
+  color: var(--muted-foreground);
+  transition: all 0.2s;
 }
-.smart-item h4 {
-    font-size: 0.9rem;
-    color: var(--text-color-muted);
-    margin-bottom: 0.2rem; /* Reduced space */
+.sort-btn.active { background-color: var(--card); color: var(--foreground); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+
+/* Cards */
+.project-card-list { display: grid; gap: 0.75rem; }
+.project-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--card);
+  padding: 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  cursor: pointer;
 }
-.smart-item p {
-    font-size: 1rem;
-    margin: 0;
+.project-card-name { font-weight: 600; }
+.project-card-time { font-size: 0.875rem; color: var(--muted-foreground); }
+.action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  background-color: var(--card-secondary);
 }
 
-/* NEW: Status notes section */
-.status-notes h4 {
-    margin-top: 1.5rem;
-    border-top: 1px solid var(--border-color);
-    padding-top: 1.5rem;
+/* Modals */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 40;
 }
-.note {
-    background-color: var(--bg-color);
-    border: 1px solid var(--border-color);
-    padding: 0.75rem;
-    border-radius: 6px;
-    margin-bottom: 0.5rem;
+.modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 50;
 }
-.note-meta {
-    font-size: 0.8rem;
-    font-weight: bold;
-    color: var(--text-color-muted);
-    margin-bottom: 0.25rem;
-}
+.hidden { display: none; }
 
-/* NEW: Tasks section within goals */
-.goal-tasks {
-    margin-top: 1.5rem;
-    border-top: 1px solid var(--border-color);
-    padding-top: 1.5rem;
+/* Forms & Inputs */
+.accent-swatch { width: 32px; height: 32px; border-radius: 9999px; cursor: pointer; border: 2px solid transparent; }
+.accent-swatch.selected { border-color: var(--primary-accent); }
+.color-swatch { width: 32px; height: 32px; border-radius: 9999px; cursor: pointer; border: 2px solid transparent; }
+.color-swatch.selected { border-color: var(--primary-accent); }
+
+.toggle-checkbox:checked + div { background-color: var(--primary-accent); }
+.toggle-checkbox:checked + div .dot { transform: translateX(100%); }
+
+/* Spinner */
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--border);
+  border-bottom-color: var(--primary-accent);
+  border-radius: 50%;
+  display: inline-block;
+  box-sizing: border-box;
+  animation: rotation 1s linear infinite;
 }
+@keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+/* Session Mode */
+.in-session-mode .app-header { background-color: var(--session-project-color); color: white; border-bottom: none; }
+.in-session-mode .page-title, .in-session-mode .page-date, .in-session-mode .app-title { color: white; }
+.in-session-mode .header-btn, .in-session-mode .app-icon { background-color: rgba(255,255,255,0.2); color: white; }
+.in-session-mode #bottom-nav { display: none; }
+.in-session-mode main { padding-bottom: 1rem; }
+.task-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0; }
+
+/* Goal & Task Specific */
+.tag { font-size: 0.75rem; font-weight: 500; padding: 2px 8px; border-radius: 0.25rem; }
+.project-group-header, .report-project-name { color: var(--foreground); }
+
+/* Goal Status Badges */
+.status-badge { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+.status-not-started { background-color: #64748b; color: #ffffff; }
+.status-in-progress { background-color: #3b82f6; color: #ffffff; }
+.status-blocked { background-color: #ef4444; color: #ffffff; }
+.status-completed { background-color: #22c55e; color: #ffffff; }
+
+/* Goal Page Accordion */
+#goals-list details { background-color: var(--card); border: 1px solid var(--border); border-radius: 0.5rem; transition: background-color 0.2s; }
+#goals-list details:hover { background-color: var(--card-secondary); }
+#goals-list summary { padding: 1rem; cursor: pointer; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+#goals-list details[open] summary { border-bottom: 1px solid var(--border); }
+#goals-list details[open] summary i { transform: rotate(180deg); }
+.goal-tasks-container { padding: 1rem; }
