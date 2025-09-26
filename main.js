@@ -850,7 +850,11 @@ const renderReportsPage = () => {
 
     const dayPicker = document.getElementById('reports-day-picker');
     if (dayPicker) {
-        dayPicker.value = new Date().toISOString().split('T')[0];
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = (now.getMonth() + 1).toString().padStart(2, '0');
+        const day = now.getDate().toString().padStart(2, '0');
+        dayPicker.value = `${year}-${month}-${day}`;
     }
     const activeSortBtn = document.querySelector('#reports-summary-controls .sort-btn.active');
     currentReportSort = activeSortBtn ? activeSortBtn.dataset.sort : 'time';
@@ -908,7 +912,6 @@ const renderReportData = () => {
         activityData.datasets[0].backgroundColor.push('var(--border)');
     }
     
-    // Read CSS variables for the chart
     const computedStyle = getComputedStyle(document.documentElement);
     const subtleBg = computedStyle.getPropertyValue('--subtle-bg').trim();
     const workdayBg = computedStyle.getPropertyValue('--workday-bg').trim();
@@ -916,9 +919,9 @@ const renderReportData = () => {
     const workdayBackgroundData = {
         datasets: [{
             data: [
-                8 * 60 * 60 * 1000,  // Midnight to 8 AM (8 hours)
-                9 * 60 * 60 * 1000,  // 8 AM to 5 PM (9 hours)
-                7 * 60 * 60 * 1000,  // 5 PM to Midnight (7 hours)
+                8 * 60 * 60 * 1000,
+                9 * 60 * 60 * 1000,
+                7 * 60 * 60 * 1000,
             ],
             backgroundColor: [ subtleBg, workdayBg, subtleBg ],
             borderWidth: 0,
@@ -926,7 +929,7 @@ const renderReportData = () => {
     };
 
     if (dailyChartInstance) dailyChartInstance.destroy();
-    // Only render chart if there is data
+    
     if (tasksToday.length > 0 && typeof Chart !== 'undefined') {
         chartCanvas.style.display = 'block';
         dailyChartInstance = new Chart(chartCanvas, {
