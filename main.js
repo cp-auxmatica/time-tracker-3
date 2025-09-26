@@ -31,7 +31,7 @@ const THEME_COLORS = {
     'theme-blue': '#2563eb', 'theme-mono': '#1e293b'
 };
 const DARK_THEME_COLOR = '#000000';
-const PALETTE = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ef4444', '#ec4899', '#6366f1', '#14b8a6'];
+const PALETTE = ['#10b981', '#3b82f6', '#ef4444', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#6366f1', '#f97316', '#84cc16', '#22d3ee', '#e11d48'];
 
 // --- Utility Functions ---
 const formatTime=(ms)=>new Date(ms).toISOString().slice(11,19);
@@ -680,14 +680,32 @@ const renderGoalsPage=()=>{
 
     listEl.innerHTML = sortedGroups.map(group => {
         const goalItems = groupedGoals[group].map(goal => {
-            return `<div class="bg-card p-3 rounded-lg border view-goal-detail-btn cursor-pointer" data-goal-id="${goal.id}">
-                        <p class="font-semibold">${goal.title}</p>
-                   </div>`;
+            const statusClass = (goal.status || 'not-started').toLowerCase().replace(' ', '-');
+            const goalTasks = predefinedTasks.filter(t => t.goalId === goal.id);
+            const tasksHtml = goalTasks.length > 0
+                ? `<div class="goal-tasks-container space-y-2">${goalTasks.map(t => createTaskItemHTML(t)).join('')}</div>`
+                : '<div class="goal-tasks-container text-sm text-muted-foreground">No tasks assigned to this goal.</div>';
+
+            return `<details class="goal-item" data-goal-id="${goal.id}">
+                        <summary>
+                            <span>${goal.title}</span>
+                            <div class="flex items-center gap-4">
+                                <span class="status-badge status-${statusClass}">${goal.status || 'Not started'}</span>
+                                <i data-lucide="chevron-down" class="w-4 h-4 transition-transform"></i>
+                            </div>
+                        </summary>
+                        <div class="p-4 bg-card">
+                           <div class="flex justify-end mb-4">
+                               <button class="view-goal-detail-btn text-sm font-semibold text-primary-accent hover:underline">View Details & Updates &rarr;</button>
+                           </div>
+                           ${tasksHtml}
+                        </div>
+                   </details>`;
         }).join('');
         return `<div>
                     <h2 class="text-lg font-bold my-3">${group}</h2>
                     <div class="space-y-2">${goalItems}</div>
-                </div>`
+                </div>`;
     }).join('');
     lucide.createIcons();
 };
@@ -700,19 +718,46 @@ const saveGoal=async e=>{
         title: modal.querySelector('#goal-title').value,
         fiscalYear: modal.querySelector('#goal-fy').value,
         quarter: modal.querySelector('#goal-quarter').value,
+        status: modal.querySelector('#goal-status').value,
         specific: modal.querySelector('#goal-specific').value,
         measurable: modal.querySelector('#goal-measurable').value,
         achievable: modal.querySelector('#goal-achievable').value,
         relevant: modal.querySelector('#goal-relevant').value,
         timeBound: modal.querySelector('#goal-timebound').value,
-        status: 'On Track',
-        updates: []
     };
 
-    if(id){ await updateData('goals',id, goalData); }
-    else{ await addData('goals',goalData); }
+    if(id){
+        await updateData('goals',id, goalData);
+    } else {
+        goalData.updates = [];
+        goalData.status = goalData.status || 'Not started';
+        await addData('goals', goalData);
+    }
     closeModal(modal);
 };
+
+const saveGoalUpdate = async (e) => {
+    e.preventDefault();
+    const form = document.getElementById('add-goal-update-form');
+    const noteInput = form.querySelector('#goal-update-note');
+    const note = noteInput.value.trim();
+    if (!note || !currentGoalId) return;
+
+    const goal = goals.find(g => g.id === currentGoalId);
+    if (!goal) return;
+
+    const newUpdate = {
+        note: note,
+        status: goal.status,
+        timestamp: Date.now()
+    };
+
+    const updatedUpdates = Array.isArray(goal.updates) ? [...goal.updates, newUpdate] : [newUpdate];
+    
+    await updateData('goals', currentGoalId, { updates: updatedUpdates });
+    noteInput.value = '';
+};
+
 
 const renderTasksPage=()=>{
     const template = document.getElementById('tasks-page-template'); if (!template) return;
@@ -763,7 +808,15 @@ const renderTasksPage=()=>{
 
     if (otherTasks.length > 0) {
         const groupedByProject=otherTasks.reduce((acc,task)=>{(acc[task.projectId||'none']=acc[task.projectId||'none']||[]).push(task);return acc;},{});
-        otherTasksListEl.innerHTML=projects.concat({id:'none',name:'General Tasks'}).filter(p=>groupedByProject[p.id]).map(p=>{return`<div><h2 class="font-bold text-lg mt-4 mb-2" style="color:${p.color||'inherit'}">${p.name}</h2><div class="space-y-2">${(groupedByProject[p.id] || []).map(task=>createTaskItemHTML(task)).join('')}</div></div>`}).join('');
+        otherTasksListEl.innerHTML=projects.concat({id:'none',name:'General Tasks'}).filter(p=>groupedByProject[p.id]).map(p=>{
+            const projectHeader = p.id === 'none'
+                ? `<h2 class="font-bold text-lg mt-4 mb-2 project-group-header">${p.name}</h2>`
+                : `<h2 class="font-bold text-lg mt-4 mb-2 project-group-header flex items-center gap-2">
+                     <span class="w-3 h-3 rounded-full inline-block" style="background-color:${p.color};"></span>
+                     ${p.name}
+                   </h2>`;
+            return`<div>${projectHeader}<div class="space-y-2">${(groupedByProject[p.id] || []).map(task=>createTaskItemHTML(task)).join('')}</div></div>`
+        }).join('');
     } else {
         otherTasksListEl.innerHTML = '<p class="text-center text-muted-foreground py-8">No other tasks found.</p>';
     }
@@ -773,20 +826,33 @@ const renderTasksPage=()=>{
 
 const createTaskItemHTML = (task) => {
     const goal = goals.find(g => g.id === task.goalId);
+    const dueDateHtml = task.dueDate ? `<p class="text-sm text-muted-foreground">Due: ${new Date(task.dueDate+'T00:00:00').toLocaleDateString()}</p>` : '';
+    const goalHtml = goal ? `<div class="mt-1"><span class="tag bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300">${goal.title}</span></div>` : '';
+    const completedHtml = task.isCompleted && task.completedDate ? `<p class="text-xs text-muted-foreground mt-1">Completed: ${new Date(task.completedDate).toLocaleDateString()}</p>` : '';
+
     return`<div class="flex items-center bg-card p-3 rounded-lg border" data-task-id="${task.id}">
         <input type="checkbox" class="predefined-task-checkbox h-5 w-5 rounded border-gray-300 text-primary-accent focus:ring-primary-accent mr-4 flex-shrink-0" ${task.isCompleted?'checked':''}>
-        <div class="flex-grow min-w-0">
-            <p class="font-medium ${task.isCompleted?'line-through text-gray-500':''}">${task.description}</p>
-            ${task.dueDate?`<p class="text-sm text-muted-foreground">Due: ${new Date(task.dueDate+'T00:00:00').toLocaleDateString()}</p>`:''}
-            ${goal ? `<div class="mt-1"><span class="tag bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300">${goal.title}</span></div>` : ''}
-            ${task.isCompleted && task.completedDate ? `<p class="text-xs text-muted-foreground mt-1">Completed: ${new Date(task.completedDate).toLocaleDateString()}</p>` : ''}
+        <div class="flex-grow min-w-0 flex flex-col md:flex-row md:items-center md:justify-between">
+            <div class="flex-grow">
+                <p class="font-medium ${task.isCompleted?'line-through text-gray-500':''}">${task.description}</p>
+                 <div class="md:hidden mt-1">
+                    ${dueDateHtml}
+                    ${goalHtml}
+                    ${completedHtml}
+                </div>
+            </div>
+            <div class="hidden md:flex items-center gap-4 text-sm text-muted-foreground pr-4">
+                ${goal ? `<span class="tag bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300">${goal.title}</span>` : ''}
+                ${task.dueDate ? `<span>Due: ${new Date(task.dueDate+'T00:00:00').toLocaleDateString()}</span>` : ''}
+            </div>
         </div>
         <div class="flex items-center">
             <button class="edit-predefined-task-btn p-2 rounded-md hover:bg-card-secondary"><i data-lucide="pencil" class="w-4 h-4"></i></button>
             <button class="delete-predefined-task-btn p-2 rounded-md hover:bg-card-secondary"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
         </div>
-    </div>`
+    </div>`;
 };
+
 
 const savePredefinedTask=async e=>{
     e.preventDefault();
@@ -960,7 +1026,7 @@ const renderReportData = () => {
         legendEl.innerHTML = Array.from(projectsInChart.values()).map(p => `
             <div class="flex items-center text-xs">
                 <span class="w-3 h-3 rounded-full mr-2" style="background-color: ${p.color};"></span>
-                <span>${p.name}</span>
+                <span class="report-project-name">${p.name}</span>
             </div>
         `).join('');
     } else {
@@ -991,7 +1057,7 @@ const renderReportData = () => {
                     <div class="flex justify-between items-center font-semibold">
                         <div class="flex items-center">
                             <span class="w-3 h-3 rounded-full mr-3" style="background-color:${group.project.color}"></span>
-                            <span>${group.project.name}</span>
+                            <span class="report-project-name">${group.project.name}</span>
                         </div>
                         <span>${formatDuration(group.totalDuration)}</span>
                     </div>
@@ -1007,7 +1073,10 @@ const renderReportData = () => {
                         <div class="flex justify-between items-center">
                             <div class="flex-grow">
                                 <p class="font-semibold">${task.description}</p>
-                                <p class="text-sm" style="color:${project.color}">${project.name}</p>
+                                <p class="text-sm report-project-name">
+                                    <span class="w-2 h-2 rounded-full inline-block mr-2" style="background-color:${project.color}"></span>
+                                    ${project.name}
+                                </p>
                             </div>
                             <div class="text-right flex-shrink-0 ml-4">
                                 <span class="font-bold">${formatDuration(duration)}</span>
@@ -1028,36 +1097,47 @@ const renderGoalDetailPage = () => {
     const goal = goals.find(g => g.id === currentGoalId);
     if (!goal) { contentEl.innerHTML = `<p class="text-center text-muted-foreground p-8">Goal details could not be loaded.</p>`; return; }
 
+    const statusClass = (goal.status || 'not-started').toLowerCase().replace(' ', '-');
+    const updates = (goal.updates || []).sort((a, b) => b.timestamp - a.timestamp);
+    const updatesHtml = updates.length > 0
+        ? updates.map(update => `
+            <div class="p-3 bg-card-secondary rounded-lg">
+                <p class="text-sm whitespace-pre-wrap">${update.note}</p>
+                <div class="text-xs text-muted-foreground mt-2">${new Date(update.timestamp).toLocaleString()}</div>
+            </div>`).join('')
+        : '<p class="text-sm text-muted-foreground">No updates for this goal yet.</p>';
+
     contentEl.innerHTML = `
         <button class="back-to-goals-btn font-semibold text-primary-accent hover:underline mb-4">&larr; Back to Goals</button>
-        <div class="bg-card p-4 rounded-xl border">
+        <div class="bg-card p-4 rounded-xl border space-y-2">
             <div class="flex justify-between items-start">
                 <h2 class="text-2xl font-bold">${goal.title}</h2>
-                <button class="action-btn edit-goal-btn" data-goal-id="${goal.id}"><i data-lucide="pencil" class="w-5 h-5"></i></button>
-            </div>
-            <p class="text-sm text-muted-foreground mb-4">${goal.fiscalYear} ${goal.quarter}</p>
-            <div class="mt-6 space-y-4 prose dark:prose-invert max-w-none text-foreground">
-                <div class="p-3 rounded-lg bg-card-secondary">
-                    <h3 class="font-semibold text-primary-accent">Specific</h3>
-                    <p class="mt-1">${goal.specific || 'Not defined.'}</p>
-                </div>
-                <div class="p-3 rounded-lg bg-card-secondary">
-                    <h3 class="font-semibold text-primary-accent">Measurable</h3>
-                    <p class="mt-1">${goal.measurable || 'Not defined.'}</p>
-                </div>
-                <div class="p-3 rounded-lg bg-card-secondary">
-                    <h3 class="font-semibold text-primary-accent">Achievable</h3>
-                    <p class="mt-1">${goal.achievable || 'Not defined.'}</p>
-                </div>
-                <div class="p-3 rounded-lg bg-card-secondary">
-                    <h3 class="font-semibold text-primary-accent">Relevant</h3>
-                    <p class="mt-1">${goal.relevant || 'Not defined.'}</p>
-                </div>
-                <div class="p-3 rounded-lg bg-card-secondary">
-                    <h3 class="font-semibold text-primary-accent">Time-Bound</h3>
-                    <p class="mt-1">${goal.timeBound || 'Not defined.'}</p>
+                <div class="flex items-center gap-2">
+                    <span class="status-badge status-${statusClass}">${goal.status}</span>
+                    <button class="action-btn edit-goal-btn" data-goal-id="${goal.id}"><i data-lucide="pencil" class="w-5 h-5"></i></button>
                 </div>
             </div>
+            <p class="text-sm text-muted-foreground">${goal.fiscalYear} ${goal.quarter}</p>
+        </div>
+
+        <div class="bg-card p-4 rounded-xl border mt-4">
+            <h3 class="font-bold mb-2">S.M.A.R.T Details</h3>
+            <div class="text-sm space-y-2 text-foreground">
+                <p><b class="font-semibold text-primary-accent">Specific:</b> ${goal.specific || 'N/A'}</p>
+                <p><b class="font-semibold text-primary-accent">Measurable:</b> ${goal.measurable || 'N/A'}</p>
+                <p><b class="font-semibold text-primary-accent">Achievable:</b> ${goal.achievable || 'N/A'}</p>
+                <p><b class="font-semibold text-primary-accent">Relevant:</b> ${goal.relevant || 'N/A'}</p>
+                <p><b class="font-semibold text-primary-accent">Time-Bound:</b> ${goal.timeBound || 'N/A'}</p>
+            </div>
+        </div>
+
+        <div class="bg-card p-4 rounded-xl border mt-4">
+            <h3 class="font-bold mb-2">Status Updates</h3>
+            <div class="space-y-3 mb-4">${updatesHtml}</div>
+            <form id="add-goal-update-form">
+                <textarea id="goal-update-note" required class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border" placeholder="Add a new status note..."></textarea>
+                <button type="submit" class="btn-primary w-full mt-2">Add Update</button>
+            </form>
         </div>
     `;
      lucide.createIcons();
@@ -1124,6 +1204,7 @@ const addEventListeners = () => {
                 case 'page-goals':
                     const goalModal = document.getElementById('add-goal-modal');
                     goalModal.querySelector('form').reset();
+                    goalModal.querySelector('#goal-modal-title').textContent="New Goal";
                     const yearSelect = document.getElementById('goal-fy');
                     const currentYear = new Date().getFullYear();
                     yearSelect.innerHTML = [0,1,2,3,4].map(i => `<option>${currentYear + i}</option>`).join('');
@@ -1150,7 +1231,7 @@ const addEventListeners = () => {
             renderReportData();
         }
 
-        if(e.target.closest('.edit-goal-btn')){const id=e.target.closest('.edit-goal-btn').dataset.goalId;const goal=goals.find(a=>a.id===id);if(goal){const modal=document.getElementById('add-goal-modal');modal.querySelector('form').reset();modal.querySelector('#goal-modal-title').textContent="Edit Goal";modal.querySelector('#goal-id').value=goal.id; modal.querySelector('#goal-title').value = goal.title; modal.querySelector('#goal-fy').value = goal.fiscalYear; modal.querySelector('#goal-quarter').value = goal.quarter; modal.querySelector('#goal-specific').value = goal.specific; modal.querySelector('#goal-measurable').value = goal.measurable; modal.querySelector('#goal-achievable').value = goal.achievable; modal.querySelector('#goal-relevant').value = goal.relevant; modal.querySelector('#goal-timebound').value = goal.timeBound; openModal(modal);}}
+        if(e.target.closest('.edit-goal-btn')){const id=e.target.closest('.edit-goal-btn').dataset.goalId;const goal=goals.find(a=>a.id===id);if(goal){const modal=document.getElementById('add-goal-modal');modal.querySelector('form').reset();modal.querySelector('#goal-modal-title').textContent="Edit Goal";modal.querySelector('#goal-id').value=goal.id; modal.querySelector('#goal-title').value = goal.title; modal.querySelector('#goal-fy').value = goal.fiscalYear; modal.querySelector('#goal-quarter').value = goal.quarter; modal.querySelector('#goal-status').value = goal.status; modal.querySelector('#goal-specific').value = goal.specific; modal.querySelector('#goal-measurable').value = goal.measurable; modal.querySelector('#goal-achievable').value = goal.achievable; modal.querySelector('#goal-relevant').value = goal.relevant; modal.querySelector('#goal-timebound').value = goal.timeBound; openModal(modal);}}
         if(e.target.closest('#cancel-add-goal-btn'))return closeModal(document.getElementById('add-goal-modal'));if(e.target.closest('#import-json-btn'))dom.importFileInput.click();if(e.target.closest('#export-json-btn'))exportDataAsJSON();if(e.target.closest('#export-csv-btn'))exportTasksAsCSV();if(e.target.closest('#export-day-notes-btn'))exportDayNotesAsMarkdown();if(e.target.closest('#show-guide-btn'))showUserGuide();if(e.target.closest('#close-guide-btn'))closeModal(document.getElementById('guide-modal'));
         if(e.target.closest('#cancel-add-predefined-task-btn'))return closeModal(document.getElementById('add-predefined-task-modal'));
         if(e.target.closest('.delete-predefined-task-btn')){const taskEl=e.target.closest('[data-task-id]');if(taskEl){const taskId=taskEl.dataset.taskId;if(confirm('Delete this task?')) await deleteData('predefinedTasks',taskId);}}
@@ -1245,17 +1326,9 @@ const addEventListeners = () => {
     document.getElementById('manual-entry-form').addEventListener('submit',saveManualEntry);
     document.getElementById('add-predefined-task-form').addEventListener('submit',savePredefinedTask);
     document.getElementById('add-goal-form').addEventListener('submit',saveGoal);
-    document.getElementById('name-session-form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const modal = document.getElementById('name-session-modal');
-        const projectId = modal.querySelector('#session-project-id').value;
-        const sessionName = modal.querySelector('#session-name').value.trim();
-        initiateTimer(projectId, sessionName);
-        modal.querySelector('form').reset();
-        closeModal(modal);
-    });
-
+    
     document.body.addEventListener('submit', e => {
+        if(e.target.matches('#add-goal-update-form')) { saveGoalUpdate(e); }
         if (e.target.matches('#add-session-task-form')) {
             e.preventDefault();
             const input = document.getElementById('new-session-task-desc');
@@ -1273,6 +1346,16 @@ const addEventListeners = () => {
                 renderSessionPage();
             }
         }
+    });
+
+    document.getElementById('name-session-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const modal = document.getElementById('name-session-modal');
+        const projectId = modal.querySelector('#session-project-id').value;
+        const sessionName = modal.querySelector('#session-name').value.trim();
+        initiateTimer(projectId, sessionName);
+        modal.querySelector('form').reset();
+        closeModal(modal);
     });
 
     document.getElementById('modal-backdrop').addEventListener('click',()=>{closeModal(document.getElementById('add-project-modal'));closeModal(document.getElementById('guide-modal'));closeModal(document.getElementById('manual-entry-modal'));closeModal(document.getElementById('add-predefined-task-modal'));closeModal(document.getElementById('add-goal-modal'));closeModal(document.getElementById('name-session-modal'));closeModal(document.getElementById('confirmation-modal'));closeModal(document.getElementById('notes-view-modal'));});
