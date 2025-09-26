@@ -98,8 +98,9 @@ const applyTheme=(t)=>{
     }
     if(dom.darkModeToggle)dom.darkModeToggle.checked = (t === 'dark');
 };
+
 const applyAccentTheme=(themeName)=>{
-    document.body.classList.remove('theme-teal', 'theme-mono', 'theme-indigo', 'theme-orange', 'theme-blue');
+    Object.keys(THEME_COLORS).forEach(t => document.body.classList.remove(t));
     document.body.classList.add(themeName);
     localStorage.setItem('accentTheme', themeName);
     applyTheme(localStorage.getItem('theme'));
@@ -488,11 +489,8 @@ const renderSessionPage = () => {
     const startTimeString = startTime.toTimeString().slice(0,5);
 
     const tasksHTML = activeTimer.sessionTasks.map(task => {
-        const taskIdAttr = task.predefinedTaskId
-            ? `data-predefined-task-id="${task.predefinedTaskId}"`
-            : `data-temp-id="${task.tempId}"`;
         return `
-        <div class="task-item" ${taskIdAttr}>
+        <div class="task-item" data-predefined-task-id="${task.predefinedTaskId}">
             <input type="checkbox" class="session-task-checkbox" ${task.completed ? 'checked' : ''}>
             <span class="flex-grow ${task.completed ? 'line-through text-muted-foreground' : ''}">${task.description}</span>
         </div>
@@ -756,6 +754,12 @@ const saveGoalUpdate = async (e) => {
     
     await updateData('goals', currentGoalId, { updates: updatedUpdates });
     noteInput.value = '';
+    // No need to re-render the whole page, just the updates list
+    const goalFromState = goals.find(g => g.id === currentGoalId);
+    if (goalFromState) {
+        goalFromState.updates = updatedUpdates;
+        renderGoalDetailPage();
+    }
 };
 
 
@@ -1231,7 +1235,7 @@ const addEventListeners = () => {
             renderReportData();
         }
 
-        if(e.target.closest('.edit-goal-btn')){const id=e.target.closest('.edit-goal-btn').dataset.goalId;const goal=goals.find(a=>a.id===id);if(goal){const modal=document.getElementById('add-goal-modal');modal.querySelector('form').reset();modal.querySelector('#goal-modal-title').textContent="Edit Goal";modal.querySelector('#goal-id').value=goal.id; modal.querySelector('#goal-title').value = goal.title; modal.querySelector('#goal-fy').value = goal.fiscalYear; modal.querySelector('#goal-quarter').value = goal.quarter; modal.querySelector('#goal-status').value = goal.status; modal.querySelector('#goal-specific').value = goal.specific; modal.querySelector('#goal-measurable').value = goal.measurable; modal.querySelector('#goal-achievable').value = goal.achievable; modal.querySelector('#goal-relevant').value = goal.relevant; modal.querySelector('#goal-timebound').value = goal.timeBound; openModal(modal);}}
+        if(e.target.closest('.edit-goal-btn')){const id=e.target.closest('.edit-goal-btn').dataset.goalId;const goal=goals.find(a=>a.id===id);if(goal){const modal=document.getElementById('add-goal-modal');modal.querySelector('form').reset();modal.querySelector('#goal-modal-title').textContent="Edit Goal";modal.querySelector('#goal-id').value=goal.id; modal.querySelector('#goal-title').value = goal.title; modal.querySelector('#goal-fy').value = goal.fiscalYear; modal.querySelector('#goal-quarter').value = goal.quarter; modal.querySelector('#goal-status').value = goal.status || 'Not started'; modal.querySelector('#goal-specific').value = goal.specific; modal.querySelector('#goal-measurable').value = goal.measurable; modal.querySelector('#goal-achievable').value = goal.achievable; modal.querySelector('#goal-relevant').value = goal.relevant; modal.querySelector('#goal-timebound').value = goal.timeBound; openModal(modal);}}
         if(e.target.closest('#cancel-add-goal-btn'))return closeModal(document.getElementById('add-goal-modal'));if(e.target.closest('#import-json-btn'))dom.importFileInput.click();if(e.target.closest('#export-json-btn'))exportDataAsJSON();if(e.target.closest('#export-csv-btn'))exportTasksAsCSV();if(e.target.closest('#export-day-notes-btn'))exportDayNotesAsMarkdown();if(e.target.closest('#show-guide-btn'))showUserGuide();if(e.target.closest('#close-guide-btn'))closeModal(document.getElementById('guide-modal'));
         if(e.target.closest('#cancel-add-predefined-task-btn'))return closeModal(document.getElementById('add-predefined-task-modal'));
         if(e.target.closest('.delete-predefined-task-btn')){const taskEl=e.target.closest('[data-task-id]');if(taskEl){const taskId=taskEl.dataset.taskId;if(confirm('Delete this task?')) await deleteData('predefinedTasks',taskId);}}
@@ -1286,25 +1290,14 @@ const addEventListeners = () => {
         if(sessionPage && e.target.matches('.session-task-checkbox')) {
             const taskItem = e.target.closest('.task-item');
             if (!taskItem || !activeTimer) return;
-
             const predefId = taskItem.dataset.predefinedTaskId;
-            const tempId = taskItem.dataset.tempId;
-            let sessionTask;
-
-            if (predefId) {
-                sessionTask = activeTimer.sessionTasks.find(t => t.predefinedTaskId === predefId);
-                if (sessionTask) {
-                    await updateData('predefinedTasks', predefId, {
-                        isCompleted: e.target.checked,
-                        completedDate: e.target.checked ? Date.now() : null
-                    });
-                }
-            } else if (tempId) {
-                sessionTask = activeTimer.sessionTasks.find(t => t.tempId === parseInt(tempId));
-            }
-
+            const sessionTask = activeTimer.sessionTasks.find(t => t.predefinedTaskId === predefId);
             if (sessionTask) {
                 sessionTask.completed = e.target.checked;
+                await updateData('predefinedTasks', predefId, {
+                    isCompleted: e.target.checked,
+                    completedDate: e.target.checked ? Date.now() : null
+                });
                 localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));
                 renderSessionPage();
             }
@@ -1319,7 +1312,7 @@ const addEventListeners = () => {
         if (e.target.closest('.back-to-projects-btn')) { navigateTo('page-projects'); }
         if (e.target.closest('.back-to-goals-btn')) { navigateTo('page-goals'); }
         if (e.target.closest('#cancel-manual-entry-btn')) { closeModal(document.getElementById('manual-entry-modal')); }
-        if (e.target.closest('.view-goal-detail-btn')) { currentGoalId = e.target.closest('[data-goal-id]').dataset.goalId; navigateTo('page-goal-detail'); }
+        if (e.target.closest('.goal-item .view-goal-detail-btn')) { currentGoalId = e.target.closest('[data-goal-id]').dataset.goalId; navigateTo('page-goal-detail'); }
     });
 
     document.getElementById('add-project-form').addEventListener('submit',saveNewProject);
@@ -1327,20 +1320,28 @@ const addEventListeners = () => {
     document.getElementById('add-predefined-task-form').addEventListener('submit',savePredefinedTask);
     document.getElementById('add-goal-form').addEventListener('submit',saveGoal);
     
-    document.body.addEventListener('submit', e => {
-        if(e.target.matches('#add-goal-update-form')) { saveGoalUpdate(e); }
+    document.body.addEventListener('submit', async (e) => {
+        if(e.target.matches('#add-goal-update-form')) { await saveGoalUpdate(e); }
         if (e.target.matches('#add-session-task-form')) {
             e.preventDefault();
             const input = document.getElementById('new-session-task-desc');
             const description = input.value.trim();
             if (description && activeTimer) {
-                const newTask = {
+                const newTaskData = {
+                    description,
+                    projectId: activeTimer.projectId,
+                    isCompleted: false,
+                    completedDate: null,
+                    goalId: null,
+                    dueDate: null
+                };
+                const newDocRef = await addData('predefinedTasks', newTaskData);
+                const newSessionTask = {
                     description: description,
                     completed: false,
-                    predefinedTaskId: null,
-                    tempId: Date.now()
+                    predefinedTaskId: newDocRef.id
                 };
-                activeTimer.sessionTasks.push(newTask);
+                activeTimer.sessionTasks.push(newSessionTask);
                 localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));
                 input.value = '';
                 renderSessionPage();
