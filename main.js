@@ -985,7 +985,7 @@ const renderReportData = () => {
                 startDate = new Date(startInput + 'T00:00:00');
                 endDate = new Date(endInput + 'T23:59:59');
             } else {
-                return; // Don't render if custom range is incomplete
+                return; 
             }
             break;
         case 'day':
@@ -1005,17 +1005,29 @@ const renderReportData = () => {
         const startStr = startDate.toLocaleDateString(undefined, options);
         const endStr = endDate.toLocaleDateString(undefined, options);
         
-        if (currentReportPeriod === 'day') {
+        if (currentReportPeriod === 'day' || startStr === endStr) {
             summaryTitle.textContent = `Summary for ${startStr}`;
-        } else if (startStr === endStr) {
-             summaryTitle.textContent = `Summary for ${startStr}`;
         } else {
             summaryTitle.textContent = `Summary for ${startStr} - ${endStr}`;
         }
     }
 
-    const tasksInRange = tasks.filter(t => t.startTime >= startDate.getTime() && t.startTime <= endDate.getTime());
+    let tasksInRange = tasks.filter(t => t.startTime >= startDate.getTime() && t.startTime <= endDate.getTime());
     
+    const today = new Date();
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+    
+    if (activeTimer && !activeTimer.isPaused && startDate.getTime() <= activeTimer.startTime && endDate.getTime() >= activeTimer.startTime) {
+        tasksInRange.push({
+            projectId: activeTimer.projectId,
+            description: `(In Progress) ${activeTimer.sessionName}`,
+            startTime: activeTimer.startTime,
+            endTime: Date.now()
+        });
+    }
+
+    tasksInRange.sort((a, b) => a.startTime - b.startTime);
+
     renderReportChart(tasksInRange, startDate);
     renderReportSummary(tasksInRange);
 };
@@ -1026,7 +1038,7 @@ const renderReportChart = (tasksForChart, reportDate) => {
     if (!chartCanvas || !legendEl) return;
 
     if (dailyChartInstance) dailyChartInstance.destroy();
-    if (currentReportPeriod !== 'day' || tasksForChart.length === 0) {
+    if (currentReportPeriod !== 'day') {
         legendEl.innerHTML = '';
         chartCanvas.style.display = 'none';
         return;
@@ -1078,7 +1090,7 @@ const renderReportChart = (tasksForChart, reportDate) => {
         }]
     };
 
-    if (typeof Chart !== 'undefined') {
+    if (tasksForChart.length > 0 && typeof Chart !== 'undefined') {
         dailyChartInstance = new Chart(chartCanvas, {
             type: 'doughnut',
             data: {
@@ -1103,6 +1115,9 @@ const renderReportChart = (tasksForChart, reportDate) => {
                 <span class="report-project-name">${p.name}</span>
             </div>
         `).join('');
+    } else {
+        legendEl.innerHTML = '';
+        chartCanvas.style.display = 'none';
     }
 };
 
@@ -1384,7 +1399,6 @@ const addEventListeners = () => {
                     completedDate: e.target.checked ? Date.now() : null
                 });
                 localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));
-                renderSessionPage();
             }
         }
         const completedProjectsView=e.target.closest('#page-completed-projects');if(completedProjectsView){if(e.target.closest('.back-to-dashboard-btn'))navigateTo('page-projects');if(e.target.closest('.completed-project-link')){const pId=e.target.closest('.completed-project-link').dataset.projectId;currentDetailProjectId=pId;navigateTo('page-detail');}}
@@ -1429,6 +1443,7 @@ const addEventListeners = () => {
                 activeTimer.sessionTasks.push(newSessionTask);
                 localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));
                 input.value = '';
+                // No full re-render needed, Firestore listener will update the predefinedTasks array
             }
         }
     });
