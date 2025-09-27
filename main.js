@@ -13,8 +13,6 @@ let showCompletedTasks = false;
 let dailyChartInstance = null;
 let currentReportSort = 'time';
 let currentReportPeriod = 'day';
-let currentReportStartDate = new Date();
-let currentReportEndDate = new Date();
 let detailViewFilter = 'all'; // Can be 'all' or 'today'
 
 
@@ -41,6 +39,12 @@ const getTodaysTimeForProjectMs=(projectId)=>{const startOfDay=new Date().setHou
     return totalMs;
 };
 const downloadFile=(data,name,type)=>{const b=new Blob([data],{type});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(u);};
+const formatDate = (date) => {
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
 
 // --- Firebase Data Functions ---
 const getCollectionRef = (collectionName) => {
@@ -754,7 +758,7 @@ const saveGoalUpdate = async (e) => {
     
     await updateData('goals', currentGoalId, { updates: updatedUpdates });
     noteInput.value = '';
-    // No need to re-render the whole page, just the updates list
+    
     const goalFromState = goals.find(g => g.id === currentGoalId);
     if (goalFromState) {
         goalFromState.updates = updatedUpdates;
@@ -920,43 +924,123 @@ const renderReportsPage = () => {
 
     const dayPicker = document.getElementById('reports-day-picker');
     if (dayPicker) {
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = (now.getMonth() + 1).toString().padStart(2, '0');
-        const day = now.getDate().toString().padStart(2, '0');
-        dayPicker.value = `${year}-${month}-${day}`;
+        dayPicker.value = formatDate(new Date());
     }
-    const activeSortBtn = document.querySelector('#reports-summary-controls .sort-btn.active');
-    currentReportSort = activeSortBtn ? activeSortBtn.dataset.sort : 'time';
-
+    const startDatePicker = document.getElementById('reports-start-date');
+    if (startDatePicker) {
+        startDatePicker.value = formatDate(new Date());
+    }
+    const endDatePicker = document.getElementById('reports-end-date');
+    if (endDatePicker) {
+        endDatePicker.value = formatDate(new Date());
+    }
+    
+    document.querySelector(`.reports-filter-btn[data-period="${currentReportPeriod}"]`)?.classList.add('active');
+    
+    updateReportPeriodUI();
     renderReportData();
     lucide.createIcons();
 };
 
-const renderReportData = () => {
-    const dayPicker = document.getElementById('reports-day-picker');
-    const chartCanvas = document.getElementById('daily-activity-chart');
-    const summaryEl = document.getElementById('reports-summary');
-    const totalEl = document.getElementById('reports-total-time');
-    const legendEl = document.getElementById('chart-legend');
+const updateReportPeriodUI = () => {
+    const dayPickerContainer = document.getElementById('reports-day-picker-container');
+    const customRangeContainer = document.getElementById('custom-date-range-container');
+    const visualizerContainer = document.getElementById('daily-visualizer-container');
 
-    if (!dayPicker || !chartCanvas || !summaryEl || !totalEl || !legendEl) {
-        console.error("Reports page elements not found. Check your HTML template IDs.");
-        return;
+    dayPickerContainer.style.display = 'none';
+    customRangeContainer.style.display = 'none';
+    
+    if (currentReportPeriod === 'day') {
+        dayPickerContainer.style.display = 'flex';
+        visualizerContainer.style.display = 'block';
+    } else if (currentReportPeriod === 'custom') {
+        customRangeContainer.style.display = 'grid';
+        visualizerContainer.style.display = 'none';
+    } else {
+        visualizerContainer.style.display = 'none';
+    }
+};
+
+const renderReportData = () => {
+    let startDate, endDate;
+    const now = new Date();
+    
+    switch (currentReportPeriod) {
+        case 'week':
+            const firstDayOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+            startDate = new Date(firstDayOfWeek.setHours(0, 0, 0, 0));
+            endDate = new Date(firstDayOfWeek.setDate(firstDayOfWeek.getDate() + 6));
+            endDate.setHours(23, 59, 59, 999);
+            break;
+        case 'month':
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            startDate.setHours(0, 0, 0, 0);
+            endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            endDate.setHours(23, 59, 59, 999);
+            break;
+        case 'custom':
+            const startInput = document.getElementById('reports-start-date').value;
+            const endInput = document.getElementById('reports-end-date').value;
+            if (startInput && endInput) {
+                startDate = new Date(startInput + 'T00:00:00');
+                endDate = new Date(endInput + 'T23:59:59');
+            } else {
+                return; // Don't render if custom range is incomplete
+            }
+            break;
+        case 'day':
+        default:
+            const dayInput = document.getElementById('reports-day-picker').value;
+            startDate = new Date(dayInput + 'T00:00:00');
+            endDate = new Date(dayInput + 'T23:59:59');
+            break;
+    }
+    
+    const summaryTitle = document.getElementById('summary-title');
+    if (summaryTitle) {
+        const options = { month: 'short', day: 'numeric' };
+        if (startDate.getFullYear() !== new Date().getFullYear()) {
+            options.year = 'numeric';
+        }
+        const startStr = startDate.toLocaleDateString(undefined, options);
+        const endStr = endDate.toLocaleDateString(undefined, options);
+        
+        if (currentReportPeriod === 'day') {
+            summaryTitle.textContent = `Summary for ${startStr}`;
+        } else if (startStr === endStr) {
+             summaryTitle.textContent = `Summary for ${startStr}`;
+        } else {
+            summaryTitle.textContent = `Summary for ${startStr} - ${endStr}`;
+        }
     }
 
-    const reportDate = new Date(dayPicker.value + 'T00:00:00');
+    const tasksInRange = tasks.filter(t => t.startTime >= startDate.getTime() && t.startTime <= endDate.getTime());
+    
+    renderReportChart(tasksInRange, startDate);
+    renderReportSummary(tasksInRange);
+};
+
+const renderReportChart = (tasksForChart, reportDate) => {
+    const chartCanvas = document.getElementById('daily-activity-chart');
+    const legendEl = document.getElementById('chart-legend');
+    if (!chartCanvas || !legendEl) return;
+
+    if (dailyChartInstance) dailyChartInstance.destroy();
+    if (currentReportPeriod !== 'day' || tasksForChart.length === 0) {
+        legendEl.innerHTML = '';
+        chartCanvas.style.display = 'none';
+        return;
+    }
+    
+    chartCanvas.style.display = 'block';
     const startOfDay = reportDate.getTime();
     const endOfDay = startOfDay + (24 * 60 * 60 * 1000);
-    const tasksToday = tasks
-        .filter(t => t.startTime >= startOfDay && t.startTime < endOfDay)
-        .sort((a, b) => a.startTime - b.startTime);
 
     const activityData = { labels: [], datasets: [{ data: [], backgroundColor: [], borderWidth: 1, borderColor: 'var(--background)' }] };
     const projectsInChart = new Map();
     let lastTime = startOfDay;
 
-    tasksToday.forEach(task => {
+    tasksForChart.forEach(task => {
         const idleDuration = task.startTime - lastTime;
         if (idleDuration > 60000) {
             activityData.labels.push('Idle');
@@ -988,20 +1072,13 @@ const renderReportData = () => {
 
     const workdayBackgroundData = {
         datasets: [{
-            data: [
-                8 * 60 * 60 * 1000,
-                9 * 60 * 60 * 1000,
-                7 * 60 * 60 * 1000,
-            ],
+            data: [ 8 * 3600000, 9 * 3600000, 7 * 3600000 ],
             backgroundColor: [ subtleBg, workdayBg, subtleBg ],
             borderWidth: 0,
         }]
     };
 
-    if (dailyChartInstance) dailyChartInstance.destroy();
-    
-    if (tasksToday.length > 0 && typeof Chart !== 'undefined') {
-        chartCanvas.style.display = 'block';
+    if (typeof Chart !== 'undefined') {
         dailyChartInstance = new Chart(chartCanvas, {
             type: 'doughnut',
             data: {
@@ -1009,19 +1086,12 @@ const renderReportData = () => {
                 datasets: [activityData.datasets[0], workdayBackgroundData.datasets[0]]
             },
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: '60%',
+                responsive: true, maintainAspectRatio: false, cutout: '60%',
                 plugins: {
                     legend: { display: false },
                     tooltip: {
-                        filter: (tooltipItem) => tooltipItem.datasetIndex === 0,
-                        callbacks: {
-                            label: function(context) {
-                                const durationMs = context.parsed;
-                                return `${context.label} (${formatDuration(durationMs)})`;
-                            }
-                        }
+                        filter: (item) => item.datasetIndex === 0,
+                        callbacks: { label: (context) => `${context.label} (${formatDuration(context.parsed)})` }
                     }
                 }
             }
@@ -1033,65 +1103,71 @@ const renderReportData = () => {
                 <span class="report-project-name">${p.name}</span>
             </div>
         `).join('');
-    } else {
-        legendEl.innerHTML = '';
-        chartCanvas.style.display = 'none';
     }
+};
+
+const renderReportSummary = (tasksInRange) => {
+    const summaryEl = document.getElementById('reports-summary');
+    const totalEl = document.getElementById('reports-total-time');
 
     let totalMs = 0;
-    tasksToday.forEach(t => totalMs += (t.endTime - t.startTime));
+    tasksInRange.forEach(t => totalMs += (t.endTime - t.startTime));
     totalEl.textContent = formatDuration(totalMs);
 
-    if (tasksToday.length > 0) {
-        if (currentReportSort === 'project') {
-            const groupedByProject = tasksToday.reduce((acc, task) => {
-                const projectId = task.projectId || 'unassigned';
-                if (!acc[projectId]) {
-                    const project = projects.find(p => p.id === projectId) || { name: 'Unassigned', color: '#888' };
-                    acc[projectId] = { project: project, totalDuration: 0 };
-                }
-                acc[projectId].totalDuration += (task.endTime - task.startTime);
-                return acc;
-            }, {});
+    if (tasksInRange.length === 0) {
+        summaryEl.innerHTML = '<p class="text-sm text-muted-foreground text-center py-4">No entries found for this period.</p>';
+        return;
+    }
 
-            summaryEl.innerHTML = Object.values(groupedByProject)
-                .sort((a,b) => b.totalDuration - a.totalDuration)
-                .map(group => `
-                <div class="p-3 bg-card-secondary rounded-lg">
-                    <div class="flex justify-between items-center font-semibold">
-                        <div class="flex items-center">
-                            <span class="w-3 h-3 rounded-full mr-3" style="background-color:${group.project.color}"></span>
-                            <span class="report-project-name">${group.project.name}</span>
-                        </div>
-                        <span>${formatDuration(group.totalDuration)}</span>
+    if (currentReportSort === 'project') {
+        const groupedByProject = tasksInRange.reduce((acc, task) => {
+            const projectId = task.projectId || 'unassigned';
+            if (!acc[projectId]) {
+                const project = projects.find(p => p.id === projectId) || { name: 'Unassigned', color: '#888' };
+                acc[projectId] = { project: project, totalDuration: 0 };
+            }
+            acc[projectId].totalDuration += (task.endTime - task.startTime);
+            return acc;
+        }, {});
+
+        summaryEl.innerHTML = Object.values(groupedByProject)
+            .sort((a,b) => b.totalDuration - a.totalDuration)
+            .map(group => `
+            <div class="p-3 bg-card-secondary rounded-lg">
+                <div class="flex justify-between items-center font-semibold">
+                    <div class="flex items-center">
+                        <span class="w-3 h-3 rounded-full mr-3" style="background-color:${group.project.color}"></span>
+                        <span class="report-project-name">${group.project.name}</span>
                     </div>
-                </div>`).join('');
-        } else {
-            summaryEl.innerHTML = tasksToday.map(task => {
+                    <span>${formatDuration(group.totalDuration)}</span>
+                </div>
+            </div>`).join('');
+    } else {
+        summaryEl.innerHTML = tasksInRange
+            .sort((a,b) => a.startTime - b.startTime)
+            .map(task => {
                 const project = projects.find(p => p.id === task.projectId) || { name: 'Unassigned', color: '#888' };
                 const duration = task.endTime - task.startTime;
                 const startTime = new Date(task.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                const endTime = new Date(task.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const date = new Date(task.startTime).toLocaleDateString([], { month: 'short', day: 'numeric'});
+                
                 return `
-                    <div class="report-task-item p-3 bg-card-secondary rounded-lg cursor-pointer hover:bg-border" data-task-id="${task.id}">
-                        <div class="flex justify-between items-center">
-                            <div class="flex-grow">
-                                <p class="font-semibold">${task.description}</p>
-                                <p class="text-sm report-project-name">
-                                    <span class="w-2 h-2 rounded-full inline-block mr-2" style="background-color:${project.color}"></span>
-                                    ${project.name}
-                                </p>
-                            </div>
-                            <div class="text-right flex-shrink-0 ml-4">
-                                <span class="font-bold">${formatDuration(duration)}</span>
-                                <p class="text-xs text-muted-foreground">${startTime} - ${endTime}</p>
-                            </div>
+                <div class="report-task-item p-3 bg-card-secondary rounded-lg cursor-pointer hover:bg-border" data-task-id="${task.id}">
+                    <div class="flex justify-between items-center">
+                        <div class="flex-grow">
+                            <p class="font-semibold">${task.description}</p>
+                            <p class="text-sm report-project-name">
+                                <span class="w-2 h-2 rounded-full inline-block mr-2" style="background-color:${project.color}"></span>
+                                ${project.name}
+                            </p>
                         </div>
-                    </div>`;
-            }).join('');
-        }
-    } else {
-        summaryEl.innerHTML = '<p class="text-sm text-muted-foreground text-center py-4">No entries for this day.</p>';
+                        <div class="text-right flex-shrink-0 ml-4">
+                            <span class="font-bold">${formatDuration(duration)}</span>
+                            <p class="text-xs text-muted-foreground">${date} at ${startTime}</p>
+                        </div>
+                    </div>
+                </div>`;
+        }).join('');
     }
 };
 
@@ -1235,6 +1311,15 @@ const addEventListeners = () => {
             renderReportData();
         }
 
+        const periodBtn = e.target.closest('.period-btn');
+        if(periodBtn) {
+            document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+            periodBtn.classList.add('active');
+            currentReportPeriod = periodBtn.dataset.period;
+            updateReportPeriodUI();
+            renderReportData();
+        }
+
         if(e.target.closest('.edit-goal-btn')){const id=e.target.closest('.edit-goal-btn').dataset.goalId;const goal=goals.find(a=>a.id===id);if(goal){const modal=document.getElementById('add-goal-modal');modal.querySelector('form').reset();modal.querySelector('#goal-modal-title').textContent="Edit Goal";modal.querySelector('#goal-id').value=goal.id; modal.querySelector('#goal-title').value = goal.title; modal.querySelector('#goal-fy').value = goal.fiscalYear; modal.querySelector('#goal-quarter').value = goal.quarter; modal.querySelector('#goal-status').value = goal.status || 'Not started'; modal.querySelector('#goal-specific').value = goal.specific; modal.querySelector('#goal-measurable').value = goal.measurable; modal.querySelector('#goal-achievable').value = goal.achievable; modal.querySelector('#goal-relevant').value = goal.relevant; modal.querySelector('#goal-timebound').value = goal.timeBound; openModal(modal);}}
         if(e.target.closest('#cancel-add-goal-btn'))return closeModal(document.getElementById('add-goal-modal'));if(e.target.closest('#import-json-btn'))dom.importFileInput.click();if(e.target.closest('#export-json-btn'))exportDataAsJSON();if(e.target.closest('#export-csv-btn'))exportTasksAsCSV();if(e.target.closest('#export-day-notes-btn'))exportDayNotesAsMarkdown();if(e.target.closest('#show-guide-btn'))showUserGuide();if(e.target.closest('#close-guide-btn'))closeModal(document.getElementById('guide-modal'));
         if(e.target.closest('#cancel-add-predefined-task-btn'))return closeModal(document.getElementById('add-predefined-task-modal'));
@@ -1344,7 +1429,6 @@ const addEventListeners = () => {
                 activeTimer.sessionTasks.push(newSessionTask);
                 localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));
                 input.value = '';
-                renderSessionPage();
             }
         }
     });
@@ -1377,7 +1461,7 @@ const addEventListeners = () => {
         }
         const detailPage = e.target.closest('#page-detail');
         if(detailPage && e.target.matches('.project-status-radio')) { const p = projects.find(proj => proj.id === currentDetailProjectId); if(p) { await updateData('projects', p.id, {status: e.target.value}); } }
-        if (e.target.matches('#reports-start-date') || e.target.matches('#reports-end-date') || e.target.matches('#reports-day-picker')) {
+        if (e.target.matches('#reports-day-picker') || e.target.matches('#reports-start-date') || e.target.matches('#reports-end-date')) {
             renderReportData();
         }
     });
