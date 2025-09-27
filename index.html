@@ -347,26 +347,45 @@
         </div>
     </template>
 
-    <template id="reports-page-template">
+   <template id="reports-page-template">
     <div class="space-y-4">
-        <div class="bg-card p-4 rounded-xl border flex flex-col sm:flex-row gap-4 justify-between items-center">
-            <div class="flex items-center gap-2">
-                <label for="reports-day-picker" class="font-semibold">Date:</label>
-                <input type="date" id="reports-day-picker" class="p-2 border rounded-md bg-card-secondary border-input-border">
+        <div class="bg-card p-4 rounded-xl border space-y-4">
+            <div class="p-1 bg-card-secondary rounded-xl flex text-center text-sm font-semibold reports-controls">
+                <button data-period="day" class="reports-filter-btn period-btn flex-1 py-2 px-4 rounded-lg">Day</button>
+                <button data-period="week" class="reports-filter-btn period-btn flex-1 py-2 px-4 rounded-lg">Week</button>
+                <button data-period="month" class="reports-filter-btn period-btn flex-1 py-2 px-4 rounded-lg">Month</button>
+                <button data-period="custom" class="reports-filter-btn period-btn flex-1 py-2 px-4 rounded-lg">Custom</button>
+            </div>
+            <div id="reports-day-picker-container" class="flex items-center gap-2">
+                 <label for="reports-day-picker" class="font-semibold text-sm">Date:</label>
+                 <input type="date" id="reports-day-picker" class="p-2 border rounded-md text-sm bg-card-secondary border-input-border w-full">
+            </div>
+            <div id="custom-date-range-container" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                    <label for="reports-start-date" class="block text-xs font-medium text-muted-foreground mb-1">Start Date</label>
+                    <input type="date" id="reports-start-date" class="p-2 border rounded-md text-sm bg-card-secondary border-input-border w-full">
+                </div>
+                <div>
+                    <label for="reports-end-date" class="block text-xs font-medium text-muted-foreground mb-1">End Date</label>
+                    <input type="date" id="reports-end-date" class="p-2 border rounded-md text-sm bg-card-secondary border-input-border w-full">
+                </div>
             </div>
         </div>
 
         <div id="daily-visualizer-container" class="bg-card p-4 rounded-xl border">
-            <h3 class="font-semibold text-center mb-4">24 Hour Activity Visualizer</h3><p>The dark gray area represents 8:00 AM - 5:00 PM.</p>
-            <div id="daily-chart-container" class="relative mx-auto" style="width: 300px; height: 300px;">
+            <h3 class="font-semibold text-center mb-4">Daily Activity Visualizer</h3>
+            <div class="relative mx-auto" style="width: 300px; height: 300px;">
                 <canvas id="daily-activity-chart"></canvas>
             </div>
-             <div id="chart-legend" class="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-4 text-xs"></div>
+            <div id="chart-legend" class="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-4 text-xs"></div>
         </div>
 
         <div class="bg-card p-4 rounded-xl border">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-bold">Time Entries</h3>
+            <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2 mb-4">
+                <div>
+                     <h3 id="summary-title" class="text-lg font-bold">Summary for Today</h3>
+                     <p class="text-xs text-muted-foreground">Total Logged: <span id="reports-total-time" class="font-bold">0m</span></p>
+                </div>
                 <div id="reports-summary-controls">
                      <div class="sort-options text-sm">
                         <span class="sort-label">Sort By</span>
@@ -375,16 +394,7 @@
                     </div>
                 </div>
             </div>
-            <p class="text-xs text-muted-foreground -mt-2 mb-4">Total Logged: <span id="reports-total-time" class="font-bold">0m</span></p>
-            <div id="reports-summary" class="space-y-2">
-                </div>
-        </div>
-
-         <div class="mt-4">
-             <button id="export-day-notes-btn" class="btn-secondary w-full">
-                <i data-lucide="file-text" class="w-4 h-4 mr-2"></i>
-                <span>Export Day Notes</span>
-            </button>
+            <div id="reports-summary" class="space-y-2"></div>
         </div>
     </div>
 </template>
