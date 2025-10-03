@@ -2,271 +2,349 @@
    1. Theme & Color Variables
    ========================================================================== */
 
-:root {
-  /* Light Theme Colors */
-  --background: #f8fafc; /* slate-50 */
-  --card: #ffffff;
-  --card-secondary: #f1f5f9; /* slate-100 */
-  --border: #e2e8f0; /* slate-200 */
-  --input-border: #cbd5e1; /* slate-300 */
+   :root {
+    /* Light Theme Colors */
+    --background: #f8fafc; /* slate-50 */
+    --card: #ffffff;
+    --card-secondary: #f1f5f9; /* slate-100 */
+    --border: #e2e8f0; /* slate-200 */
+    --input-border: #cbd5e1; /* slate-300 */
+    
+    --foreground: #0f172a; /* slate-900 */
+    --muted-foreground: #64748b; /* slate-500 */
   
-  --foreground: #0f172a; /* slate-900 */
-  --muted-foreground: #64748b; /* slate-500 */
-
-  --danger: #dc2626;  /* red-600 */
-  --warning: #f59e0b; /* amber-500 */
-  --success: #16a34a; /* green-600 */
-
-  /* Report Chart Colors */
-  --subtle-bg: rgba(0, 0, 0, 0.05);
-  --workday-bg: rgba(0, 0, 0, 0.1);
-}
-
-.dark {
-  /* Dark Theme Colors */
-  --background: #020617; /* slate-950 */
-  --card: #0f172a; /* slate-900 */
-  --card-secondary: #1e293b; /* slate-800 */
-  --border: #334155; /* slate-700 */
-  --input-border: #475569; /* slate-600 */
+    --danger: #dc2626;  /* red-600 */
+    --warning: #f59e0b; /* amber-500 */
+    --success: #16a34a; /* green-600 */
   
-  --foreground: #f8fafc; /* slate-50 */
-  --muted-foreground: #94a3b8; /* slate-400 */
+    /* Report Chart Colors */
+    --subtle-bg: rgba(0, 0, 0, 0.05);
+    --workday-bg: rgba(0, 0, 0, 0.1);
+  }
   
-  /* Report Chart Colors */
-  --subtle-bg: rgba(255, 255, 255, 0.05);
-  --workday-bg: rgba(255, 255, 255, 0.1);
-}
+  .dark {
+    /* Dark Theme Colors */
+    --background: #020617; /* slate-950 */
+    --card: #0f172a; /* slate-900 */
+    --card-secondary: #1e293b; /* slate-800 */
+    --border: #334155; /* slate-700 */
+    --input-border: #475569; /* slate-600 */
+    
+    --foreground: #f8fafc; /* slate-50 */
+    --muted-foreground: #94a3b8; /* slate-400 */
+    
+    /* Report Chart Colors */
+    --subtle-bg: rgba(255, 255, 255, 0.05);
+    --workday-bg: rgba(255, 255, 255, 0.1);
+  }
+  
+  /* Accent Color Themes */
+  .theme-teal { --primary-accent: #0d9488; --primary-accent-light: #ccfbf1; }
+  .theme-indigo { --primary-accent: #4f46e5; --primary-accent-light: #e0e7ff; }
+  .theme-orange { --primary-accent: #ea580c; --primary-accent-light: #ffedd5; }
+  .theme-blue { --primary-accent: #2563eb; --primary-accent-light: #dbeafe; }
+  .theme-mono { --primary-accent: #475569; --primary-accent-light: #e2e8f0; }
+  
+  /* ==========================================================================
+     2. Base Styles
+     ========================================================================== */
+  
+  body {
+    font-family: 'Roboto', sans-serif;
+    background-color: var(--background);
+    color: var(--foreground);
+    overscroll-behavior: none;
+    transition: background-color 0.3s, color 0.3s;
+  }
+  
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  .dark ::-webkit-scrollbar-thumb { background: var(--border); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--input-border); }
+  
+  /* ==========================================================================
+     3. Main Layout
+     ========================================================================== */
+  
+  .app-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: var(--card);
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    padding: 0 1rem;
+  }
+  .app-header-top { display: flex; justify-content: space-between; align-items: center; height: 56px; }
+  .app-title { display: flex; align-items: center; font-weight: 700; font-size: 1.125rem; }
+  .app-icon { color: var(--primary-accent); margin-right: 0.5rem; }
+  .header-actions { display: flex; align-items: center; }
+  
+  .page-header { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0; }
+  .page-title { font-size: 2.25rem; font-weight: 700; line-height: 1.2; color: var(--foreground); }
+  .page-date { font-size: 0.875rem; color: var(--muted-foreground); }
+  
+  main { padding: 1rem; padding-bottom: 100px; }
+  .main-content { max-width: 800px; margin: 0 auto; }
+  
+  .page { display: none; }
+  .page.active { display: block; }
+  
+  .bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 65px;
+    background-color: var(--card);
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    z-index: 10;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+  }
+  .dark .bottom-nav { box-shadow: 0 -2px 10px rgba(0,0,0,0.2); }
+  
+  .nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted-foreground);
+    font-size: 0.75rem;
+    font-weight: 500;
+    gap: 2px;
+    flex-grow: 1;
+    padding: 8px 0;
+  }
+  .nav-item.active { color: var(--primary-accent); }
+  
+  /* ==========================================================================
+     4. Components
+     ========================================================================== */
+  
+  /* Buttons */
+  .header-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 9999px;
+    background-color: var(--card-secondary);
+    color: var(--foreground);
+  }
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.625rem 1.25rem;
+    background-color: var(--primary-accent);
+    color: white;
+    font-weight: 600;
+    border-radius: 0.5rem;
+  }
+  .btn-primary-sm {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem;
+    background-color: var(--primary-accent);
+    color: white;
+    border-radius: 0.375rem;
+  }
+  
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 1rem;
+    background-color: transparent;
+    border: 1px solid var(--border);
+    font-weight: 500;
+    border-radius: 0.5rem;
+    background-color: var(--card-secondary);
+  }
+  
+  .controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+  .today-time { font-size: 1.125rem; color: var(--muted-foreground); }
+  .today-time b { color: var(--foreground); font-weight: 700; }
+  
+  .completed-link { text-align: center; margin-top: 2rem; padding-bottom: 1rem; }
+  #view-completed-projects-btn {
+    display: inline-block;
+    padding: 0.625rem 1.5rem;
+    background-color: var(--card-secondary);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    font-weight: 600;
+    transition: background-color 0.2s;
+  }
+  #view-completed-projects-btn:hover { background-color: var(--border); }
+  
+  .sort-options { display: flex; align-items: center; background-color: var(--card-secondary); border-radius: 0.5rem; padding: 4px; }
+  .sort-label { font-size: 0.75rem; font-weight: 500; color: var(--muted-foreground); margin-right: 8px; margin-left: 4px; }
+  .sort-btn {
+    padding: 4px 12px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: 0.375rem;
+    color: var(--muted-foreground);
+    transition: all 0.2s;
+  }
+  .sort-btn.active { background-color: var(--card); color: var(--foreground); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+  
+  /* Cards */
+  .project-card-list { display: grid; gap: 0.75rem; }
+  .project-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: var(--card);
+    padding: 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border);
+    border-left-width: 4px;
+    cursor: pointer;
+  }
+  .project-card-name { font-weight: 600; }
+  .project-card-time { font-size: 0.875rem; color: var(--muted-foreground); }
+  .action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 9999px;
+    background-color: var(--card-secondary);
+  }
+  
+  /* Modals */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 40;
+  }
+  .modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 50;
+  }
+  .hidden { display: none; }
+  
+  /* Forms & Inputs */
+  .accent-swatch { width: 32px; height: 32px; border-radius: 9999px; cursor: pointer; border: 2px solid transparent; }
+  .accent-swatch.selected { border-color: var(--primary-accent); }
+  .color-swatch { width: 32px; height: 32px; border-radius: 9999px; cursor: pointer; border: 2px solid transparent; }
+  .color-swatch.selected { border-color: var(--primary-accent); }
+  
+  .toggle-checkbox:checked + div { background-color: var(--primary-accent); }
+  .toggle-checkbox:checked + div .dot { transform: translateX(100%); }
+  
+  /* Spinner */
+  .spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid var(--border);
+    border-bottom-color: var(--primary-accent);
+    border-radius: 50%;
+    display: inline-block;
+    box-sizing: border-box;
+    animation: rotation 1s linear infinite;
+  }
+  @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  
+  /* Session Mode */
+  .in-session-mode .app-header { background-color: var(--session-project-color); color: white; border-bottom: none; }
+  .in-session-mode .page-title, .in-session-mode .page-date, .in-session-mode .app-title { color: white; }
+  .in-session-mode .header-btn, .in-session-mode .app-icon { background-color: rgba(255,255,255,0.2); color: white; }
+  .in-session-mode #bottom-nav { display: none; }
+  .in-session-mode main { padding-bottom: 1rem; }
+  .task-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0; }
+  
+  /* Goal & Task Specific */
+  .tag { font-size: 0.75rem; font-weight: 500; padding: 2px 8px; border-radius: 0.25rem; }
+  .project-group-header, .report-project-name { color: var(--foreground); }
+  
+  /* Goal Status Badges */
+  .status-badge { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+  .status-not-started { background-color: #64748b; color: #ffffff; }
+  .status-in-progress { background-color: #3b82f6; color: #ffffff; }
+  .status-blocked { background-color: #ef4444; color: #ffffff; }
+  .status-completed { background-color: #22c55e; color: #ffffff; }
+  
+  /* Goal Page Accordion */
+  #goals-list details { background-color: var(--card); border: 1px solid var(--border); border-radius: 0.5rem; transition: background-color 0.2s; }
+  #goals-list details:hover { background-color: var(--card-secondary); }
+  #goals-list summary { padding: 1rem; cursor: pointer; display: flex; justify-content: space-between; align-items: flex-start; }
+  #goals-list details[open] summary { border-bottom: 1px solid var(--border); }
+  #goals-list details[open] summary i { transform: rotate(180deg); }
+  .goal-tasks-container { padding: 1rem; }
 
-/* Accent Color Themes */
-.theme-teal { --primary-accent: #0d9488; --primary-accent-light: #ccfbf1; }
-.theme-indigo { --primary-accent: #4f46e5; --primary-accent-light: #e0e7ff; }
-.theme-orange { --primary-accent: #ea580c; --primary-accent-light: #ffedd5; }
-.theme-blue { --primary-accent: #2563eb; --primary-accent-light: #dbeafe; }
-.theme-mono { --primary-accent: #475569; --primary-accent-light: #e2e8f0; }
-
-/* ==========================================================================
-   2. Base Styles
+  /* ==========================================================================
+   5. Desktop & Responsive Styles
    ========================================================================== */
+  @media (min-width: 768px) {
+    #app-container {
+        display: flex;
+    }
+  
+    .bottom-nav {
+      position: sticky;
+      top: 0;
+      width: 240px; 
+      height: 100vh;
+      flex-shrink: 0;
+      flex-direction: column;
+      justify-content: flex-start;
+      align-items: stretch; 
+      padding: 1rem;
+      border-top: none; 
+      border-right: 1px solid var(--border); 
+      box-shadow: none;
+    }
+  
+    .nav-item {
+      flex-direction: row;
+      justify-content: flex-start;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.9rem;
+      padding: 0.75rem 1rem;
+      border-radius: 0.5rem;
+      margin-bottom: 0.25rem;
+    }
+    
+    .nav-item:hover {
+        background-color: var(--card-secondary);
+    }
+  
+    .nav-item.active {
+      background-color: var(--primary-accent-light);
+      color: var(--primary-accent);
+      font-weight: 600;
+    }
+    .dark .nav-item.active {
+        background-color: #334155; /* slate-700 */
+    }
 
-body {
-  font-family: 'Roboto', sans-serif;
-  background-color: var(--background);
-  color: var(--foreground);
-  overscroll-behavior: none;
-  transition: background-color 0.3s, color 0.3s;
+    .main-column {
+        flex-grow: 1;
+        width: calc(100% - 240px);
+    }
+  
+    main {
+        padding-bottom: 2rem;
+    }
+
+    .in-session-mode .main-column {
+      display: none;
+    }
+  }
 }
-
-/* Custom Scrollbar */
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-.dark ::-webkit-scrollbar-thumb { background: var(--border); }
-::-webkit-scrollbar-thumb:hover { background: var(--input-border); }
-
-/* ==========================================================================
-   3. Main Layout
-   ========================================================================== */
-
-.app-header {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background-color: var(--card);
-  border-bottom: 1px solid var(--border);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
-  padding: 0 1rem;
-}
-.app-header-top { display: flex; justify-content: space-between; align-items: center; height: 56px; }
-.app-title { display: flex; align-items: center; font-weight: 700; font-size: 1.125rem; }
-.app-icon { color: var(--primary-accent); margin-right: 0.5rem; }
-.header-actions { display: flex; align-items: center; }
-
-.page-header { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0; }
-.page-title { font-size: 1.875rem; font-weight: 700; line-height: 1.2; color: var(--foreground); }
-.page-date { font-size: 0.875rem; color: var(--muted-foreground); }
-
-main { padding: 1rem; padding-bottom: 100px; }
-.main-content { max-width: 800px; margin: 0 auto; }
-
-.page { display: none; }
-.page.active { display: block; }
-
-.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 65px;
-  background-color: var(--card);
-  border-top: 1px solid var(--border);
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  z-index: 10;
-  box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
-}
-.dark .bottom-nav { box-shadow: 0 -2px 10px rgba(0,0,0,0.2); }
-
-.nav-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: var(--muted-foreground);
-  font-size: 0.75rem;
-  font-weight: 500;
-  gap: 2px;
-  flex-grow: 1;
-  padding: 8px 0;
-}
-.nav-item.active { color: var(--primary-accent); }
-
-/* ==========================================================================
-   4. Components
-   ========================================================================== */
-
-/* Buttons */
-.header-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 9999px;
-  background-color: var(--card-secondary);
-  color: var(--foreground);
-}
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.625rem 1.25rem;
-  background-color: var(--primary-accent);
-  color: white;
-  font-weight: 600;
-  border-radius: 0.5rem;
-}
-.btn-primary-sm {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.5rem;
-  background-color: var(--primary-accent);
-  color: white;
-  border-radius: 0.375rem;
-}
-
-.btn-secondary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.5rem 1rem;
-  background-color: transparent;
-  border: 1px solid var(--border);
-  font-weight: 500;
-  border-radius: 0.5rem;
-  background-color: var(--card-secondary);
-}
-
-.sort-options { display: flex; align-items: center; background-color: var(--card-secondary); border-radius: 0.5rem; padding: 4px; }
-.sort-label { font-size: 0.75rem; font-weight: 500; color: var(--muted-foreground); margin-right: 8px; margin-left: 4px; }
-.sort-btn {
-  padding: 4px 12px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  border-radius: 0.375rem;
-  color: var(--muted-foreground);
-  transition: all 0.2s;
-}
-.sort-btn.active { background-color: var(--card); color: var(--foreground); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-
-/* Cards */
-.project-card-list { display: grid; gap: 0.75rem; }
-.project-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background-color: var(--card);
-  padding: 1rem;
-  border-radius: 0.5rem;
-  border: 1px solid var(--border);
-  border-left-width: 4px;
-  cursor: pointer;
-}
-.project-card-name { font-weight: 600; }
-.project-card-time { font-size: 0.875rem; color: var(--muted-foreground); }
-.action-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 9999px;
-  background-color: var(--card-secondary);
-}
-
-/* Modals */
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  z-index: 40;
-}
-.modal {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 50;
-}
-.hidden { display: none; }
-
-/* Forms & Inputs */
-.accent-swatch { width: 32px; height: 32px; border-radius: 9999px; cursor: pointer; border: 2px solid transparent; }
-.accent-swatch.selected { border-color: var(--primary-accent); }
-.color-swatch { width: 32px; height: 32px; border-radius: 9999px; cursor: pointer; border: 2px solid transparent; }
-.color-swatch.selected { border-color: var(--primary-accent); }
-
-.toggle-checkbox:checked + div { background-color: var(--primary-accent); }
-.toggle-checkbox:checked + div .dot { transform: translateX(100%); }
-
-/* Spinner */
-.spinner {
-  width: 24px;
-  height: 24px;
-  border: 3px solid var(--border);
-  border-bottom-color: var(--primary-accent);
-  border-radius: 50%;
-  display: inline-block;
-  box-sizing: border-box;
-  animation: rotation 1s linear infinite;
-}
-@keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-/* Session Mode */
-.in-session-mode .app-header { background-color: var(--session-project-color); color: white; border-bottom: none; }
-.in-session-mode .page-title, .in-session-mode .page-date, .in-session-mode .app-title { color: white; }
-.in-session-mode .header-btn, .in-session-mode .app-icon { background-color: rgba(255,255,255,0.2); color: white; }
-.in-session-mode #bottom-nav { display: none; }
-.in-session-mode main { padding-bottom: 1rem; }
-.task-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0; }
-
-/* Goal & Task Specific */
-.tag { font-size: 0.75rem; font-weight: 500; padding: 2px 8px; border-radius: 0.25rem; }
-.project-group-header, .report-project-name { color: var(--foreground); }
-
-/* Goal Status Badges */
-.status-badge { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
-.status-not-started { background-color: #64748b; color: #ffffff; }
-.status-in-progress { background-color: #3b82f6; color: #ffffff; }
-.status-blocked { background-color: #ef4444; color: #ffffff; }
-.status-completed { background-color: #22c55e; color: #ffffff; }
-
-/* Goal Page Accordion */
-#goals-list details { background-color: var(--card); border: 1px solid var(--border); border-radius: 0.5rem; transition: background-color 0.2s; }
-#goals-list details:hover { background-color: var(--card-secondary); }
-#goals-list summary { padding: 1rem; cursor: pointer; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
-#goals-list details[open] summary { border-bottom: 1px solid var(--border); }
-#goals-list details[open] summary i { transform: rotate(180deg); }
-.goal-tasks-container { padding: 1rem; }
