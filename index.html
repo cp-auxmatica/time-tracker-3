@@ -53,63 +53,6 @@
     </div>
     
     <div id="app-container" class="hidden">
-        <header class="app-header">
-            <div class="app-header-top">
-                <div class="app-title">
-                    <div class="app-icon"><i data-lucide="gem" class="w-4 h-4"></i></div>
-                    time
-                </div>
-                <div class="header-actions">
-                     <div id="user-info" class="flex items-center gap-2 mr-2 hidden">
-                        <img id="user-avatar-header" class="w-7 h-7 rounded-full">
-                        <span id="user-name-header" class="text-sm font-medium hidden sm:block"></span>
-                     </div>
-                    <button id="settings-btn" class="header-btn"><i data-lucide="settings" class="w-5 h-5"></i></button>
-                </div>
-            </div>
-            <div class="page-header">
-                <div class="page-info">
-                    <h1 id="page-title">Timer</h1>
-                    <div id="page-date" class="page-date"></div>
-                </div>
-                <button id="add-btn-header" class="header-btn"><i data-lucide="plus" class="w-6 h-6"></i></button>
-            </div>
-        </header>
-
-        <main>
-            <div id="page-timer" class="page active">
-                <div class="main-content">
-                    <div class="controls">
-                         <div class="sort-options">
-                            <span class="sort-label">Sort</span>
-                            <button data-sort="latest" class="sort-btn active">Recent</button>
-                            <button data-sort="name" class="sort-btn">Name</button>
-                            <button data-sort="time" data-dir="desc" class="sort-btn inline-flex items-center gap-1">Time <span class="sort-arrow"></span></button>
-                        </div>
-                         <div class="today-time">Today: <b id="dashboard-total-time">0m</b></div>
-                    </div>
-                    <div id="timer-list" class="timer-list project-card-list"></div>
-                </div>
-            </div>
-            <div id="page-projects" class="page">
-                 <div class="main-content">
-                    <div id="projects-list" class="project-card-list"></div>
-                    <div class="completed-link">
-                        <a href="#" id="view-completed-projects-btn">View Completed Projects</a>
-                    </div>
-                </div>
-            </div>
-             
-            <div id="page-tasks" class="page"><div id="tasks-content" class="main-content"></div></div>
-            <div id="page-reports" class="page"><div id="reports-content" class="main-content"></div></div>
-            <div id="page-goals" class="page"><div id="goals-content" class="main-content"></div></div>
-            <div id="page-settings" class="page"><div id="settings-content" class="main-content"></div></div>
-            <div id="page-session" class="page"><div id="session-view-content" class="p-4"></div></div>
-            <div id="page-detail" class="page"><div id="detail-view-content" class="main-content"></div></div>
-            <div id="page-goal-detail" class="page"><div id="goal-detail-content" class="main-content"></div></div>
-            <div id="page-completed-projects" class="page"><div id="completed-projects-content" class="main-content"></div></div>
-        </main>
-
         <nav id="bottom-nav" class="bottom-nav">
              <button data-page="page-timer" class="nav-btn nav-item active">
                 <i data-lucide="timer" class="w-5 h-5"></i>
@@ -132,6 +75,65 @@
                <span>Goals</span>
             </button>
         </nav>
+
+        <div class="main-column">
+            <header class="app-header">
+                <div class="app-header-top">
+                    <div class="app-title">
+                        <div class="app-icon"><i data-lucide="gem" class="w-4 h-4"></i></div>
+                        time
+                    </div>
+                    <div class="header-actions">
+                         <div id="user-info" class="flex items-center gap-2 mr-2 hidden">
+                            <img id="user-avatar-header" class="w-7 h-7 rounded-full">
+                            <span id="user-name-header" class="text-sm font-medium hidden sm:block"></span>
+                         </div>
+                        <button id="settings-btn" class="header-btn"><i data-lucide="settings" class="w-5 h-5"></i></button>
+                    </div>
+                </div>
+                <div class="page-header">
+                    <div class="page-info">
+                        <h1 id="page-title">Timer</h1>
+                        <div id="page-date" class="page-date"></div>
+                    </div>
+                    <button id="add-btn-header" class="header-btn"><i data-lucide="plus" class="w-6 h-6"></i></button>
+                </div>
+            </header>
+
+            <main>
+                <div id="page-timer" class="page active">
+                    <div class="main-content">
+                        <div class="controls">
+                             <div class="sort-options">
+                                <span class="sort-label">Sort</span>
+                                <button data-sort="latest" class="sort-btn active">Recent</button>
+                                <button data-sort="name" class="sort-btn">Name</button>
+                                <button data-sort="time" data-dir="desc" class="sort-btn inline-flex items-center gap-1">Time <span class="sort-arrow"></span></button>
+                            </div>
+                             <div class="today-time">Today: <b id="dashboard-total-time">0m</b></div>
+                        </div>
+                        <div id="timer-list" class="timer-list project-card-list"></div>
+                    </div>
+                </div>
+                <div id="page-projects" class="page">
+                     <div class="main-content">
+                        <div id="projects-list" class="project-card-list"></div>
+                        <div class="completed-link">
+                            <button id="view-completed-projects-btn">View Completed Projects</button>
+                        </div>
+                    </div>
+                </div>
+                 
+                <div id="page-tasks" class="page"><div id="tasks-content" class="main-content"></div></div>
+                <div id="page-reports" class="page"><div id="reports-content" class="main-content"></div></div>
+                <div id="page-goals" class="page"><div id="goals-content" class="main-content"></div></div>
+                <div id="page-settings" class="page"><div id="settings-content" class="main-content"></div></div>
+                <div id="page-session" class="page"><div id="session-view-content" class="p-4"></div></div>
+                <div id="page-detail" class="page"><div id="detail-view-content" class="main-content"></div></div>
+                <div id="page-goal-detail" class="page"><div id="goal-detail-content" class="main-content"></div></div>
+                <div id="page-completed-projects" class="page"><div id="completed-projects-content" class="main-content"></div></div>
+            </main>
+        </div>
     </div>
 
     <div id="modal-backdrop" class="modal-backdrop hidden"></div>
