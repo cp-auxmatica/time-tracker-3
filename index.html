@@ -54,26 +54,34 @@
     
     <div id="app-container" class="hidden">
         <nav id="bottom-nav" class="bottom-nav">
-             <button data-page="page-timer" class="nav-btn nav-item active">
-                <i data-lucide="timer" class="w-5 h-5"></i>
-                <span>Timer</span>
-            </button>
-            <button data-page="page-projects" class="nav-btn nav-item">
-                <i data-lucide="layout-grid" class="w-5 h-5"></i>
-                <span>Projects</span>
-            </button>
-            <button data-page="page-tasks" class="nav-btn nav-item">
-                <i data-lucide="check-square" class="w-5 h-5"></i>
-                <span>Tasks</span>
-            </button>
-            <button data-page="page-reports" class="nav-btn nav-item">
-                <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
-                <span>Reports</span>
-            </button>
-            <button data-page="page-goals" class="nav-btn nav-item">
-               <i data-lucide="award" class="w-5 h-5"></i>
-               <span>Goals</span>
-            </button>
+            <div class="app-title">
+                <div class="app-icon"><i data-lucide="gem" class="w-4 h-4"></i></div>
+                time
+            </div>
+            <div id="page-date" class="page-date"></div>
+
+            <div class="nav-links">
+                 <button data-page="page-timer" class="nav-btn nav-item active">
+                    <i data-lucide="timer" class="w-5 h-5"></i>
+                    <span>Timer</span>
+                </button>
+                <button data-page="page-projects" class="nav-btn nav-item">
+                    <i data-lucide="layout-grid" class="w-5 h-5"></i>
+                    <span>Projects</span>
+                </button>
+                <button data-page="page-tasks" class="nav-btn nav-item">
+                    <i data-lucide="check-square" class="w-5 h-5"></i>
+                    <span>Tasks</span>
+                </button>
+                <button data-page="page-reports" class="nav-btn nav-item">
+                    <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
+                    <span>Reports</span>
+                </button>
+                <button data-page="page-goals" class="nav-btn nav-item">
+                   <i data-lucide="award" class="w-5 h-5"></i>
+                   <span>Goals</span>
+                </button>
+            </div>
         </nav>
 
         <div class="main-column">
@@ -94,7 +102,6 @@
                 <div class="page-header">
                     <div class="page-info">
                         <h1 id="page-title">Timer</h1>
-                        <div id="page-date" class="page-date"></div>
                     </div>
                     <button id="add-btn-header" class="header-btn"><i data-lucide="plus" class="w-6 h-6"></i></button>
                 </div>
