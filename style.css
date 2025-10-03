@@ -92,6 +92,12 @@
   .page { display: none; }
   .page.active { display: block; }
   
+  /* Hide nav header on mobile */
+  .bottom-nav .app-title,
+  .bottom-nav .page-date {
+      display: none;
+  }
+
   .bottom-nav {
     position: fixed;
     bottom: 0;
@@ -169,7 +175,7 @@
     background-color: var(--card-secondary);
   }
   
-  .controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+  .controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; }
   .today-time { font-size: 1.125rem; color: var(--muted-foreground); }
   .today-time b { color: var(--foreground); font-weight: 700; }
   
@@ -182,6 +188,7 @@
     border-radius: 0.5rem;
     font-weight: 600;
     transition: background-color 0.2s;
+    cursor: pointer;
   }
   #view-completed-projects-btn:hover { background-color: var(--border); }
   
@@ -304,21 +311,47 @@
       flex-direction: column;
       justify-content: flex-start;
       align-items: stretch; 
-      padding: 1rem;
+      padding: 1.5rem 1rem;
       border-top: none; 
       border-right: 1px solid var(--border); 
       box-shadow: none;
     }
+
+    /* Show and style nav header on desktop */
+    .bottom-nav .app-title,
+    .bottom-nav .page-date {
+        display: flex;
+    }
+    .bottom-nav .app-title {
+        font-size: 1.5rem;
+        padding: 0 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+    .bottom-nav .page-date {
+        padding: 0 0.5rem;
+    }
   
+    /* Hide the original header elements on desktop */
+    .main-column .app-header .app-title,
+    .main-column .page-header .page-date {
+        display: none;
+    }
+
+    .nav-links {
+        margin-top: 2rem;
+    }
+
     .nav-item {
       flex-direction: row;
       justify-content: flex-start;
       align-items: center;
       gap: 0.75rem;
       font-size: 0.9rem;
+      font-weight: 600;
       padding: 0.75rem 1rem;
       border-radius: 0.5rem;
       margin-bottom: 0.25rem;
+      flex-grow: 0; /* Prevent vertical stretching */
     }
     
     .nav-item:hover {
@@ -328,7 +361,6 @@
     .nav-item.active {
       background-color: var(--primary-accent-light);
       color: var(--primary-accent);
-      font-weight: 600;
     }
     .dark .nav-item.active {
         background-color: #334155; /* slate-700 */
@@ -343,8 +375,11 @@
         padding-bottom: 2rem;
     }
 
+    .in-session-mode #bottom-nav {
+        display: none;
+    }
+
     .in-session-mode .main-column {
-      display: none;
+      width: 100%;
     }
   }
-}
