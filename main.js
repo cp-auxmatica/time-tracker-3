@@ -672,13 +672,13 @@ const renderGoalsPage=()=>{
     }
 
     const groupedGoals = goals.reduce((acc, goal) => {
-        const key = `${goal.fiscalYear} ${goal.quarter}`;
+        const key = goal.category || 'Uncategorized';
         if (!acc[key]) acc[key] = [];
         acc[key].push(goal);
         return acc;
     }, {});
 
-    const sortedGroups = Object.keys(groupedGoals).sort((a,b) => b.localeCompare(a));
+    const sortedGroups = Object.keys(groupedGoals).sort((a,b) => a.localeCompare(b));
 
     listEl.innerHTML = sortedGroups.map(group => {
         const goalItems = groupedGoals[group].map(goal => {
@@ -687,18 +687,24 @@ const renderGoalsPage=()=>{
             const tasksHtml = goalTasks.length > 0
                 ? `<div class="goal-tasks-container space-y-2">${goalTasks.map(t => createTaskItemHTML(t)).join('')}</div>`
                 : '<div class="goal-tasks-container text-sm text-muted-foreground">No tasks assigned to this goal.</div>';
+            
+            const descriptionHtml = goal.description ? `<p class="mt-1 text-sm text-muted-foreground">${goal.description}</p>` : '';
 
             return `<details class="goal-item" data-goal-id="${goal.id}">
                         <summary>
-                            <span>${goal.title}</span>
-                            <div class="flex items-center gap-4">
+                            <div class="flex-grow">
+                                <span class="font-semibold">${goal.title}</span>
+                                ${descriptionHtml}
+                            </div>
+                            <div class="flex items-center gap-4 flex-shrink-0 ml-4">
                                 <span class="status-badge status-${statusClass}">${goal.status || 'Not started'}</span>
                                 <i data-lucide="chevron-down" class="w-4 h-4 transition-transform"></i>
                             </div>
                         </summary>
                         <div class="p-4 bg-card">
-                           <div class="flex justify-end mb-4">
-                               <button class="view-goal-detail-btn text-sm font-semibold text-primary-accent hover:underline">View Details & Updates &rarr;</button>
+                           <div class="flex justify-between items-center mb-4 text-sm text-muted-foreground">
+                               <span>${goal.fiscalYear} &bull; ${goal.quarter}</span>
+                               <button class="view-goal-detail-btn font-semibold text-primary-accent hover:underline">View Details & Updates &rarr;</button>
                            </div>
                            ${tasksHtml}
                         </div>
@@ -718,6 +724,8 @@ const saveGoal=async e=>{
     const id=modal.querySelector('#goal-id').value;
     const goalData = {
         title: modal.querySelector('#goal-title').value,
+        category: modal.querySelector('#goal-category').value.trim() || 'Uncategorized',
+        description: modal.querySelector('#goal-description').value.trim(),
         fiscalYear: modal.querySelector('#goal-fy').value,
         quarter: modal.querySelector('#goal-quarter').value,
         status: modal.querySelector('#goal-status').value,
@@ -1336,7 +1344,7 @@ const addEventListeners = () => {
             renderReportData();
         }
 
-        if(e.target.closest('.edit-goal-btn')){const id=e.target.closest('.edit-goal-btn').dataset.goalId;const goal=goals.find(a=>a.id===id);if(goal){const modal=document.getElementById('add-goal-modal');modal.querySelector('form').reset();modal.querySelector('#goal-modal-title').textContent="Edit Goal";const yearSelect=modal.querySelector('#goal-fy');const currentYear=new Date().getFullYear();yearSelect.innerHTML=[0,1,2,3,4].map(i=>`<option>${currentYear+i}</option>`).join('');modal.querySelector('#goal-id').value=goal.id;modal.querySelector('#goal-title').value=goal.title;modal.querySelector('#goal-fy').value=goal.fiscalYear;modal.querySelector('#goal-quarter').value=goal.quarter;modal.querySelector('#goal-status').value=goal.status||'Not started';modal.querySelector('#goal-specific').value=goal.specific;modal.querySelector('#goal-measurable').value=goal.measurable;modal.querySelector('#goal-achievable').value=goal.achievable;modal.querySelector('#goal-relevant').value=goal.relevant;modal.querySelector('#goal-timebound').value=goal.timeBound;openModal(modal);}}
+        if(e.target.closest('.edit-goal-btn')){const id=e.target.closest('.edit-goal-btn').dataset.goalId;const goal=goals.find(a=>a.id===id);if(goal){const modal=document.getElementById('add-goal-modal');modal.querySelector('form').reset();modal.querySelector('#goal-modal-title').textContent="Edit Goal";const yearSelect=modal.querySelector('#goal-fy');const currentYear=new Date().getFullYear();yearSelect.innerHTML=[0,1,2,3,4].map(i=>`<option>${currentYear+i}</option>`).join('');modal.querySelector('#goal-id').value=goal.id;modal.querySelector('#goal-title').value=goal.title;modal.querySelector('#goal-category').value=goal.category||'';modal.querySelector('#goal-description').value=goal.description||'';modal.querySelector('#goal-fy').value=goal.fiscalYear;modal.querySelector('#goal-quarter').value=goal.quarter;modal.querySelector('#goal-status').value=goal.status||'Not started';modal.querySelector('#goal-specific').value=goal.specific;modal.querySelector('#goal-measurable').value=goal.measurable;modal.querySelector('#goal-achievable').value=goal.achievable;modal.querySelector('#goal-relevant').value=goal.relevant;modal.querySelector('#goal-timebound').value=goal.timeBound;openModal(modal);}}
         if(e.target.closest('#cancel-add-goal-btn'))return closeModal(document.getElementById('add-goal-modal'));if(e.target.closest('#import-json-btn'))dom.importFileInput.click();if(e.target.closest('#export-json-btn'))exportDataAsJSON();if(e.target.closest('#export-csv-btn'))exportTasksAsCSV();if(e.target.closest('#export-day-notes-btn'))exportDayNotesAsMarkdown();if(e.target.closest('#show-guide-btn'))showUserGuide();if(e.target.closest('#close-guide-btn'))closeModal(document.getElementById('guide-modal'));
         if(e.target.closest('#cancel-add-predefined-task-btn'))return closeModal(document.getElementById('add-predefined-task-modal'));
         if(e.target.closest('.delete-predefined-task-btn')){const taskEl=e.target.closest('[data-task-id]');if(taskEl){const taskId=taskEl.dataset.taskId;if(confirm('Delete this task?')) await deleteData('predefinedTasks',taskId);}}
