@@ -1297,6 +1297,7 @@ const addEventListeners = () => {
                 case 'page-tasks':
                     const taskModal=document.getElementById('add-predefined-task-modal');
                     taskModal.querySelector('form').reset();
+                    taskModal.querySelector('#predefined-task-id').value = ''; // THIS IS THE FIX
                     taskModal.querySelector('#predefined-task-modal-title').textContent="New Task";
                     const projectSelect=taskModal.querySelector('#predefined-task-project');
                     projectSelect.innerHTML=`<option value="">General Task</option>`+projects.filter(p=>p.status!=='completed').map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
