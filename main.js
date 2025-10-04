@@ -1509,14 +1509,12 @@ const initializeAppWithUI = () => {
 
     // --- FIREBASE INITIALIZATION ---
     const firebaseConfig = {
-        const firebaseConfig = {
       apiKey: "AIzaSyCWntzAeJ-cQJkBgbpGiYraWRJ3KeLSWvE",
       authDomain: "work-timer-e9e49.firebaseapp.com",
       projectId: "work-timer-e9e49",
       storageBucket: "work-timer-e9e49.firebasestorage.app",
       messagingSenderId: "1079058660834",
       appId: "1:1079058660834:web:a5822ab08019cc3bff0dbb"
-};
     };
 
     const app = initializeApp(firebaseConfig);
