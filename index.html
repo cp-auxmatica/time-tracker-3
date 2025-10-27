@@ -73,6 +73,10 @@
                     <i data-lucide="check-square" class="w-5 h-5"></i>
                     <span>Tasks</span>
                 </button>
+                <button data-page="page-notes" class="nav-btn nav-item">
+                   <i data-lucide="notebook" class="w-5 h-5"></i>
+                   <span>Notes</span>
+                </button>
                 <button data-page="page-reports" class="nav-btn nav-item">
                     <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
                     <span>Reports</span>
@@ -132,6 +136,7 @@
                 </div>
                  
                 <div id="page-tasks" class="page"><div id="tasks-content" class="main-content"></div></div>
+                <div id="page-notes" class="page"><div id="notes-content" class="main-content"></div></div>
                 <div id="page-reports" class="page"><div id="reports-content" class="main-content"></div></div>
                 <div id="page-goals" class="page"><div id="goals-content" class="main-content"></div></div>
                 <div id="page-settings" class="page"><div id="settings-content" class="main-content"></div></div>
@@ -267,6 +272,40 @@
             </div>
         </form>
     </div>
+    
+    <div id="add-note-modal" class="modal hidden w-11/12 max-w-lg">
+        <form id="add-note-form" class="bg-[var(--card)] rounded-lg shadow-xl border border-[var(--border)] p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <h2 id="note-modal-title" class="text-xl font-bold">New Note</h2>
+            <input type="hidden" id="note-id">
+            <div>
+                <label for="note-title" class="block text-sm font-medium text-muted-foreground mb-1">Title</label>
+                <input type="text" id="note-title" placeholder="e.g., Q4 Planning Meeting" class="w-full p-2 border border-input-border rounded-md bg-card-secondary text-foreground" required>
+            </div>
+            <div>
+                <label for="note-content" class="block text-sm font-medium text-muted-foreground mb-1">Content</label>
+                <textarea id="note-content" rows="8" placeholder="Write your note here..." class="w-full p-2 border border-input-border rounded-md bg-card-secondary text-foreground"></textarea>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="note-projects" class="block text-sm font-medium text-muted-foreground mb-1">Tag Projects</label>
+                    <select id="note-projects" multiple class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border h-32">
+                        </select>
+                </div>
+                <div>
+                    <label for="note-tasks" class="block text-sm font-medium text-muted-foreground mb-1">Tag Tasks</label>
+                    <select id="note-tasks" multiple class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border h-32">
+                        </select>
+                </div>
+            </div>
+            
+            <div class="flex justify-end gap-3 pt-4 border-t border-border">
+                <button type="button" id="cancel-add-note-btn" class="px-5 py-2 text-base font-semibold rounded-lg hover:bg-card-secondary">Cancel</button>
+                <button type="submit" class="px-5 py-2 text-base w-full text-white font-semibold rounded-md" style="background-color: var(--primary-accent);">Save Note</button>
+            </div>
+        </form>
+    </div>
+    
      <div id="name-session-modal" class="modal hidden w-11/12 max-w-md">
          <form id="name-session-form" class="bg-[var(--card)] rounded-lg shadow-xl border border-[var(--border)] p-6 space-y-4">
             <h2 class="text-xl font-bold" style="color:var(--primary-accent);">Start New Session</h2>
@@ -340,6 +379,17 @@
             <button id="close-notes-view-btn" class="mt-4 w-full px-4 py-2 font-semibold rounded-lg bg-card-secondary hover:bg-border">Close</button>
         </div>
     </div>
+    
+    <template id="notes-page-template">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div class="relative flex-grow">
+                <input type="search" id="note-search-input" placeholder="Search notes..." class="w-full p-2 pl-10 border rounded-md text-sm bg-card-secondary text-foreground border-input-border">
+                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"></i>
+            </div>
+        </div>
+        <div id="notes-list" class="space-y-4">
+            </div>
+    </template>
     
     <template id="goals-page-template">
         <div id="goals-list" class="space-y-6"></div>
