@@ -4,7 +4,7 @@ import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWith
 import { getFirestore, collection, onSnapshot, addDoc, doc, setDoc, deleteDoc, writeBatch, getDocs, setLogLevel } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // --- App State and Variables ---
-let projects = [], tasks = [], goals = [], predefinedTasks = [], activeTimer = null, timerInterval = null;
+let projects = [], tasks = [], goals = [], predefinedTasks = [], notes = [], activeTimer = null, timerInterval = null;
 let currentDetailProjectId = null, currentGoalId = null, currentSort = 'latest';
 let dom = {};
 let navigationIntent = null;
@@ -55,7 +55,7 @@ const addData = (collectionName, data) => addDoc(getCollectionRef(collectionName
 const updateData = (collectionName, id, data) => setDoc(doc(getCollectionRef(collectionName), id), data, { merge: true });
 const deleteData = (collectionName, id) => deleteDoc(doc(getCollectionRef(collectionName), id));
 async function clearAllData() {
-    const collections = ['projects', 'tasks', 'goals', 'predefinedTasks'];
+    const collections = ['projects', 'tasks', 'goals', 'predefinedTasks', 'notes'];
     for (const collectionName of collections) {
         const querySnapshot = await getDocs(getCollectionRef(collectionName));
         const batch = writeBatch(db);
@@ -72,6 +72,7 @@ const setupFirestoreListeners = () => {
         'tasks': (data) => { tasks = data; },
         'goals': (data) => { goals = data; },
         'predefinedTasks': (data) => { predefinedTasks = data; },
+        'notes': (data) => { notes = data; },
     };
     Object.keys(collectionsToSync).forEach(collectionName => {
         const unsub = onSnapshot(getCollectionRef(collectionName), (snapshot) => {
@@ -112,7 +113,7 @@ const applyAccentTheme=(themeName)=>{
 const toggleTheme=()=>{const newTheme = document.documentElement.classList.contains('dark') ? 'light' : 'dark'; localStorage.setItem('theme', newTheme); applyTheme(newTheme);};
 
 const exportDataAsJSON = () => {
-    const allData = { projects, tasks, goals, predefinedTasks };
+    const allData = { projects, tasks, goals, predefinedTasks, notes };
     const dateStr = new Date().toISOString().split('T')[0];
     const filename = `work_app_firebase_backup_${dateStr}.json`;
     downloadFile(JSON.stringify(allData, null, 2), filename, 'application/json');
@@ -129,7 +130,7 @@ const importDataFromJSON = (e) => {
             if (confirm("This will overwrite all current cloud data. Are you sure?")) {
                 await clearAllData();
                 const batch = writeBatch(db);
-                ['projects', 'tasks', 'goals', 'predefinedTasks'].forEach(colName => {
+                ['projects', 'tasks', 'goals', 'predefinedTasks', 'notes'].forEach(colName => {
                     (data[colName] || []).forEach(item => {
                         const docRef = item.id ? doc(getCollectionRef(colName), item.id.toString()) : doc(getCollectionRef(colName));
                         batch.set(docRef, item);
@@ -276,9 +277,9 @@ const updatePageHeader=(pageId)=>{
         document.body.style.removeProperty('--session-project-color');
         const titles = {
             'page-timer': 'Timer', 'page-projects': 'Projects', 'page-tasks': 'Tasks',
-            'page-reports': 'Reports', 'page-goals': 'Goals', 'page-settings': 'Settings',
-            'page-detail': 'Project Details', 'page-goal-detail': 'Goal Details',
-            'page-completed-projects': 'Completed Projects'
+            'page-notes': 'Notes', 'page-reports': 'Reports', 'page-goals': 'Goals', 
+            'page-settings': 'Settings', 'page-detail': 'Project Details', 
+            'page-goal-detail': 'Goal Details', 'page-completed-projects': 'Completed Projects'
         };
         title = titles[pageId] || 'Timer';
         if(pageId === 'page-detail' && currentDetailProjectId) {
@@ -314,6 +315,7 @@ const navigateTo=(pageId, isRefresh = false)=>{
         case 'page-goals': renderGoalsPage(); break;
         case 'page-settings': renderSettingsPage(); break;
         case 'page-tasks': renderTasksPage(); break;
+        case 'page-notes': renderNotesPage(); break;
         case 'page-session': renderSessionPage(); break;
         case 'page-detail': renderProjectDetailPage(); break;
         case 'page-goal-detail': renderGoalDetailPage(); break;
@@ -1245,6 +1247,143 @@ const renderGoalDetailPage = () => {
     `;
      lucide.createIcons();
 };
+
+const renderNotesPage = (searchTerm = '') => {
+    const template = document.getElementById('notes-page-template');
+    if (!template) return;
+    const content = template.content.cloneNode(true);
+    const ac = document.getElementById('notes-content');
+    ac.innerHTML = '';
+    ac.appendChild(content);
+
+    const listEl = document.getElementById('notes-list');
+    const searchInput = document.getElementById('note-search-input');
+    searchInput.value = searchTerm;
+
+    searchInput.addEventListener('input', (e) => {
+        renderNotesPage(e.target.value);
+    });
+
+    let filteredNotes = [...notes];
+    if (searchTerm) {
+        const lowerSearchTerm = searchTerm.toLowerCase();
+        filteredNotes = filteredNotes.filter(n => 
+            n.title.toLowerCase().includes(lowerSearchTerm) || 
+            n.content.toLowerCase().includes(lowerSearchTerm)
+        );
+    }
+    
+    filteredNotes.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+
+    if (filteredNotes.length === 0) {
+        listEl.innerHTML = `<div class="text-center py-12 text-muted-foreground">
+            <i data-lucide="notebook" class="mx-auto h-12 w-12 opacity-50"></i>
+            <h3 class="mt-2 text-sm font-medium">No notes yet</h3>
+            <p class="mt-1 text-sm">Click the '+' button above to add a new note.</p>
+        </div>`;
+    } else {
+        listEl.innerHTML = filteredNotes.map(note => {
+            const projectTags = (note.projectIds || []).map(id => {
+                const p = projects.find(proj => proj.id === id);
+                return p ? `<span class="tag" style="background-color:${p.color}; color:white;">${p.name}</span>` : '';
+            }).join('');
+            
+            const taskTags = (note.taskIds || []).map(id => {
+                const t = predefinedTasks.find(task => task.id === id);
+                return t ? `<span class="tag bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200">${t.description}</span>` : '';
+            }).join('');
+
+            return `
+            <div class="bg-card p-4 rounded-lg border" data-note-id="${note.id}">
+                <div class="flex justify-between items-start">
+                    <h3 class="font-semibold text-lg">${note.title}</h3>
+                    <div class="flex-shrink-0">
+                        <button class="edit-note-btn action-btn h-8 w-8"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+                        <button class="delete-note-btn action-btn h-8 w-8"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </div>
+                </div>
+                <p class="text-sm text-muted-foreground whitespace-pre-wrap mt-2">${note.content.substring(0, 150)}${note.content.length > 150 ? '...' : ''}</p>
+                <div class="flex flex-wrap gap-2 mt-3 pt-3 border-t border-border">
+                    ${projectTags || ''}
+                    ${taskTags || ''}
+                </div>
+            </div>`;
+        }).join('');
+    }
+    lucide.createIcons();
+};
+
+const openAddNoteModal = (noteId = null) => {
+    const modal = document.getElementById('add-note-modal');
+    const form = modal.querySelector('form');
+    form.reset();
+    
+    const projectSelect = modal.querySelector('#note-projects');
+    projectSelect.innerHTML = projects
+        .filter(p => p.status !== 'completed')
+        .map(p => `<option value="${p.id}">${p.name}</option>`)
+        .join('');
+
+    const taskSelect = modal.querySelector('#note-tasks');
+    taskSelect.innerHTML = predefinedTasks
+        .filter(t => !t.isCompleted)
+        .map(t => `<option value="${t.id}">${t.description}</option>`)
+        .join('');
+
+    if (noteId) {
+        const note = notes.find(n => n.id === noteId);
+        if (note) {
+            modal.querySelector('#note-modal-title').textContent = "Edit Note";
+            modal.querySelector('#note-id').value = note.id;
+            modal.querySelector('#note-title').value = note.title;
+            modal.querySelector('#note-content').value = note.content;
+            
+            // Pre-select tagged projects
+            Array.from(projectSelect.options).forEach(option => {
+                if ((note.projectIds || []).includes(option.value)) {
+                    option.selected = true;
+                }
+            });
+
+            // Pre-select tagged tasks
+            Array.from(taskSelect.options).forEach(option => {
+                if ((note.taskIds || []).includes(option.value)) {
+                    option.selected = true;
+                }
+            });
+        }
+    } else {
+        modal.querySelector('#note-modal-title').textContent = "New Note";
+        modal.querySelector('#note-id').value = '';
+    }
+    
+    openModal(modal);
+};
+
+const saveNote = async (e) => {
+    e.preventDefault();
+    const modal = document.getElementById('add-note-modal');
+    const id = modal.querySelector('#note-id').value;
+    const title = modal.querySelector('#note-title').value.trim();
+    if (!title) return;
+
+    const noteData = {
+        title: title,
+        content: modal.querySelector('#note-content').value.trim(),
+        projectIds: Array.from(modal.querySelector('#note-projects').selectedOptions).map(opt => opt.value),
+        taskIds: Array.from(modal.querySelector('#note-tasks').selectedOptions).map(opt => opt.value),
+        updatedAt: Date.now()
+    };
+
+    if (id) {
+        await updateData('notes', id, noteData);
+    } else {
+        noteData.createdAt = Date.now();
+        await addData('notes', noteData);
+    }
+    closeModal(modal);
+};
+
 // --- END: REPORTS FUNCTIONS ---
 
 // --- AUTHENTICATION FLOW ---
@@ -1314,6 +1453,9 @@ const addEventListeners = () => {
                     const currentYear = new Date().getFullYear();
                     yearSelect.innerHTML = [0,1,2,3,4].map(i => `<option>${currentYear + i}</option>`).join('');
                     openModal(goalModal);
+                    break;
+                case 'page-notes':
+                    openAddNoteModal();
                     break;
             }
         }
@@ -1422,12 +1564,28 @@ const addEventListeners = () => {
         if (e.target.closest('.back-to-goals-btn')) { navigateTo('page-goals'); }
         if (e.target.closest('#cancel-manual-entry-btn')) { closeModal(document.getElementById('manual-entry-modal')); }
         if (e.target.closest('.goal-item .view-goal-detail-btn')) { currentGoalId = e.target.closest('[data-goal-id]').dataset.goalId; navigateTo('page-goal-detail'); }
+
+        // Note listeners
+        if (e.target.closest('.edit-note-btn')) {
+            const noteId = e.target.closest('[data-note-id]').dataset.noteId;
+            openAddNoteModal(noteId);
+        }
+        if (e.target.closest('.delete-note-btn')) {
+            const noteId = e.target.closest('[data-note-id]').dataset.noteId;
+            if (confirm('Are you sure you want to delete this note?')) {
+                await deleteData('notes', noteId);
+            }
+        }
+        if (e.target.closest('#cancel-add-note-btn')) {
+            return closeModal(document.getElementById('add-note-modal'));
+        }
     });
 
     document.getElementById('add-project-form').addEventListener('submit',saveNewProject);
     document.getElementById('manual-entry-form').addEventListener('submit',saveManualEntry);
     document.getElementById('add-predefined-task-form').addEventListener('submit',savePredefinedTask);
     document.getElementById('add-goal-form').addEventListener('submit',saveGoal);
+    document.getElementById('add-note-form').addEventListener('submit', saveNote);
     
     document.body.addEventListener('submit', async (e) => {
         if(e.target.matches('#add-goal-update-form')) { await saveGoalUpdate(e); }
@@ -1468,7 +1626,7 @@ const addEventListeners = () => {
         closeModal(modal);
     });
 
-    document.getElementById('modal-backdrop').addEventListener('click',()=>{closeModal(document.getElementById('add-project-modal'));closeModal(document.getElementById('guide-modal'));closeModal(document.getElementById('manual-entry-modal'));closeModal(document.getElementById('add-predefined-task-modal'));closeModal(document.getElementById('add-goal-modal'));closeModal(document.getElementById('name-session-modal'));closeModal(document.getElementById('confirmation-modal'));closeModal(document.getElementById('notes-view-modal'));});
+    document.getElementById('modal-backdrop').addEventListener('click',()=>{closeModal(document.getElementById('add-project-modal'));closeModal(document.getElementById('guide-modal'));closeModal(document.getElementById('manual-entry-modal'));closeModal(document.getElementById('add-predefined-task-modal'));closeModal(document.getElementById('add-goal-modal'));closeModal(document.getElementById('add-note-modal'));closeModal(document.getElementById('name-session-modal'));closeModal(document.getElementById('confirmation-modal'));closeModal(document.getElementById('notes-view-modal'));});
 
     document.body.addEventListener('change',async e=>{
         if(e.target.closest('#dark-mode-toggle'))toggleTheme();
@@ -1540,7 +1698,7 @@ const initializeAppWithUI = () => {
             userId = null;
             unsubscribeListeners.forEach(unsub => unsub());
             unsubscribeListeners = [];
-            projects = []; tasks = []; goals = []; predefinedTasks = [];
+            projects = []; tasks = []; goals = []; predefinedTasks = []; notes = [];
 
             if (isSignUp) {
                 toggleAuthMode();
