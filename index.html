@@ -1,547 +1,1720 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Time Tracker</title>
-    
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" id="theme-color-meta" content="#14b8a6">
-    
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🕰️</text></svg>">
-    <script src="https://cdn.tailwindcss.com/3.4.1?plugins=typography"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
-    
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-</head>
-<body class="theme-teal">
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, onSnapshot, addDoc, doc, setDoc, deleteDoc, writeBatch, getDocs, setLogLevel } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-    <div id="sign-in-screen" class="hidden fixed inset-0 bg-background flex items-center justify-center z-50 transition-opacity duration-300">
-        <div class="bg-card p-8 rounded-lg shadow-xl border border-border w-full max-w-sm">
-            <div class="text-center mb-6">
-                <i data-lucide="gem" class="w-10 h-10 mx-auto" style="color: var(--primary-accent);"></i>
-                <h1 class="text-2xl font-bold mt-2">Time Tracker</h1>
+// --- App State and Variables ---
+let projects = [], tasks = [], goals = [], predefinedTasks = [], notes = [], activeTimer = null, timerInterval = null;
+let currentDetailProjectId = null, currentGoalId = null, currentSort = 'latest';
+let dom = {};
+let navigationIntent = null;
+let taskSearchTerm = '';
+let showCompletedTasks = false;
+let dailyChartInstance = null;
+let currentReportSort = 'time';
+let currentReportPeriod = 'day';
+let detailViewFilter = 'all'; // Can be 'all' or 'today'
+
+
+// --- Firebase State ---
+let db, auth, userId, unsubscribeListeners = [];
+
+// --- UI Element Refs ---
+let signInScreen, appContainer, authForm, authLoader, displayNameField,
+    authSubmitBtn, authToggleBtn, authPromptText, displayNameInput;
+let isSignUp = false;
+
+const THEME_COLORS = {
+    'theme-teal': '#0d9488', 'theme-indigo': '#4f46e5', 'theme-orange': '#ea580c',
+    'theme-blue': '#2563eb', 'theme-mono': '#1e293b'
+};
+const DARK_THEME_COLOR = '#000000';
+const PALETTE = ['#10b981', '#3b82f6', '#ef4444', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#6366f1', '#f97316', '#84cc16', '#22d3ee', '#e11d48'];
+
+// --- Utility Functions ---
+const formatTime=(ms)=>new Date(ms).toISOString().slice(11,19);
+const formatDuration=(ms)=>{if(ms<0)ms=0;const tM=Math.floor(ms/60000);if(tM<1)return"0m";const h=Math.floor(tM/60);const m=tM%60;return`${h>0?`${h}h `:''}${m}m`;};
+const getTodaysTimeForProjectMs=(projectId)=>{const startOfDay=new Date().setHours(0,0,0,0);let totalMs=tasks.filter(t=>t.projectId===projectId&&t.endTime>=startOfDay).reduce((sum,task)=>sum+(task.endTime-task.startTime),0);if(activeTimer&&activeTimer.projectId===projectId){let elapsed;if(activeTimer.isPaused){elapsed=activeTimer.pauseStartTime-activeTimer.startTime-activeTimer.totalPausedTime;}else{elapsed=Date.now()-activeTimer.startTime-activeTimer.totalPausedTime;}
+    totalMs+=elapsed>0?elapsed:0;}
+    return totalMs;
+};
+const downloadFile=(data,name,type)=>{const b=new Blob([data],{type});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(u);};
+const formatDate = (date) => {
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+// --- Firebase Data Functions ---
+const getCollectionRef = (collectionName) => {
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    return collection(db, `artifacts/${appId}/users/${userId}/${collectionName}`);
+};
+const addData = (collectionName, data) => addDoc(getCollectionRef(collectionName), data);
+const updateData = (collectionName, id, data) => setDoc(doc(getCollectionRef(collectionName), id), data, { merge: true });
+const deleteData = (collectionName, id) => deleteDoc(doc(getCollectionRef(collectionName), id));
+async function clearAllData() {
+    const collections = ['projects', 'tasks', 'goals', 'predefinedTasks', 'notes'];
+    for (const collectionName of collections) {
+        const querySnapshot = await getDocs(getCollectionRef(collectionName));
+        const batch = writeBatch(db);
+        querySnapshot.forEach((doc) => batch.delete(doc.ref));
+        await batch.commit();
+    }
+}
+
+const setupFirestoreListeners = () => {
+    unsubscribeListeners.forEach(unsub => unsub());
+    unsubscribeListeners = [];
+    const collectionsToSync = {
+        'projects': (data) => { projects = data; },
+        'tasks': (data) => { tasks = data; },
+        'goals': (data) => { goals = data; },
+        'predefinedTasks': (data) => { predefinedTasks = data; },
+        'notes': (data) => { notes = data; },
+    };
+    Object.keys(collectionsToSync).forEach(collectionName => {
+        const unsub = onSnapshot(getCollectionRef(collectionName), (snapshot) => {
+            const dataArray = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            collectionsToSync[collectionName](dataArray);
+            const activePage = document.querySelector('.page.active');
+            if (activePage) navigateTo(activePage.id, true);
+            updateDashboardTotalTime();
+        }, (error) => {
+            console.error(`Error listening to ${collectionName}: `, error);
+            alert(`There was an error fetching your data. Please ensure Firestore is enabled and security rules are set.`);
+        });
+        unsubscribeListeners.push(unsub);
+    });
+};
+
+const checkPersistentTimer=()=>{const s=localStorage.getItem('activeTimerState');if(s){activeTimer=JSON.parse(s);startTimerInterval();}};
+
+const applyTheme=(t)=>{
+    const themeMeta = document.getElementById('theme-color-meta');
+    const currentAccent = localStorage.getItem('accentTheme') || 'theme-teal';
+    if(t==='dark'){
+        document.documentElement.classList.add('dark');
+        if(themeMeta) themeMeta.setAttribute('content', DARK_THEME_COLOR);
+    }else{
+        document.documentElement.classList.remove('dark');
+        if(themeMeta) themeMeta.setAttribute('content', THEME_COLORS[currentAccent]);
+    }
+    if(dom.darkModeToggle)dom.darkModeToggle.checked = (t === 'dark');
+};
+
+const applyAccentTheme=(themeName)=>{
+    Object.keys(THEME_COLORS).forEach(t => document.body.classList.remove(t));
+    document.body.classList.add(themeName);
+    localStorage.setItem('accentTheme', themeName);
+    applyTheme(localStorage.getItem('theme'));
+};
+const toggleTheme=()=>{const newTheme = document.documentElement.classList.contains('dark') ? 'light' : 'dark'; localStorage.setItem('theme', newTheme); applyTheme(newTheme);};
+
+const exportDataAsJSON = () => {
+    const allData = { projects, tasks, goals, predefinedTasks, notes };
+    const dateStr = new Date().toISOString().split('T')[0];
+    const filename = `work_app_firebase_backup_${dateStr}.json`;
+    downloadFile(JSON.stringify(allData, null, 2), filename, 'application/json');
+};
+
+const importDataFromJSON = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+        try {
+            const data = JSON.parse(event.target.result);
+            if (!data.projects || !data.tasks) throw new Error("Invalid file format.");
+            if (confirm("This will overwrite all current cloud data. Are you sure?")) {
+                await clearAllData();
+                const batch = writeBatch(db);
+                ['projects', 'tasks', 'goals', 'predefinedTasks', 'notes'].forEach(colName => {
+                    (data[colName] || []).forEach(item => {
+                        const docRef = item.id ? doc(getCollectionRef(colName), item.id.toString()) : doc(getCollectionRef(colName));
+                        batch.set(docRef, item);
+                    });
+                });
+                await batch.commit();
+                alert("Import successful!");
+            }
+        } catch (err) {
+            alert("Failed to import data: " + err.message);
+        } finally {
+            if (dom.importFileInput) dom.importFileInput.value = null;
+        }
+    };
+    reader.readAsText(file);
+};
+
+const exportTasksAsCSV = () => {
+    const startDateInput = document.getElementById('csv-date-start');
+    const endDateInput = document.getElementById('csv-date-end');
+    if (!startDateInput || !endDateInput || !startDateInput.value || !endDateInput.value) {
+        alert('Please select a start and end date for the CSV export.');
+        return;
+    }
+    const start = new Date(startDateInput.value).getTime();
+    const end = new Date(endDateInput.value).setHours(23, 59, 59, 999);
+
+    const tasksToExport = tasks.filter(t => t.startTime >= start && t.startTime <= end);
+    if (tasksToExport.length === 0) {
+        alert('No tasks found in the selected date range.');
+        return;
+    }
+
+    let csvContent = "Project,Description,Date,StartTime,EndTime,Duration(HH:MM:SS),Notes\n";
+
+    tasksToExport.forEach(task => {
+        const project = projects.find(p => p.id === task.projectId);
+        const projectName = project ? project.name : 'N/A';
+        const description = `"${task.description.replace(/"/g, '""')}"`;
+        const notes = `"${(task.notes || '').replace(/"/g, '""')}"`;
+        const date = new Date(task.startTime).toLocaleDateString();
+        const startTime = new Date(task.startTime).toLocaleTimeString();
+        const endTime = new Date(task.endTime).toLocaleTimeString();
+        const duration = formatTime(task.endTime - task.startTime);
+
+        csvContent += [projectName, description, date, startTime, endTime, duration, notes].join(',') + "\n";
+    });
+
+    downloadFile(csvContent, `work_app_export_${startDateInput.value}_to_${endDateInput.value}.csv`, 'text/csv;charset=utf-8;');
+};
+
+
+const exportDayNotesAsMarkdown = () => {
+    const dayPicker = document.getElementById('reports-day-picker');
+    if (!dayPicker || !dayPicker.value) {
+        alert("Please select a day to export.");
+        return;
+    }
+    const reportDate = new Date(dayPicker.value + 'T00:00:00');
+    reportDate.setHours(0, 0, 0, 0);
+    const startOfDay = reportDate.getTime();
+    const endOfDay = startOfDay + (24 * 60 * 60 * 1000 - 1);
+
+    const dayWorkSessions = tasks.filter(t => t.startTime >= startOfDay && t.startTime <= endOfDay);
+    const dayCompletedTasks = predefinedTasks.filter(t => t.isCompleted && t.completedDate >= startOfDay && t.completedDate <= endOfDay);
+
+    if (dayWorkSessions.length === 0 && dayCompletedTasks.length === 0) {
+        alert("No activities found for " + reportDate.toLocaleDateString());
+        return;
+    }
+
+    const activitiesByProject = {};
+
+    const getProjectGroup = (projectId) => {
+        const project = projects.find(p => p.id === projectId);
+        const projectName = project ? project.name : 'General';
+        if (!activitiesByProject[projectName]) {
+            activitiesByProject[projectName] = {
+                sessions: [],
+                completedTasks: []
+            };
+        }
+        return activitiesByProject[projectName];
+    };
+
+    dayWorkSessions.forEach(session => {
+        getProjectGroup(session.projectId).sessions.push(session);
+    });
+
+    dayCompletedTasks.forEach(task => {
+        getProjectGroup(task.projectId).completedTasks.push(task);
+    });
+
+    let markdown = `# Daily Report: ${reportDate.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}\n\n`;
+
+    const projectNames = Object.keys(activitiesByProject).sort();
+
+    for (const projectName of projectNames) {
+        markdown += `## ${projectName}\n\n`;
+        const activities = activitiesByProject[projectName];
+
+        if (activities.sessions.length > 0) {
+            markdown += `### Work Sessions\n`;
+            activities.sessions.sort((a, b) => a.startTime - b.startTime).forEach(session => {
+                const duration = formatDuration(session.endTime - session.startTime);
+                markdown += `- **${session.description}** (${duration})\n`;
+                if (session.notes) {
+                    const indentedNotes = session.notes.split('\n').map(line => `    - ${line}`).join('\n');
+                    markdown += `${indentedNotes}\n`;
+                }
+            });
+            markdown += `\n`;
+        }
+
+        if (activities.completedTasks.length > 0) {
+            markdown += `### Completed Tasks\n`;
+            activities.completedTasks.forEach(task => {
+                markdown += `- [x] ${task.description}\n`;
+            });
+            markdown += `\n`;
+        }
+    }
+
+    const filename = `work_app_report_${reportDate.toISOString().split('T')[0]}.md`;
+    downloadFile(markdown, filename, 'text/markdown;charset=utf-8;');
+};
+
+const openModal=(el)=>{document.getElementById('modal-backdrop').classList.remove('hidden');el.classList.remove('hidden');};
+const closeModal=(el)=>{document.getElementById('modal-backdrop').classList.add('hidden');el.classList.add('hidden');};
+
+const updatePageHeader=(pageId)=>{
+    const now=new Date();
+    const dateString=now.toLocaleDateString(undefined,{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+    document.getElementById('page-date').textContent = dateString;
+
+    let title = 'Timer';
+    if (pageId === 'page-session' && activeTimer) {
+        const project = projects.find(p => p.id === activeTimer.projectId);
+        title = project ? project.name : 'Active Session';
+        document.body.classList.add('in-session-mode');
+        document.body.style.setProperty('--session-project-color', project?.color || '#cccccc');
+    } else {
+        document.body.classList.remove('in-session-mode');
+        document.body.style.removeProperty('--session-project-color');
+        const titles = {
+            'page-timer': 'Timer', 'page-projects': 'Projects', 'page-tasks': 'Tasks',
+            'page-notes': 'Notes', 'page-reports': 'Reports', 'page-goals': 'Goals', 
+            'page-settings': 'Settings', 'page-detail': 'Project Details', 
+            'page-goal-detail': 'Goal Details', 'page-completed-projects': 'Completed Projects'
+        };
+        title = titles[pageId] || 'Timer';
+        if(pageId === 'page-detail' && currentDetailProjectId) {
+            const project = projects.find(p => p.id === currentDetailProjectId);
+            if(project) title = project.name;
+        }
+    }
+    document.getElementById('page-title').textContent = title;
+
+    const addBtn = document.getElementById('add-btn-header');
+    if(addBtn) {
+        addBtn.style.display = 'flex';
+        if (pageId === 'page-timer') {
+            addBtn.innerHTML = '<i data-lucide="clock" class="w-5 h-5"></i>';
+        } else {
+            addBtn.innerHTML = '<i data-lucide="plus" class="w-6 h-6"></i>';
+        }
+        lucide.createIcons();
+    }
+};
+
+const navigateTo=(pageId, isRefresh = false)=>{
+    if (!isRefresh) { // Prevent state change on refresh
+        document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+        document.getElementById(pageId)?.classList.add('active');
+        document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.page===pageId));
+    }
+
+    switch(pageId) {
+        case 'page-timer': renderTimerPage(); break;
+        case 'page-projects': renderProjectsPage(); break;
+        case 'page-reports': renderReportsPage(); break;
+        case 'page-goals': renderGoalsPage(); break;
+        case 'page-settings': renderSettingsPage(); break;
+        case 'page-tasks': renderTasksPage(); break;
+        case 'page-notes': renderNotesPage(); break;
+        case 'page-session': renderSessionPage(); break;
+        case 'page-detail': renderProjectDetailPage(); break;
+        case 'page-goal-detail': renderGoalDetailPage(); break;
+        case 'page-completed-projects': renderCompletedProjectsPage(); break;
+    }
+    updatePageHeader(pageId);
+    lucide.createIcons();
+};
+
+const startTimerInterval=()=>{if(timerInterval)clearInterval(timerInterval);timerInterval=setInterval(()=>{if(activeTimer&&!activeTimer.isPaused){const elapsed=Date.now()-activeTimer.startTime-activeTimer.totalPausedTime;const el=document.getElementById(`session-timer-display`);if(el)el.textContent=formatTime(elapsed>0?elapsed:0);updateDashboardTotalTime();}},1000);};
+const stopTimerInterval=()=>{clearInterval(timerInterval);timerInterval=null;};
+
+const initiateTimer = async (projectId, sessionName) => {
+     if (activeTimer) await stopTimer();
+    const now = Date.now();
+    activeTimer = {
+        projectId: projectId,
+        sessionName: sessionName,
+        startTime: now,
+        totalPausedTime: 0,
+        isPaused: false,
+        pauseStartTime: null,
+        sessionTasks: [],
+        notes: '',
+        tags: []
+    };
+
+    const projectTasks = predefinedTasks.filter(t => t.projectId === projectId && !t.isCompleted);
+    activeTimer.sessionTasks = projectTasks.map(pt => ({
+        description: pt.description,
+        completed: false,
+        predefinedTaskId: pt.id
+    }));
+
+    localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));
+    startTimerInterval();
+    navigateTo('page-session');
+}
+
+const pauseTimer=()=>{ if (!activeTimer || activeTimer.isPaused) return; activeTimer.isPaused=true; activeTimer.pauseStartTime=Date.now(); localStorage.setItem('activeTimerState', JSON.stringify(activeTimer)); stopTimerInterval(); renderSessionPage(); };
+const resumeTimer=()=>{ if (!activeTimer || !activeTimer.isPaused) return; activeTimer.totalPausedTime += Date.now() - activeTimer.pauseStartTime; activeTimer.isPaused = false; activeTimer.pauseStartTime = null; localStorage.setItem('activeTimerState', JSON.stringify(activeTimer)); startTimerInterval(); renderSessionPage(); };
+
+const stopTimer = async () => {
+    if (!activeTimer) return Promise.resolve();
+
+    const sessionNotes = document.getElementById('session-notes')?.value || '';
+    const sessionTags = document.getElementById('session-tags')?.value.trim().split(/[\s,]+/).filter(Boolean) || [];
+    const completedSessionTasks = activeTimer.sessionTasks.filter(t => t.completed).map(t => t.description);
+
+    let combinedNotes = sessionNotes;
+    if (completedSessionTasks.length > 0) {
+        combinedNotes += `\n\nCompleted Tasks:\n- ${completedSessionTasks.join('\n- ')}`;
+    }
+
+    const endTime = activeTimer.isPaused ? activeTimer.pauseStartTime : Date.now();
+    const duration = (endTime - activeTimer.startTime) - activeTimer.totalPausedTime;
+
+    const t = {
+        projectId: activeTimer.projectId,
+        description: activeTimer.sessionName,
+        notes: combinedNotes.trim(),
+        tags: sessionTags,
+        startTime: activeTimer.startTime,
+        endTime: activeTimer.startTime + duration
+    };
+
+    if (duration > 1000) { // Only save if more than a second
+        const newSessionTaskRef = await addData('tasks', t);
+        const completedPredefinedTasks = activeTimer.sessionTasks.filter(st => st.completed && st.predefinedTaskId);
+        for (const sessionTask of completedPredefinedTasks) {
+            await updateData('predefinedTasks', sessionTask.predefinedTaskId, {
+                completedInSessionId: newSessionTaskRef.id
+            });
+        }
+    }
+
+    localStorage.removeItem('activeTimerState');
+    activeTimer = null;
+    stopTimerInterval();
+
+    navigateTo('page-timer');
+    updateDashboardTotalTime();
+    return Promise.resolve();
+};
+
+const saveNewProject=async(e)=>{
+    e.preventDefault();
+    const modal=document.getElementById('add-project-modal');
+    const name=modal.querySelector('#new-project-name').value.trim();
+    const color=modal.querySelector('#new-project-color').value;
+    const description=modal.querySelector('#new-project-description').value.trim();
+    if(!name||!color){alert("Project name and color are required.");return;}
+    const p={ name, description, color, estimate:parseFloat(modal.querySelector('#new-project-estimate').value)||0, status:'open' };
+    try {
+        await addData('projects', p);
+        closeModal(modal);
+        modal.querySelector('form').reset();
+    } catch (error) {
+        console.error("Error adding project:", error);
+        alert("Could not save the project. Please check the console for errors.");
+    }
+};
+
+const updateDashboardTotalTime=()=>{const el=document.getElementById('dashboard-total-time');if(!el)return;const sD=new Date().setHours(0,0,0,0);let t=tasks.filter(t=>t.endTime>=sD).reduce((s,t)=>s+(t.endTime-t.startTime),0);if(activeTimer){let elapsed;if(activeTimer.isPaused){elapsed=activeTimer.pauseStartTime-activeTimer.startTime-activeTimer.totalPausedTime;}else{elapsed=Date.now()-activeTimer.startTime-activeTimer.totalPausedTime;} t+=elapsed>0?elapsed:0;} el.textContent=formatDuration(t);};
+
+const renderProjectsPage = () => {
+    const listEl = document.getElementById('projects-list');
+    if(!listEl) return;
+    const openProjects = projects.filter(p=>p.status!=='completed');
+    if (openProjects.length > 0) {
+        listEl.innerHTML = openProjects.map(p=>{
+            const timeTodayMs = getTodaysTimeForProjectMs(p.id);
+            return `<div class="project-card" data-project-id="${p.id}" style="border-left-color: ${p.color};">
+                <div class="project-card-info view-project-detail-btn">
+                    <div class="project-card-name">${p.name}</div>
+                    <div class="project-card-time">Today: ${formatDuration(timeTodayMs)}</div>
+                </div>
+                <div class="project-card-action">
+                    <button class="action-btn edit-project-btn"><i data-lucide="pencil" class="w-5 h-5"></i></button>
+                </div>
+            </div>`;
+        }).join('');
+    } else {
+        listEl.innerHTML = `<div class="text-center py-12 text-muted-foreground">
+            <i data-lucide="folder-plus" class="mx-auto h-12 w-12 opacity-50"></i>
+            <h3 class="mt-2 text-sm font-medium">No active projects</h3>
+            <p class="mt-1 text-sm">Click the '+' button above to get started.</p>
+        </div>`;
+    }
+    lucide.createIcons();
+};
+
+const renderTimerPage = () => {
+    const listEl = document.getElementById('timer-list');
+    if(!listEl) return;
+    const openProjects = projects.filter(p=>p.status!=='completed');
+    let sP=[...openProjects];
+    const sortControls = document.querySelector('#page-timer .sort-options');
+    if(sortControls) {
+        const currentSortBtn = sortControls.querySelector('.sort-btn.active');
+        if(currentSortBtn) currentSort = currentSortBtn.dataset.sort;
+    }
+    if(currentSort==='name'){sP.sort((a,b)=>a.name.localeCompare(b.name));}
+    else if(currentSort.startsWith('time')){const direction=currentSort==='time_desc'?-1:1;sP.sort((a,b)=>(getTodaysTimeForProjectMs(b.id)-getTodaysTimeForProjectMs(a.id))*direction);}
+    else{const l={};tasks.forEach(t=>{if(!l[t.projectId]||t.endTime>l[t.projectId])l[t.projectId]=t.endTime;});sP.sort((a,b)=>(l[b.id]||0)-(l[a.id]||0));}
+    if (sP.length > 0) {
+        listEl.innerHTML = sP.map(p => {
+            const timeTodayMs = getTodaysTimeForProjectMs(p.id);
+            return `<div class="project-card" data-project-id="${p.id}" style="border-left-color: ${p.color};">
+                <div class="project-card-info view-project-detail-btn">
+                    <div class="project-card-name">${p.name}</div>
+                </div>
+                <div class="project-card-action flex items-center gap-4">
+                    <span class="font-semibold text-muted-foreground">${formatDuration(timeTodayMs)}</span>
+                    <button class="action-btn start-timer-btn"><i data-lucide="play" class="w-5 h-5"></i></button>
+                </div>
+            </div>`;
+        }).join('');
+    } else {
+         listEl.innerHTML = `<div class="text-center py-12 text-muted-foreground">
+            <i data-lucide="folder-search" class="mx-auto h-12 w-12 opacity-50"></i>
+            <h3 class="mt-2 text-sm font-medium">No projects to track</h3>
+            <p class="mt-1 text-sm">Go to the 'Projects' page to add a new project.</p>
+        </div>`;
+    }
+    lucide.createIcons();
+};
+
+const renderSessionPage = () => {
+    const contentEl = document.getElementById('session-view-content');
+    if (!activeTimer) { contentEl.innerHTML = `<p class="text-center text-muted-foreground p-8">No active session.</p>`; return; }
+    const project = projects.find(p => p.id === activeTimer.projectId);
+    if (!project) { contentEl.innerHTML = `<p class="text-center text-muted-foreground p-8">Error: Project not found.</p>`; return; }
+    let elapsed = activeTimer.isPaused ? activeTimer.pauseStartTime - activeTimer.startTime - activeTimer.totalPausedTime : Date.now() - activeTimer.startTime - activeTimer.totalPausedTime;
+    const liveDisplayTime = formatTime(elapsed > 0 ? elapsed : 0);
+    const startTime = new Date(activeTimer.startTime);
+    const startTimeString = startTime.toTimeString().slice(0,5);
+
+    const tasksHTML = activeTimer.sessionTasks.map(task => {
+        return `
+        <div class="task-item" data-predefined-task-id="${task.predefinedTaskId}">
+            <input type="checkbox" class="session-task-checkbox" ${task.completed ? 'checked' : ''}>
+            <span class="flex-grow ${task.completed ? 'line-through text-muted-foreground' : ''}">${task.description}</span>
+        </div>
+    `}).join('');
+
+    contentEl.innerHTML = `
+        <div class="bg-card p-4 rounded-xl border border-border mb-4">
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <label class="text-sm font-medium text-muted-foreground">Start Time</label>
+                    <input type="time" id="session-start-time" value="${startTimeString}" class="bg-transparent font-bold text-lg p-1 rounded-md focus:bg-card-secondary">
+                </div>
+                <div class="text-right">
+                    <div id="session-timer-display" class="text-3xl font-bold" style="color: ${activeTimer.isPaused ? 'var(--warning)' : 'var(--success)'};">${liveDisplayTime}</div>
+                </div>
             </div>
-            <form id="auth-form">
-                <div id="display-name-field" class="hidden mb-4">
-                    <label for="display-name" class="block text-sm font-medium text-muted-foreground mb-1">Display Name</label>
-                    <input type="text" id="display-name" class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border">
-                </div>
-                <div class="mb-4">
-                    <label for="email" class="block text-sm font-medium text-muted-foreground mb-1">Email</label>
-                    <input type="email" id="email" class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border" required>
-                </div>
-                <div class="mb-6">
-                    <label for="password" class="block text-sm font-medium text-muted-foreground mb-1">Password</label>
-                    <input type="password" id="password" class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border" required>
-                </div>
-                <button id="auth-submit-btn" type="submit" class="w-full text-white font-semibold py-2.5 px-6 rounded-lg shadow-lg hover:opacity-90 transition-opacity" style="background-color: var(--primary-accent);">
-                    Sign In
+            <div class="flex gap-2">
+                <button id="session-pause-resume-btn" class="flex-1 text-center py-3 px-4 rounded-lg font-semibold text-white flex items-center justify-center gap-2" style="background-color: var(--warning);">
+                    <i data-lucide="${activeTimer.isPaused ? 'play' : 'pause'}"></i>
+                    <span>${activeTimer.isPaused ? 'Resume' : 'Pause'}</span>
                 </button>
-                <div id="auth-loader" class="hidden mt-4 flex justify-center">
-                    <div class="spinner"></div>
-                </div>
+                <button id="session-stop-btn" class="flex-1 text-center py-3 px-4 rounded-lg font-semibold text-white flex items-center justify-center gap-2" style="background-color: var(--danger);">
+                    <i data-lucide="stop-circle"></i>
+                    <span>Stop & Save</span>
+                </button>
+            </div>
+        </div>
+        <div class="bg-card p-4 rounded-xl border border-border mb-4">
+            <h3 class="font-semibold mb-2">Session Tasks</h3>
+            <div id="session-task-list">${tasksHTML || '<p class="text-sm text-muted-foreground py-2">No predefined tasks for this project.</p>'}</div>
+            <form id="add-session-task-form" class="flex gap-2 mt-3 pt-3 border-t border-border">
+                <input type="text" id="new-session-task-desc" class="flex-grow p-2 text-sm border rounded-md bg-card-secondary border-input-border" placeholder="Add a new task...">
+                <button type="submit" class="btn-primary-sm flex-shrink-0">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                </button>
             </form>
-            <p class="text-center text-sm text-muted-foreground mt-6">
-                <span id="auth-prompt-text">Don't have an account?</span>
-                <button id="auth-toggle-btn" class="font-semibold text-primary-accent hover:underline">Sign Up</button>
-            </p>
         </div>
-    </div>
-    
-    <div id="app-container" class="hidden">
-        <nav id="bottom-nav" class="bottom-nav">
-            <div class="app-title">
-                <div class="app-icon"><i data-lucide="gem" class="w-4 h-4"></i></div>
-                time
-            </div>
-            <div id="page-date" class="page-date"></div>
-
-            <div class="nav-links">
-                 <button data-page="page-timer" class="nav-btn nav-item active">
-                    <i data-lucide="timer" class="w-5 h-5"></i>
-                    <span>Timer</span>
-                </button>
-                <button data-page="page-projects" class="nav-btn nav-item">
-                    <i data-lucide="layout-grid" class="w-5 h-5"></i>
-                    <span>Projects</span>
-                </button>
-                <button data-page="page-tasks" class="nav-btn nav-item">
-                    <i data-lucide="check-square" class="w-5 h-5"></i>
-                    <span>Tasks</span>
-                </button>
-                <button data-page="page-notes" class="nav-btn nav-item">
-                   <i data-lucide="notebook" class="w-5 h-5"></i>
-                   <span>Notes</span>
-                </button>
-                <button data-page="page-reports" class="nav-btn nav-item">
-                    <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
-                    <span>Reports</span>
-                </button>
-                <button data-page="page-goals" class="nav-btn nav-item">
-                   <i data-lucide="award" class="w-5 h-5"></i>
-                   <span>Goals</span>
-                </button>
-            </div>
-        </nav>
-
-        <div class="main-column">
-            <header class="app-header">
-                <div class="app-header-top">
-                    <div class="app-title">
-                        <div class="app-icon"><i data-lucide="gem" class="w-4 h-4"></i></div>
-                        time
-                    </div>
-                    <div class="header-actions">
-                         <div id="user-info" class="flex items-center gap-2 mr-2 hidden">
-                            <img id="user-avatar-header" class="w-7 h-7 rounded-full">
-                            <span id="user-name-header" class="text-sm font-medium hidden sm:block"></span>
-                         </div>
-                        <button id="settings-btn" class="header-btn"><i data-lucide="settings" class="w-5 h-5"></i></button>
-                    </div>
-                </div>
-                <div class="page-header">
-                    <div class="page-info">
-                        <h1 id="page-title">Timer</h1>
-                    </div>
-                    <button id="add-btn-header" class="header-btn"><i data-lucide="plus" class="w-6 h-6"></i></button>
-                </div>
-            </header>
-
-            <main>
-                <div id="page-timer" class="page active">
-                    <div class="main-content">
-                        <div class="controls">
-                             <div class="sort-options">
-                                <span class="sort-label">Sort</span>
-                                <button data-sort="latest" class="sort-btn active">Recent</button>
-                                <button data-sort="name" class="sort-btn">Name</button>
-                                <button data-sort="time" data-dir="desc" class="sort-btn inline-flex items-center gap-1">Time <span class="sort-arrow"></span></button>
-                            </div>
-                             <div class="today-time">Today: <b id="dashboard-total-time">0m</b></div>
-                        </div>
-                        <div id="timer-list" class="timer-list project-card-list"></div>
-                    </div>
-                </div>
-                <div id="page-projects" class="page">
-                     <div class="main-content">
-                        <div id="projects-list" class="project-card-list"></div>
-                        <div class="completed-link">
-                            <button id="view-completed-projects-btn">View Completed Projects</button>
-                        </div>
-                    </div>
-                </div>
-                 
-                <div id="page-tasks" class="page"><div id="tasks-content" class="main-content"></div></div>
-                <div id="page-notes" class="page"><div id="notes-content" class="main-content"></div></div>
-                <div id="page-reports" class="page"><div id="reports-content" class="main-content"></div></div>
-                <div id="page-goals" class="page"><div id="goals-content" class="main-content"></div></div>
-                <div id="page-settings" class="page"><div id="settings-content" class="main-content"></div></div>
-                <div id="page-session" class="page"><div id="session-view-content" class="p-4"></div></div>
-                <div id="page-detail" class="page"><div id="detail-view-content" class="main-content"></div></div>
-                <div id="page-goal-detail" class="page"><div id="goal-detail-content" class="main-content"></div></div>
-                <div id="page-completed-projects" class="page"><div id="completed-projects-content" class="main-content"></div></div>
-            </main>
+        <div id="session-notes-container" class="bg-card p-4 rounded-xl border border-border space-y-3">
+            <h3 class="font-semibold">Notes & Tags</h3>
+            <textarea id="session-notes" class="w-full p-2 text-sm border rounded-md bg-card-secondary border-input-border" placeholder="Add notes...">${activeTimer.notes || ''}</textarea>
+            <input type="text" id="session-tags" class="w-full p-2 text-sm border rounded-md bg-card-secondary border-input-border" placeholder="Add tags... (comma-separated)" value="${(activeTimer.tags || []).join(', ')}">
         </div>
-    </div>
+    `;
+    lucide.createIcons();
+};
 
-    <div id="modal-backdrop" class="modal-backdrop hidden"></div>
-    <div id="add-project-modal" class="modal hidden w-11/12 max-w-md">
-         <form id="add-project-form" class="bg-[var(--card)] rounded-lg shadow-xl border border-[var(--border)] p-6 space-y-4">
-            <h2 class="text-xl font-bold" style="color:var(--primary-accent);">New Project</h2>
-            <div>
-                <label for="new-project-name" class="block text-sm font-medium text-muted-foreground mb-1">Project Name</label>
-                <input type="text" id="new-project-name" class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border" placeholder="e.g., Q4 Marketing Campaign" required>
-            </div>
-             <div>
-                <label for="new-project-description" class="block text-sm font-medium text-muted-foreground mb-1">Description</label>
-                <textarea id="new-project-description" rows="2" class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border" placeholder="Brief project description..."></textarea>
-            </div>
-            <div>
-                 <label class="block text-sm font-medium text-muted-foreground mb-2">Color</label>
-                 <div id="color-palette" class="flex flex-wrap gap-3"></div>
-                 <input type="hidden" id="new-project-color">
-            </div>
-             <div>
-                <label for="new-project-estimate" class="block text-sm font-medium text-muted-foreground mb-1">Time Estimate (hours)</label>
-                <input type="number" id="new-project-estimate" step="0.1" min="0" class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border" placeholder="e.g., 40">
-            </div>
-            <div class="flex justify-end gap-3 pt-4 border-t border-border">
-                <button type="button" id="cancel-add-project-btn" class="px-5 py-2 text-base font-semibold rounded-lg hover:bg-card-secondary">Cancel</button>
-                <button type="submit" id="save-project-btn" class="px-5 py-2 text-base font-semibold text-white rounded-lg" style="background-color: var(--primary-accent);">Save Project</button>
-            </div>
-        </form>
-    </div>
-    <div id="add-predefined-task-modal" class="modal hidden w-11/12 max-w-md">
-         <form id="add-predefined-task-form" class="bg-[var(--card)] rounded-lg shadow-xl border border-[var(--border)] p-6 space-y-4">
-            <h2 id="predefined-task-modal-title" class="text-xl font-bold">New Task</h2>
-            <input type="hidden" id="predefined-task-id">
-            <div>
-                <label for="predefined-task-desc" class="block text-sm font-medium text-muted-foreground mb-1">Task Name / Description</label>
-                <input type="text" id="predefined-task-desc" class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border" required>
-            </div>
-            <div>
-                <label for="predefined-task-project" class="block text-sm font-medium text-muted-foreground mb-1">Project</label>
-                <select id="predefined-task-project" class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border"></select>
-            </div>
-             <div>
-                <label for="predefined-task-goal" class="block text-sm font-medium text-muted-foreground mb-1">Associated Goal</label>
-                <select id="predefined-task-goal" class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border"></select>
-            </div>
-            <div>
-                <label for="predefined-task-due-date" class="block text-sm font-medium text-muted-foreground mb-1">Due Date</label>
-                <input type="date" id="predefined-task-due-date" class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border">
-            </div>
-             <div>
-                <label for="predefined-task-notes" class="block text-sm font-medium text-muted-foreground mb-1">Notes</label>
-                <textarea id="predefined-task-notes" rows="2" class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border"></textarea>
-            </div>
-             <div>
-                <label for="predefined-task-tags" class="block text-sm font-medium text-muted-foreground mb-1">Tags (comma separated)</label>
-                <input type="text" id="predefined-task-tags" class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border">
-            </div>
-            <div class="flex justify-end gap-3 pt-4 border-t border-border">
-                <button type="button" id="cancel-add-predefined-task-btn" class="px-5 py-2 text-base font-semibold rounded-lg hover:bg-card-secondary">Cancel</button>
-                <button type="submit" class="px-5 py-2 text-base font-semibold text-white rounded-lg" style="background-color: var(--primary-accent);">Save Task</button>
-            </div>
-        </form>
-    </div>
-    <div id="add-goal-modal" class="modal hidden w-11/12 max-w-lg">
-        <form id="add-goal-form" class="bg-[var(--card)] rounded-lg shadow-xl border border-[var(--border)] p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-            <h2 id="goal-modal-title" class="text-xl font-bold">New S.M.A.R.T. Goal</h2>
-            <input type="hidden" id="goal-id">
-            <div>
-                <label for="goal-title" class="block text-sm font-medium text-muted-foreground mb-1">Goal Title</label>
-                <input type="text" id="goal-title" placeholder="e.g., Increase Q3 Sales by 15%" class="w-full p-2 border border-input-border rounded-md bg-card-secondary text-foreground" required>
-            </div>
-            <div>
-                <label for="goal-category" class="block text-sm font-medium text-muted-foreground mb-1">Category</label>
-                <input type="text" id="goal-category" placeholder="e.g., Professional Development" class="w-full p-2 border border-input-border rounded-md bg-card-secondary text-foreground">
-            </div>
-            <div>
-                <label for="goal-description" class="block text-sm font-medium text-muted-foreground mb-1">Short Description</label>
-                <textarea id="goal-description" rows="2" placeholder="A brief summary for the main goals page..." class="w-full p-2 border border-input-border rounded-md bg-card-secondary text-foreground"></textarea>
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label for="goal-fy" class="block text-sm font-medium text-muted-foreground mb-1">Fiscal Year</label>
-                    <select id="goal-fy" class="w-full p-2 border border-input-border rounded-md bg-card-secondary text-foreground"></select>
+const renderProjectDetailPage = () => {
+    const contentEl = document.getElementById('detail-view-content');
+    if (!currentDetailProjectId) { contentEl.innerHTML = `<p class="text-center text-muted-foreground">Project not found.</p>`; return; }
+    const p = projects.find(proj => proj.id === currentDetailProjectId);
+    if (!p) { contentEl.innerHTML = `<p class="text-center text-muted-foreground">Project not found.</p>`; return; }
+    const statusRadios=`<div class="flex items-center gap-6 mt-4"><p class="text-sm font-medium text-muted-foreground">Status:</p><div class="flex items-center gap-4"><label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="project-status" value="open" class="project-status-radio" ${p.status!=='completed'?'checked':''}> Open</label><label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="project-status" value="completed" class="project-status-radio" ${p.status==='completed'?'checked':''}> Completed</label></div></div>`;
+    contentEl.innerHTML = `
+        <div id="project-detail-view-mode">
+            <button class="back-to-projects-btn font-semibold text-primary-accent hover:underline mb-4">&larr; Back to Projects</button>
+            <div class="bg-card p-4 rounded-xl border mb-4">
+                <div class="flex justify-between items-start">
+                    <h2 class="text-2xl font-bold mb-2">${p.name}</h2>
+                    <button id="edit-project-btn-detail" class="action-btn"><i data-lucide="pencil" class="w-5 h-5"></i></button>
                 </div>
-                 <div>
-                    <label for="goal-quarter" class="block text-sm font-medium text-muted-foreground mb-1">Quarter</label>
-                    <select id="goal-quarter" class="w-full p-2 border border-input-border rounded-md bg-card-secondary text-foreground">
-                        <option>Q1</option><option>Q2</option><option>Q3</option><option>Q4</option>
-                    </select>
-                </div>
+                <p class="text-sm text-muted-foreground mb-4">${p.description||'No description.'}</p>
+                ${statusRadios}
             </div>
-             <div>
-                <label for="goal-status" class="block text-sm font-medium text-muted-foreground mb-1">Status</label>
-                <select id="goal-status" class="w-full p-2 border border-input-border rounded-md bg-card-secondary text-foreground">
-                    <option>Not started</option>
-                    <option>In progress</option>
-                    <option>Blocked</option>
-                    <option>Completed</option>
-                </select>
-            </div>
-             <div>
-                <label for="goal-specific" class="block text-sm font-medium text-muted-foreground mb-1">(S)pecific</label>
-                <textarea id="goal-specific" placeholder="What exactly do you want to accomplish?" class="w-full p-2 border border-input-border rounded-md h-20 bg-card-secondary text-foreground"></textarea>
-            </div>
-             <div>
-                <label for="goal-measurable" class="block text-sm font-medium text-muted-foreground mb-1">(M)easurable</label>
-                <textarea id="goal-measurable" placeholder="How will you measure progress?" class="w-full p-2 border border-input-border rounded-md h-20 bg-card-secondary text-foreground"></textarea>
-            </div>
-             <div>
-                <label for="goal-achievable" class="block text-sm font-medium text-muted-foreground mb-1">(A)chievable</label>
-                <textarea id="goal-achievable" placeholder="Is this goal realistic and attainable?" class="w-full p-2 border border-input-border rounded-md h-20 bg-card-secondary text-foreground"></textarea>
-            </div>
-             <div>
-                <label for="goal-relevant" class="block text-sm font-medium text-muted-foreground mb-1">(R)elevant</label>
-                <textarea id="goal-relevant" placeholder="Why is this goal important?" class="w-full p-2 border border-input-border rounded-md h-20 bg-card-secondary text-foreground"></textarea>
-            </div>
-            <div>
-                <label for="goal-timebound" class="block text-sm font-medium text-muted-foreground mb-1">(T)ime-bound</label>
-                <textarea id="goal-timebound" placeholder="What is the deadline?" class="w-full p-2 border border-input-border rounded-md h-20 bg-card-secondary text-foreground"></textarea>
-            </div>
-            <div class="flex justify-end gap-3 pt-4 border-t border-border">
-                <button type="button" id="cancel-add-goal-btn" class="px-5 py-2 text-base font-semibold rounded-lg hover:bg-card-secondary">Cancel</button>
-                <button type="submit" class="px-5 py-2 text-base w-full text-white font-semibold rounded-md" style="background-color: var(--primary-accent);">Save Goal</button>
-            </div>
-        </form>
-    </div>
-    
-    <div id="add-note-modal" class="modal hidden w-11/12 max-w-lg">
-        <form id="add-note-form" class="bg-[var(--card)] rounded-lg shadow-xl border border-[var(--border)] p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-            <h2 id="note-modal-title" class="text-xl font-bold">New Note</h2>
-            <input type="hidden" id="note-id">
-            <div>
-                <label for="note-title" class="block text-sm font-medium text-muted-foreground mb-1">Title</label>
-                <input type="text" id="note-title" placeholder="e.g., Q4 Planning Meeting" class="w-full p-2 border border-input-border rounded-md bg-card-secondary text-foreground" required>
-            </div>
-            <div>
-                <label for="note-content" class="block text-sm font-medium text-muted-foreground mb-1">Content</label>
-                <textarea id="note-content" rows="8" placeholder="Write your note here..." class="w-full p-2 border border-input-border rounded-md bg-card-secondary text-foreground"></textarea>
-            </div>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label for="note-projects" class="block text-sm font-medium text-muted-foreground mb-1">Tag Projects</label>
-                    <select id="note-projects" multiple class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border h-32">
-                        </select>
-                </div>
-                <div>
-                    <label for="note-tasks" class="block text-sm font-medium text-muted-foreground mb-1">Tag Tasks</label>
-                    <select id="note-tasks" multiple class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border h-32">
-                        </select>
-                </div>
-            </div>
-            
-            <div class="flex justify-end gap-3 pt-4 border-t border-border">
-                <button type="button" id="cancel-add-note-btn" class="px-5 py-2 text-base font-semibold rounded-lg hover:bg-card-secondary">Cancel</button>
-                <button type="submit" class="px-5 py-2 text-base w-full text-white font-semibold rounded-md" style="background-color: var(--primary-accent);">Save Note</button>
-            </div>
-        </form>
-    </div>
-    
-     <div id="name-session-modal" class="modal hidden w-11/12 max-w-md">
-         <form id="name-session-form" class="bg-[var(--card)] rounded-lg shadow-xl border border-[var(--border)] p-6 space-y-4">
-            <h2 class="text-xl font-bold" style="color:var(--primary-accent);">Start New Session</h2>
-             <input type="hidden" id="session-project-id">
-            <div>
-                <label for="session-name" class="block text-sm font-medium text-muted-foreground mb-1">Session Name</label>
-                <input type="text" id="session-name" class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border" placeholder="e.g., Initial design mockups" required>
-            </div>
-            <div class="flex justify-end gap-3 pt-4 border-t border-border">
-                <button type="button" id="cancel-name-session-btn" class="px-5 py-2 text-base font-semibold rounded-lg hover:bg-card-secondary">Cancel</button>
-                <button type="submit" class="px-5 py-2 text-base font-semibold text-white rounded-lg" style="background-color: var(--primary-accent);">Start Timer</button>
-            </div>
-        </form>
-    </div>
-    <div id="guide-modal" class="modal hidden w-11/12 max-w-2xl">
-        <div class="bg-[var(--card)] rounded-lg shadow-xl border border-[var(--border)] p-6 max-h-[80vh] overflow-y-auto">
-            <div id="guide-content"></div>
-            <button id="close-guide-btn" class="mt-4 w-full px-4 py-2 font-semibold rounded-lg bg-card-secondary hover:bg-border">Close</button>
         </div>
-    </div>
-    <div id="manual-entry-modal" class="modal hidden w-11/12 max-w-md">
-         <form id="manual-entry-form" class="bg-[var(--card)] rounded-lg shadow-xl border border-[var(--border)] p-6 space-y-4">
-            <h2 id="manual-entry-title" class="text-xl font-bold">Add Manual Time Entry</h2>
-            <input type="hidden" id="manual-entry-task-id">
+        <div id="project-detail-edit-mode" class="hidden bg-card p-4 rounded-xl border mb-4 space-y-3">
+            <h2 class="text-xl font-bold">Edit Project</h2>
             <div>
-                <label for="manual-entry-project" class="block text-sm font-medium text-muted-foreground mb-1">Project</label>
-                <select id="manual-entry-project" class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border" required></select>
+                <label class="block text-sm font-medium text-muted-foreground mb-1">Project Name</label>
+                <input type="text" id="edit-project-name" class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border" value="${p.name}">
             </div>
             <div>
                 <label class="block text-sm font-medium text-muted-foreground mb-1">Description</label>
-                <input type="text" id="manual-entry-desc" class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border" required>
+                <textarea id="edit-project-description" rows="2" class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border">${p.description||''}</textarea>
             </div>
             <div>
-                <label class="block text-sm font-medium text-muted-foreground mb-1">Date</label>
-                <input type="date" id="manual-entry-date" class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border" required>
+                <label class="block text-sm font-medium text-muted-foreground mb-2">Color</label>
+                <div id="edit-color-palette" class="flex flex-wrap gap-2"></div>
+                <input type="hidden" id="edit-project-color" value="${p.color}">
             </div>
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-muted-foreground mb-1">Start Time</label>
-                    <input type="time" id="manual-entry-start" class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border" required>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-muted-foreground mb-1">End Time</label>
-                    <input type="time" id="manual-entry-end" class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border" required>
-                </div>
+            <div>
+                <label class="block text-sm font-medium text-muted-foreground mb-1">Time Estimate (hours)</label>
+                <input type="number" id="edit-project-estimate" placeholder="Estimate (hrs)" value="${p.estimate||''}" class="w-full p-2 border rounded-md text-sm bg-card-secondary">
             </div>
-             <div>
-                <label class="block text-sm font-medium text-muted-foreground mb-1">Notes</label>
-                <textarea id="manual-entry-notes" rows="4" class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border" placeholder="Add notes here..."></textarea>
-            </div>
-            <div class="flex justify-end gap-3 pt-4 border-t">
-                <button type="button" id="cancel-manual-entry-btn" class="px-5 py-2 text-base font-semibold rounded-lg hover:bg-card-secondary">Cancel</button>
-                <button type="submit" class="px-5 py-2 text-base font-semibold text-white rounded-lg" style="background-color: var(--primary-accent);">Save Entry</button>
-            </div>
-        </form>
-    </div>
-    <div id="confirmation-modal" class="modal hidden w-11/12 max-w-sm">
-        <div class="bg-[var(--card)] rounded-lg shadow-xl border border-[var(--border)] p-6 space-y-4">
-            <h2 id="confirmation-title" class="text-lg font-bold">Leave Session?</h2>
-            <p id="confirmation-message" class="text-sm text-muted-foreground">Your timer is running. Leaving this page will stop and save your current session.</p>
-            <div class="flex justify-end gap-3 pt-4">
-                <button type="button" id="cancel-confirmation-btn" class="px-5 py-2 text-base font-semibold rounded-lg hover:bg-card-secondary">Cancel</button>
-                <button type="button" id="confirm-navigation-btn" class="px-5 py-2 text-base font-semibold text-white rounded-lg" style="background-color: var(--danger);">Stop & Leave</button>
+            <div class="flex justify-end gap-2 pt-2">
+                <button id="cancel-edit-project-btn" class="px-4 py-2 font-semibold rounded-lg hover:bg-card-secondary">Cancel</button>
+                <button id="save-updated-project-btn" class="px-4 py-2 font-semibold rounded-lg text-white" style="background:var(--primary-accent)">Save</button>
             </div>
         </div>
-    </div>
-     <div id="notes-view-modal" class="modal hidden w-11/12 max-w-md">
-        <div class="bg-[var(--card)] rounded-lg shadow-xl border border-[var(--border)] p-6 space-y-4">
-            <h2 class="text-xl font-bold">Session Notes</h2>
-            <div id="notes-view-content" class="text-sm text-muted-foreground whitespace-pre-wrap max-h-60 overflow-y-auto"></div>
-            <button id="close-notes-view-btn" class="mt-4 w-full px-4 py-2 font-semibold rounded-lg bg-card-secondary hover:bg-border">Close</button>
-        </div>
-    </div>
-    
-    <template id="notes-page-template">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-            <div class="relative flex-grow">
-                <input type="search" id="note-search-input" placeholder="Search notes..." class="w-full p-2 pl-10 border rounded-md text-sm bg-card-secondary text-foreground border-input-border">
-                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"></i>
-            </div>
-        </div>
-        <div id="notes-list" class="space-y-4">
-            </div>
-    </template>
-    
-    <template id="goals-page-template">
-        <div id="goals-list" class="space-y-6"></div>
-    </template>
-    <template id="tasks-page-template">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-            <div class="relative flex-grow">
-                <input type="search" id="task-search-input" placeholder="Search tasks..." class="w-full p-2 pl-10 border rounded-md text-sm bg-card-secondary text-foreground border-input-border">
-                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"></i>
-            </div>
-            <div class="flex items-center justify-end gap-3">
-                <label for="show-completed-tasks-toggle" class="text-sm font-medium text-muted-foreground">Show Completed</label>
-                <label for="show-completed-tasks-toggle" class="flex items-center cursor-pointer">
-                    <div class="relative">
-                        <input type="checkbox" id="show-completed-tasks-toggle" class="sr-only toggle-checkbox">
-                        <div class="block bg-gray-300 dark:bg-gray-600 w-12 h-6 rounded-full"></div>
-                        <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition"></div>
-                    </div>
-                </label>
-            </div>
-        </div>
-
-        <div id="todays-tasks-container" class="mb-8">
-            <h2 class="text-xl font-bold mb-3">Due Today</h2>
-            <div id="todays-tasks-list" class="space-y-2"></div>
-        </div>
-
-        <div id="other-tasks-container">
-            <h2 class="text-xl font-bold mb-3">All Tasks</h2>
-            <div id="predefined-tasks-list" class="space-y-4"></div>
-        </div>
-    </template>
-
-   <template id="reports-page-template">
-    <div class="space-y-4">
-        <div class="bg-card p-4 rounded-xl border space-y-4">
-            <div class="p-1 bg-card-secondary rounded-xl flex text-center text-sm font-semibold reports-controls">
-                <button data-period="day" class="reports-filter-btn period-btn flex-1 py-2 px-4 rounded-lg">Day</button>
-                <button data-period="week" class="reports-filter-btn period-btn flex-1 py-2 px-4 rounded-lg">Week</button>
-                <button data-period="month" class="reports-filter-btn period-btn flex-1 py-2 px-4 rounded-lg">Month</button>
-                <button data-period="custom" class="reports-filter-btn period-btn flex-1 py-2 px-4 rounded-lg">Custom</button>
-            </div>
-            <div id="reports-day-picker-container" class="flex items-center gap-2">
-                 <label for="reports-day-picker" class="font-semibold text-sm">Date:</label>
-                 <input type="date" id="reports-day-picker" class="p-2 border rounded-md text-sm bg-card-secondary border-input-border w-full">
-            </div>
-            <div id="custom-date-range-container" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <div>
-                    <label for="reports-start-date" class="block text-xs font-medium text-muted-foreground mb-1">Start Date</label>
-                    <input type="date" id="reports-start-date" class="p-2 border rounded-md text-sm bg-card-secondary border-input-border w-full">
-                </div>
-                <div>
-                    <label for="reports-end-date" class="block text-xs font-medium text-muted-foreground mb-1">End Date</label>
-                    <input type="date" id="reports-end-date" class="p-2 border rounded-md text-sm bg-card-secondary border-input-border w-full">
-                </div>
-            </div>
-        </div>
-
-        <div id="daily-visualizer-container" class="bg-card p-4 rounded-xl border">
-            <h3 class="font-semibold text-center mb-4">Daily Activity Visualizer</h3>
-            <div class="relative mx-auto" style="width: 300px; height: 300px;">
-                <canvas id="daily-activity-chart"></canvas>
-            </div>
-            <div id="chart-legend" class="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-4 text-xs"></div>
-        </div>
-
         <div class="bg-card p-4 rounded-xl border">
-            <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2 mb-4">
-                <div>
-                     <h3 id="summary-title" class="text-lg font-bold">Summary for Today</h3>
-                     <p class="text-xs text-muted-foreground">Total Logged: <span id="reports-total-time" class="font-bold">0m</span></p>
+            <h3 class="font-semibold mb-2">Time Entries</h3>
+            <div id="detail-entries-list" class="space-y-3"></div>
+        </div>
+    `;
+    renderProjectEntries(currentDetailProjectId);
+    lucide.createIcons();
+};
+
+const renderProjectEntries = (projectId) => {
+    const listEl = document.getElementById('detail-entries-list');
+    if(!listEl) return;
+
+    let projectTasks = tasks.filter(t => t.projectId === projectId);
+
+    if (detailViewFilter === 'today') {
+        const startOfDay = new Date().setHours(0, 0, 0, 0);
+        projectTasks = projectTasks.filter(t => t.startTime >= startOfDay);
+    }
+
+    projectTasks.sort((a,b) => b.startTime - a.startTime);
+
+    listEl.innerHTML = projectTasks.length > 0
+        ? projectTasks.map(t => createTaskEntryHTML(t)).join('')
+        : `<p class="text-sm text-muted-foreground">No time entries recorded for ${detailViewFilter === 'today' ? 'today' : 'this project'}.</p>`;
+
+    lucide.createIcons();
+};
+
+const createTaskEntryHTML = (task) => {
+    const startTime = new Date(task.startTime), endTime = new Date(task.endTime);
+    const duration = formatDuration(endTime - startTime);
+    const dateStr = startTime.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    const timeStr = `${startTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - ${endTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+    return `<div class="task-entry bg-card p-3 rounded-lg border" data-task-id="${task.id}">
+        <div class="view-mode">
+            <div class="flex justify-between items-start">
+                <div class="flex-grow">
+                    <p class="font-semibold">${task.description}</p>
+                    <p class="text-sm text-muted-foreground whitespace-pre-wrap">${task.notes || 'No notes'}</p>
+                    <div class="text-sm text-muted-foreground mt-2">${dateStr} &bull; ${timeStr}</div>
                 </div>
-                <div id="reports-summary-controls">
-                     <div class="sort-options text-sm">
-                        <span class="sort-label">Sort By</span>
-                        <button data-sort="time" class="sort-btn active">Time</button>
-                        <button data-sort="project" class="sort-btn">Project</button>
+                <div class="flex items-start pt-1 gap-1 ml-2 flex-shrink-0">
+                    <span class="font-semibold text-base mr-2">${duration}</span>
+                    <button class="edit-task-btn action-btn h-8 w-8"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+                    <button class="delete-task-btn action-btn h-8 w-8"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>`;
+};
+
+const renderSettingsPage=()=>{
+    const template = document.getElementById('settings-template'); if (!template) return;
+    const user = auth.currentUser;
+    const content=template.content.cloneNode(true);
+    document.getElementById('settings-content').innerHTML='';
+    document.getElementById('settings-content').appendChild(content);
+    if (user) {
+        document.getElementById('user-avatar').src = user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || user.email)}&background=random`;
+        document.getElementById('user-name').textContent = user.displayName || user.email;
+    }
+    dom.darkModeToggle=document.getElementById('dark-mode-toggle');
+    dom.importFileInput=document.getElementById('import-file-input');
+    dom.csvDateStart=document.getElementById('csv-date-start');
+    dom.csvDateEnd=document.getElementById('csv-date-end');
+    applyTheme(localStorage.getItem('theme')||'light');
+    document.getElementById('detected-time-zone').textContent=Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const savedTheme=localStorage.getItem('accentTheme')||'theme-teal';
+    const activeSwatch = document.querySelector(`.accent-swatch[data-theme="${savedTheme}"]`);
+    if (activeSwatch) activeSwatch.classList.add('selected');
+};
+
+const renderGoalsPage=()=>{
+    const template = document.getElementById('goals-page-template'); if (!template) return;
+    const content=template.content.cloneNode(true);
+    const ac=document.getElementById('goals-content');ac.innerHTML='';ac.appendChild(content);const listEl=document.getElementById('goals-list');
+
+    if (goals.length === 0) {
+         listEl.innerHTML = `<div class="text-center py-12 text-muted-foreground">
+            <i data-lucide="award" class="mx-auto h-12 w-12 opacity-50"></i>
+            <h3 class="mt-2 text-sm font-medium">No goals yet</h3>
+            <p class="mt-1 text-sm">Click the '+' button to add a new S.M.A.R.T. goal.</p>
+        </div>`;
+        lucide.createIcons();
+        return;
+    }
+
+    const groupedGoals = goals.reduce((acc, goal) => {
+        const key = goal.category || 'Uncategorized';
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(goal);
+        return acc;
+    }, {});
+
+    const sortedGroups = Object.keys(groupedGoals).sort((a,b) => a.localeCompare(b));
+
+    listEl.innerHTML = sortedGroups.map(group => {
+        const goalItems = groupedGoals[group].map(goal => {
+            const statusClass = (goal.status || 'not-started').toLowerCase().replace(' ', '-');
+            const goalTasks = predefinedTasks.filter(t => t.goalId === goal.id);
+            const tasksHtml = goalTasks.length > 0
+                ? `<div class="goal-tasks-container space-y-2">${goalTasks.map(t => createTaskItemHTML(t)).join('')}</div>`
+                : '<div class="goal-tasks-container text-sm text-muted-foreground">No tasks assigned to this goal.</div>';
+            
+            const descriptionHtml = goal.description ? `<p class="mt-1 text-sm text-muted-foreground">${goal.description}</p>` : '';
+
+            return `<details class="goal-item" data-goal-id="${goal.id}">
+                        <summary>
+                            <div class="flex-grow">
+                                <span class="font-semibold">${goal.title}</span>
+                                ${descriptionHtml}
+                            </div>
+                            <div class="flex items-center gap-4 flex-shrink-0 ml-4">
+                                <span class="status-badge status-${statusClass}">${goal.status || 'Not started'}</span>
+                                <i data-lucide="chevron-down" class="w-4 h-4 transition-transform"></i>
+                            </div>
+                        </summary>
+                        <div class="p-4 bg-card">
+                           <div class="flex justify-between items-center mb-4 text-sm text-muted-foreground">
+                               <span>${goal.fiscalYear} &bull; ${goal.quarter}</span>
+                               <button class="view-goal-detail-btn font-semibold text-primary-accent hover:underline">View Details & Updates &rarr;</button>
+                           </div>
+                           ${tasksHtml}
+                        </div>
+                   </details>`;
+        }).join('');
+        return `<div>
+                    <h2 class="text-lg font-bold my-3">${group}</h2>
+                    <div class="space-y-2">${goalItems}</div>
+                </div>`;
+    }).join('');
+    lucide.createIcons();
+};
+
+const saveGoal=async e=>{
+    e.preventDefault();
+    const modal=document.getElementById('add-goal-modal');
+    const id=modal.querySelector('#goal-id').value;
+    const goalData = {
+        title: modal.querySelector('#goal-title').value,
+        category: modal.querySelector('#goal-category').value.trim() || 'Uncategorized',
+        description: modal.querySelector('#goal-description').value.trim(),
+        fiscalYear: modal.querySelector('#goal-fy').value,
+        quarter: modal.querySelector('#goal-quarter').value,
+        status: modal.querySelector('#goal-status').value,
+        specific: modal.querySelector('#goal-specific').value,
+        measurable: modal.querySelector('#goal-measurable').value,
+        achievable: modal.querySelector('#goal-achievable').value,
+        relevant: modal.querySelector('#goal-relevant').value,
+        timeBound: modal.querySelector('#goal-timebound').value,
+    };
+
+    if(id){
+        await updateData('goals',id, goalData);
+    } else {
+        goalData.updates = [];
+        goalData.status = goalData.status || 'Not started';
+        await addData('goals', goalData);
+    }
+    closeModal(modal);
+};
+
+const saveGoalUpdate = async (e) => {
+    e.preventDefault();
+    const form = document.getElementById('add-goal-update-form');
+    const noteInput = form.querySelector('#goal-update-note');
+    const note = noteInput.value.trim();
+    if (!note || !currentGoalId) return;
+
+    const goal = goals.find(g => g.id === currentGoalId);
+    if (!goal) return;
+
+    const newUpdate = {
+        note: note,
+        status: goal.status,
+        timestamp: Date.now()
+    };
+
+    const updatedUpdates = Array.isArray(goal.updates) ? [...goal.updates, newUpdate] : [newUpdate];
+    
+    await updateData('goals', currentGoalId, { updates: updatedUpdates });
+    noteInput.value = '';
+    
+    const goalFromState = goals.find(g => g.id === currentGoalId);
+    if (goalFromState) {
+        goalFromState.updates = updatedUpdates;
+        renderGoalDetailPage();
+    }
+};
+
+
+const renderTasksPage=()=>{
+    const template = document.getElementById('tasks-page-template'); if (!template) return;
+    const content=template.content.cloneNode(true);
+    const tc=document.getElementById('tasks-content');
+    tc.innerHTML='';
+    tc.appendChild(content);
+
+    const searchInput = document.getElementById('task-search-input');
+    const showCompletedToggle = document.getElementById('show-completed-tasks-toggle');
+
+    searchInput.value = taskSearchTerm;
+    showCompletedToggle.checked = showCompletedTasks;
+
+    searchInput.addEventListener('input', (e) => {
+        taskSearchTerm = e.target.value;
+        renderTasksPage();
+    });
+    showCompletedToggle.addEventListener('change', (e) => {
+        showCompletedTasks = e.target.checked;
+        renderTasksPage();
+    });
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let filteredTasks = [...predefinedTasks];
+
+    if(taskSearchTerm) {
+        filteredTasks = filteredTasks.filter(t => t.description.toLowerCase().includes(taskSearchTerm.toLowerCase()));
+    }
+
+    if(!showCompletedTasks) {
+        filteredTasks = filteredTasks.filter(t => !t.isCompleted || new Date(t.completedDate) >= today);
+    }
+
+    const todaysTasks = filteredTasks.filter(t => t.dueDate && new Date(t.dueDate + 'T00:00:00').toDateString() === new Date().toDateString());
+    const otherTasks = filteredTasks.filter(t => !todaysTasks.includes(t));
+
+    const todaysListEl = document.getElementById('todays-tasks-list');
+    const otherTasksListEl = document.getElementById('predefined-tasks-list');
+
+    if (todaysTasks.length > 0) {
+        todaysListEl.innerHTML = todaysTasks.map(task => createTaskItemHTML(task)).join('');
+    } else {
+        todaysListEl.innerHTML = '<p class="text-sm text-muted-foreground">No tasks due today.</p>';
+    }
+
+    if (otherTasks.length > 0) {
+        const groupedByProject=otherTasks.reduce((acc,task)=>{(acc[task.projectId||'none']=acc[task.projectId||'none']||[]).push(task);return acc;},{});
+        otherTasksListEl.innerHTML=projects.concat({id:'none',name:'General Tasks'}).filter(p=>groupedByProject[p.id]).map(p=>{
+            const projectHeader = p.id === 'none'
+                ? `<h2 class="font-bold text-lg mt-4 mb-2 project-group-header">${p.name}</h2>`
+                : `<h2 class="font-bold text-lg mt-4 mb-2 project-group-header flex items-center gap-2">
+                     <span class="w-3 h-3 rounded-full inline-block" style="background-color:${p.color};"></span>
+                     ${p.name}
+                   </h2>`;
+            return`<div>${projectHeader}<div class="space-y-2">${(groupedByProject[p.id] || []).map(task=>createTaskItemHTML(task)).join('')}</div></div>`
+        }).join('');
+    } else {
+        otherTasksListEl.innerHTML = '<p class="text-center text-muted-foreground py-8">No other tasks found.</p>';
+    }
+
+    lucide.createIcons();
+};
+
+const createTaskItemHTML = (task) => {
+    const goal = goals.find(g => g.id === task.goalId);
+    const dueDateHtml = task.dueDate ? `<p class="text-sm text-muted-foreground">Due: ${new Date(task.dueDate+'T00:00:00').toLocaleDateString()}</p>` : '';
+    const goalHtml = goal ? `<div class="mt-1"><span class="tag bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300">${goal.title}</span></div>` : '';
+    const completedHtml = task.isCompleted && task.completedDate ? `<p class="text-xs text-muted-foreground mt-1">Completed: ${new Date(task.completedDate).toLocaleDateString()}</p>` : '';
+
+    return`<div class="flex items-center bg-card p-3 rounded-lg border" data-task-id="${task.id}">
+        <input type="checkbox" class="predefined-task-checkbox h-5 w-5 rounded border-gray-300 text-primary-accent focus:ring-primary-accent mr-4 flex-shrink-0" ${task.isCompleted?'checked':''}>
+        <div class="flex-grow min-w-0 flex flex-col md:flex-row md:items-center md:justify-between">
+            <div class="flex-grow">
+                <p class="font-medium ${task.isCompleted?'line-through text-gray-500':''}">${task.description}</p>
+                 <div class="md:hidden mt-1">
+                    ${dueDateHtml}
+                    ${goalHtml}
+                    ${completedHtml}
+                </div>
+            </div>
+            <div class="hidden md:flex items-center gap-4 text-sm text-muted-foreground pr-4">
+                ${goal ? `<span class="tag bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300">${goal.title}</span>` : ''}
+                ${task.dueDate ? `<span>Due: ${new Date(task.dueDate+'T00:00:00').toLocaleDateString()}</span>` : ''}
+            </div>
+        </div>
+        <div class="flex items-center">
+            <button class="edit-predefined-task-btn p-2 rounded-md hover:bg-card-secondary"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+            <button class="delete-predefined-task-btn p-2 rounded-md hover:bg-card-secondary"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+        </div>
+    </div>`;
+};
+
+
+const savePredefinedTask=async e=>{
+    e.preventDefault();
+    const modal=document.getElementById('add-predefined-task-modal');
+    const id=modal.querySelector('#predefined-task-id').value;
+    const description=modal.querySelector('#predefined-task-desc').value.trim();
+    if(!description)return;
+    const projectId=modal.querySelector('#predefined-task-project').value||null;
+    const goalId=modal.querySelector('#predefined-task-goal').value||null;
+    const notes=modal.querySelector('#predefined-task-notes').value.trim();
+    const tags=modal.querySelector('#predefined-task-tags').value.split(',').map(t=>t.trim()).filter(Boolean);
+    const dueDate=modal.querySelector('#predefined-task-due-date').value;
+    const taskData={description,projectId,notes,tags,dueDate:dueDate||null, goalId};
+    if(id){ await updateData('predefinedTasks',id, taskData); }
+    else{ await addData('predefinedTasks',{...taskData,isCompleted:false,completedDate:null}); }
+    closeModal(modal);
+};
+const renderCompletedProjectsPage=()=>{const completedProjects=projects.filter(p=>p.status==='completed');const contentEl=document.getElementById('completed-projects-content');contentEl.innerHTML=`<div class="flex items-center justify-between mb-6"><button class="back-to-projects-btn font-semibold text-primary-accent hover:underline">&larr; Back to Projects</button></div><div class="space-y-2">${completedProjects.length>0?completedProjects.map(p=>`<div class="bg-card p-3 rounded-lg border flex items-center justify-between"><div class="flex items-center space-x-3"><span class="w-3 h-3 rounded-full" style="background-color:${p.color};"></span><button class="font-semibold completed-project-link hover:underline" data-project-id="${p.id}">${p.name}</button></div></div>`).join(''):'<p class="text-center text-muted-foreground py-8 col-span-full">No completed projects.</p>'}</div>`;};
+const saveManualEntry=async e=>{
+    e.preventDefault();
+    const modal=document.getElementById('manual-entry-modal');
+    const id=modal.querySelector('#manual-entry-task-id').value;
+    const pId=modal.querySelector('#manual-entry-project').value;
+    const desc=document.getElementById('manual-entry-desc').value,date=document.getElementById('manual-entry-date').value,start=document.getElementById('manual-entry-start').value,end=document.getElementById('manual-entry-end').value,notes=document.getElementById('manual-entry-notes').value;
+    if(!desc||!date||!start||!end||!pId)return;
+    const startTime=new Date(`${date}T${start}`).getTime(),endTime=new Date(`${date}T${end}`).getTime();
+    if(startTime>=endTime)return;
+    const taskData={projectId:pId,description:desc,notes,startTime,endTime,tags:[]};
+    if(id){ await updateData('tasks',id, taskData); }
+    else{ await addData('tasks',taskData); }
+    closeModal(modal);
+};
+const showUserGuide=()=>{document.getElementById('guide-content').innerHTML=`<h2 class="text-2xl font-bold mb-4">Welcome to time!</h2><div class="prose dark:prose-invert max-w-none space-y-4 text-foreground"><p>This guide explains the features to help you track time effectively.</p><h3 class="font-semibold">1. Projects Page</h3><p>Use the '+' button to create a new project. Click the pencil icon on any project to edit its details or see its history.</p><h3 class="font-semibold">2. Timer Page</h3><p>This is your main dashboard for tracking time. Click a project to see its tasks, then click the play button on a task (or the project itself) to start a timer.</p><h3 class="font-semibold">3. Tasks Page</h3><p>Go to the Tasks page to create reusable tasks that you can assign to projects. This saves you from typing the same task name repeatedly.</p><h3 class="font-semibold">4. PWA & Data Sync</h3><ul><li><strong>Installable App (PWA):</strong> Your browser may show an option to "Install" or "Add to Home Screen" to use this app like a native app.</li><li><strong>Cloud Sync:</strong> Your data is now saved to the cloud and will be available on any device where you use this app.</li></ul></div>`;openModal(document.getElementById('guide-modal'));};
+const openManualEntryModalForEdit = (taskId) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    const modal = document.getElementById('manual-entry-modal');
+    modal.querySelector('form').reset();
+    modal.querySelector('#manual-entry-title').textContent = 'Edit Time Entry';
+    modal.querySelector('#manual-entry-task-id').value = task.id;
+    const projectSelect = modal.querySelector('#manual-entry-project');
+    projectSelect.innerHTML = projects.map(p => `<option value="${p.id}" ${p.id === task.projectId ? 'selected' : ''}>${p.name}</option>`).join('');
+    modal.querySelector('#manual-entry-desc').value = task.description;
+    const startTime = new Date(task.startTime);
+    const endTime = new Date(task.endTime);
+    modal.querySelector('#manual-entry-date').value = startTime.toISOString().split('T')[0];
+    modal.querySelector('#manual-entry-start').value = startTime.toTimeString().slice(0,5);
+    modal.querySelector('#manual-entry-end').value = endTime.toTimeString().slice(0,5);
+    modal.querySelector('#manual-entry-notes').value = task.notes || '';
+    openModal(modal);
+};
+
+// --- START: REPORTS FUNCTIONS ---
+const renderReportsPage = () => {
+    const template = document.getElementById('reports-page-template');
+    if (!template) return;
+    const content = template.content.cloneNode(true);
+    const container = document.getElementById('reports-content');
+    container.innerHTML = '';
+    container.appendChild(content);
+
+    const dayPicker = document.getElementById('reports-day-picker');
+    if (dayPicker) {
+        dayPicker.value = formatDate(new Date());
+    }
+    const startDatePicker = document.getElementById('reports-start-date');
+    if (startDatePicker) {
+        startDatePicker.value = formatDate(new Date());
+    }
+    const endDatePicker = document.getElementById('reports-end-date');
+    if (endDatePicker) {
+        endDatePicker.value = formatDate(new Date());
+    }
+    
+    document.querySelector(`.reports-filter-btn[data-period="${currentReportPeriod}"]`)?.classList.add('active');
+    
+    updateReportPeriodUI();
+    renderReportData();
+    lucide.createIcons();
+};
+
+const updateReportPeriodUI = () => {
+    const dayPickerContainer = document.getElementById('reports-day-picker-container');
+    const customRangeContainer = document.getElementById('custom-date-range-container');
+    const visualizerContainer = document.getElementById('daily-visualizer-container');
+
+    dayPickerContainer.style.display = 'none';
+    customRangeContainer.style.display = 'none';
+    
+    if (currentReportPeriod === 'day') {
+        dayPickerContainer.style.display = 'flex';
+        visualizerContainer.style.display = 'block';
+    } else if (currentReportPeriod === 'custom') {
+        customRangeContainer.style.display = 'grid';
+        visualizerContainer.style.display = 'none';
+    } else {
+        visualizerContainer.style.display = 'none';
+    }
+};
+
+const renderReportData = () => {
+    let startDate, endDate;
+    const now = new Date();
+    
+    switch (currentReportPeriod) {
+        case 'week':
+            const firstDayOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+            startDate = new Date(firstDayOfWeek.setHours(0, 0, 0, 0));
+            endDate = new Date(firstDayOfWeek.setDate(firstDayOfWeek.getDate() + 6));
+            endDate.setHours(23, 59, 59, 999);
+            break;
+        case 'month':
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            startDate.setHours(0, 0, 0, 0);
+            endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            endDate.setHours(23, 59, 59, 999);
+            break;
+        case 'custom':
+            const startInput = document.getElementById('reports-start-date').value;
+            const endInput = document.getElementById('reports-end-date').value;
+            if (startInput && endInput) {
+                startDate = new Date(startInput + 'T00:00:00');
+                endDate = new Date(endInput + 'T23:59:59');
+            } else {
+                return; 
+            }
+            break;
+        case 'day':
+        default:
+            const dayInput = document.getElementById('reports-day-picker').value;
+            startDate = new Date(dayInput + 'T00:00:00');
+            endDate = new Date(dayInput + 'T23:59:59');
+            break;
+    }
+    
+    const summaryTitle = document.getElementById('summary-title');
+    if (summaryTitle) {
+        const options = { month: 'short', day: 'numeric' };
+        if (startDate.getFullYear() !== new Date().getFullYear()) {
+            options.year = 'numeric';
+        }
+        const startStr = startDate.toLocaleDateString(undefined, options);
+        const endStr = endDate.toLocaleDateString(undefined, options);
+        
+        if (currentReportPeriod === 'day' || startStr === endStr) {
+            summaryTitle.textContent = `Summary for ${startStr}`;
+        } else {
+            summaryTitle.textContent = `Summary for ${startStr} - ${endStr}`;
+        }
+    }
+
+    let tasksInRange = tasks.filter(t => t.startTime >= startDate.getTime() && t.startTime <= endDate.getTime());
+    
+    const today = new Date();
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+    
+    if (activeTimer && !activeTimer.isPaused && startDate.getTime() <= activeTimer.startTime && endDate.getTime() >= activeTimer.startTime) {
+        tasksInRange.push({
+            projectId: activeTimer.projectId,
+            description: `(In Progress) ${activeTimer.sessionName}`,
+            startTime: activeTimer.startTime,
+            endTime: Date.now()
+        });
+    }
+
+    tasksInRange.sort((a, b) => a.startTime - b.startTime);
+
+    renderReportChart(tasksInRange, startDate);
+    renderReportSummary(tasksInRange);
+};
+
+const renderReportChart = (tasksForChart, reportDate) => {
+    const chartCanvas = document.getElementById('daily-activity-chart');
+    const legendEl = document.getElementById('chart-legend');
+    if (!chartCanvas || !legendEl) return;
+
+    if (dailyChartInstance) dailyChartInstance.destroy();
+    if (currentReportPeriod !== 'day') {
+        legendEl.innerHTML = '';
+        chartCanvas.style.display = 'none';
+        return;
+    }
+    
+    chartCanvas.style.display = 'block';
+    const startOfDay = reportDate.getTime();
+    const endOfDay = startOfDay + (24 * 60 * 60 * 1000);
+
+    const activityData = { labels: [], datasets: [{ data: [], backgroundColor: [], borderWidth: 1, borderColor: 'var(--background)' }] };
+    const projectsInChart = new Map();
+    let lastTime = startOfDay;
+
+    tasksForChart.forEach(task => {
+        const idleDuration = task.startTime - lastTime;
+        if (idleDuration > 60000) {
+            activityData.labels.push('Idle');
+            activityData.datasets[0].data.push(idleDuration);
+            activityData.datasets[0].backgroundColor.push('var(--border)');
+        }
+
+        const project = projects.find(p => p.id === task.projectId) || { name: 'Unassigned', color: '#888' };
+        const workDuration = task.endTime - task.startTime;
+        activityData.labels.push(`${project.name}: ${task.description}`);
+        activityData.datasets[0].data.push(workDuration);
+        activityData.datasets[0].backgroundColor.push(project.color);
+        
+        if (!projectsInChart.has(project.id)) projectsInChart.set(project.id, project);
+        
+        lastTime = task.endTime;
+    });
+
+    const finalIdleDuration = endOfDay - lastTime;
+    if (finalIdleDuration > 60000) {
+        activityData.labels.push('Idle');
+        activityData.datasets[0].data.push(finalIdleDuration);
+        activityData.datasets[0].backgroundColor.push('var(--border)');
+    }
+    
+    const computedStyle = getComputedStyle(document.documentElement);
+    const subtleBg = computedStyle.getPropertyValue('--subtle-bg').trim();
+    const workdayBg = computedStyle.getPropertyValue('--workday-bg').trim();
+
+    const workdayBackgroundData = {
+        datasets: [{
+            data: [ 8 * 3600000, 9 * 3600000, 7 * 3600000 ],
+            backgroundColor: [ subtleBg, workdayBg, subtleBg ],
+            borderWidth: 0,
+        }]
+    };
+
+    if (tasksForChart.length > 0 && typeof Chart !== 'undefined') {
+        dailyChartInstance = new Chart(chartCanvas, {
+            type: 'doughnut',
+            data: {
+                labels: activityData.labels,
+                datasets: [activityData.datasets[0], workdayBackgroundData.datasets[0]]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, cutout: '60%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        filter: (item) => item.datasetIndex === 0,
+                        callbacks: { label: (context) => `${context.label} (${formatDuration(context.parsed)})` }
+                    }
+                }
+            }
+        });
+        
+        legendEl.innerHTML = Array.from(projectsInChart.values()).map(p => `
+            <div class="flex items-center text-xs">
+                <span class="w-3 h-3 rounded-full mr-2" style="background-color: ${p.color};"></span>
+                <span class="report-project-name">${p.name}</span>
+            </div>
+        `).join('');
+    } else {
+        legendEl.innerHTML = '';
+        chartCanvas.style.display = 'none';
+    }
+};
+
+const renderReportSummary = (tasksInRange) => {
+    const summaryEl = document.getElementById('reports-summary');
+    const totalEl = document.getElementById('reports-total-time');
+
+    let totalMs = 0;
+    tasksInRange.forEach(t => totalMs += (t.endTime - t.startTime));
+    totalEl.textContent = formatDuration(totalMs);
+
+    if (tasksInRange.length === 0) {
+        summaryEl.innerHTML = '<p class="text-sm text-muted-foreground text-center py-4">No entries found for this period.</p>';
+        return;
+    }
+
+    if (currentReportSort === 'project') {
+        const groupedByProject = tasksInRange.reduce((acc, task) => {
+            const projectId = task.projectId || 'unassigned';
+            if (!acc[projectId]) {
+                const project = projects.find(p => p.id === projectId) || { name: 'Unassigned', color: '#888' };
+                acc[projectId] = { project: project, totalDuration: 0 };
+            }
+            acc[projectId].totalDuration += (task.endTime - task.startTime);
+            return acc;
+        }, {});
+
+        summaryEl.innerHTML = Object.values(groupedByProject)
+            .sort((a,b) => b.totalDuration - a.totalDuration)
+            .map(group => `
+            <div class="p-3 bg-card-secondary rounded-lg">
+                <div class="flex justify-between items-center font-semibold">
+                    <div class="flex items-center">
+                        <span class="w-3 h-3 rounded-full mr-3" style="background-color:${group.project.color}"></span>
+                        <span class="report-project-name">${group.project.name}</span>
+                    </div>
+                    <span>${formatDuration(group.totalDuration)}</span>
+                </div>
+            </div>`).join('');
+    } else {
+        summaryEl.innerHTML = tasksInRange
+            .sort((a,b) => a.startTime - b.startTime)
+            .map(task => {
+                const project = projects.find(p => p.id === task.projectId) || { name: 'Unassigned', color: '#888' };
+                const duration = task.endTime - task.startTime;
+                const startTime = new Date(task.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const date = new Date(task.startTime).toLocaleDateString([], { month: 'short', day: 'numeric'});
+                
+                return `
+                <div class="report-task-item p-3 bg-card-secondary rounded-lg cursor-pointer hover:bg-border" data-task-id="${task.id}">
+                    <div class="flex justify-between items-center">
+                        <div class="flex-grow">
+                            <p class="font-semibold">${task.description}</p>
+                            <p class="text-sm report-project-name">
+                                <span class="w-2 h-2 rounded-full inline-block mr-2" style="background-color:${project.color}"></span>
+                                ${project.name}
+                            </p>
+                        </div>
+                        <div class="text-right flex-shrink-0 ml-4">
+                            <span class="font-bold">${formatDuration(duration)}</span>
+                            <p class="text-xs text-muted-foreground">${date} at ${startTime}</p>
+                        </div>
+                    </div>
+                </div>`;
+        }).join('');
+    }
+};
+
+const renderGoalDetailPage = () => {
+    const contentEl = document.getElementById('goal-detail-content');
+    if (!currentGoalId) { contentEl.innerHTML = `<p class="text-center text-muted-foreground p-8">Goal not found.</p>`; return; }
+    const goal = goals.find(g => g.id === currentGoalId);
+    if (!goal) { contentEl.innerHTML = `<p class="text-center text-muted-foreground p-8">Goal details could not be loaded.</p>`; return; }
+
+    const statusClass = (goal.status || 'not-started').toLowerCase().replace(' ', '-');
+    const updates = (goal.updates || []).sort((a, b) => b.timestamp - a.timestamp);
+    const updatesHtml = updates.length > 0
+        ? updates.map(update => `
+            <div class="p-3 bg-card-secondary rounded-lg">
+                <p class="text-sm whitespace-pre-wrap">${update.note}</p>
+                <div class="text-xs text-muted-foreground mt-2">${new Date(update.timestamp).toLocaleString()}</div>
+            </div>`).join('')
+        : '<p class="text-sm text-muted-foreground">No updates for this goal yet.</p>';
+
+    contentEl.innerHTML = `
+        <button class="back-to-goals-btn font-semibold text-primary-accent hover:underline mb-4">&larr; Back to Goals</button>
+        <div class="bg-card p-4 rounded-xl border space-y-2">
+            <div class="flex justify-between items-start">
+                <h2 class="text-2xl font-bold">${goal.title}</h2>
+                <div class="flex items-center gap-2">
+                    <span class="status-badge status-${statusClass}">${goal.status}</span>
+                    <button class="action-btn edit-goal-btn" data-goal-id="${goal.id}"><i data-lucide="pencil" class="w-5 h-5"></i></button>
+                </div>
+            </div>
+            <p class="text-sm text-muted-foreground">${goal.fiscalYear} ${goal.quarter}</p>
+        </div>
+
+        <div class="bg-card p-4 rounded-xl border mt-4">
+            <h3 class="font-bold mb-2">S.M.A.R.T Details</h3>
+            <div class="text-sm space-y-2 text-foreground">
+                <p><b class="font-semibold text-primary-accent">Specific:</b> ${goal.specific || 'N/A'}</p>
+                <p><b class="font-semibold text-primary-accent">Measurable:</b> ${goal.measurable || 'N/A'}</p>
+                <p><b class="font-semibold text-primary-accent">Achievable:</b> ${goal.achievable || 'N/A'}</p>
+                <p><b class="font-semibold text-primary-accent">Relevant:</b> ${goal.relevant || 'N/A'}</p>
+                <p><b class="font-semibold text-primary-accent">Time-Bound:</b> ${goal.timeBound || 'N/A'}</p>
+            </div>
+        </div>
+
+        <div class="bg-card p-4 rounded-xl border mt-4">
+            <h3 class="font-bold mb-2">Status Updates</h3>
+            <div class="space-y-3 mb-4">${updatesHtml}</div>
+            <form id="add-goal-update-form">
+                <textarea id="goal-update-note" required class="w-full p-2 border rounded-md text-sm bg-card-secondary text-foreground border-input-border" placeholder="Add a new status note..."></textarea>
+                <button type="submit" class="btn-primary w-full mt-2">Add Update</button>
+            </form>
+        </div>
+    `;
+     lucide.createIcons();
+};
+
+const renderNotesPage = (searchTerm = '') => {
+    const template = document.getElementById('notes-page-template');
+    if (!template) return;
+    const content = template.content.cloneNode(true);
+    const ac = document.getElementById('notes-content');
+    ac.innerHTML = '';
+    ac.appendChild(content);
+
+    const listEl = document.getElementById('notes-list');
+    const searchInput = document.getElementById('note-search-input');
+    searchInput.value = searchTerm;
+
+    searchInput.addEventListener('input', (e) => {
+        renderNotesPage(e.target.value);
+    });
+
+    let filteredNotes = [...notes];
+    if (searchTerm) {
+        const lowerSearchTerm = searchTerm.toLowerCase();
+        filteredNotes = filteredNotes.filter(n => 
+            n.title.toLowerCase().includes(lowerSearchTerm) || 
+            n.content.toLowerCase().includes(lowerSearchTerm)
+        );
+    }
+    
+    filteredNotes.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+
+    if (filteredNotes.length === 0) {
+        listEl.innerHTML = `<div class="text-center py-12 text-muted-foreground">
+            <i data-lucide="notebook" class="mx-auto h-12 w-12 opacity-50"></i>
+            <h3 class="mt-2 text-sm font-medium">No notes yet</h3>
+            <p class="mt-1 text-sm">Click the '+' button above to add a new note.</p>
+        </div>`;
+    } else {
+        listEl.innerHTML = filteredNotes.map(note => {
+            const projectTags = (note.projectIds || []).map(id => {
+                const p = projects.find(proj => proj.id === id);
+                return p ? `<span class="tag" style="background-color:${p.color}; color:white;">${p.name}</span>` : '';
+            }).join('');
+            
+            const taskTags = (note.taskIds || []).map(id => {
+                const t = predefinedTasks.find(task => task.id === id);
+                return t ? `<span class="tag bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200">${t.description}</span>` : '';
+            }).join('');
+
+            return `
+            <div class="bg-card p-4 rounded-lg border" data-note-id="${note.id}">
+                <div class="flex justify-between items-start">
+                    <h3 class="font-semibold text-lg">${note.title}</h3>
+                    <div class="flex-shrink-0">
+                        <button class="edit-note-btn action-btn h-8 w-8"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+                        <button class="delete-note-btn action-btn h-8 w-8"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                     </div>
                 </div>
-            </div>
-            <div id="reports-summary" class="space-y-2"></div>
-        </div>
-    </div>
-</template>
-    
-    <template id="settings-template">
-         <div class="space-y-6">
-            <div id="account-settings" class="bg-card p-4 rounded-lg border border-border">
-                <h2 class="text-lg font-semibold mb-3">Account</h2>
-                <div class="flex items-center justify-between">
-                     <div class="flex items-center gap-3">
-                        <img id="user-avatar" class="w-10 h-10 rounded-full">
-                        <span id="user-name" class="font-semibold"></span>
-                     </div>
-                     <button id="sign-out-btn" class="text-sm font-semibold text-red-500 hover:underline">Sign Out</button>
+                <p class="text-sm text-muted-foreground whitespace-pre-wrap mt-2">${note.content.substring(0, 150)}${note.content.length > 150 ? '...' : ''}</p>
+                <div class="flex flex-wrap gap-2 mt-3 pt-3 border-t border-border">
+                    ${projectTags || ''}
+                    ${taskTags || ''}
                 </div>
-            </div>
-            <div class="bg-card p-4 rounded-lg border border-border">
-                 <h2 class="text-lg font-semibold mb-3">Accent Color</h2>
-                 <div id="accent-color-selector" class="flex gap-4">
-                     <div class="accent-swatch" data-theme="theme-teal" style="background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);"></div>
-                     <div class="accent-swatch" data-theme="theme-indigo" style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);"></div>
-                     <div class="accent-swatch" data-theme="theme-orange" style="background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);"></div>
-                     <div class="accent-swatch" data-theme="theme-blue" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);"></div>
-                     <div class="accent-swatch" data-theme="theme-mono" style="background: linear-gradient(135deg, #334155 0%, #1e293b 100%);"></div>
-                 </div>
-            </div>
-            <div class="bg-card p-4 rounded-lg border border-border">
-                <h2 class="text-lg font-semibold mb-3">Appearance</h2>
-                <div class="flex items-center justify-between">
-                    <span class="font-medium">Dark Mode</span>
-                    <label for="dark-mode-toggle" class="flex items-center cursor-pointer"><div class="relative"><input type="checkbox" id="dark-mode-toggle" class="sr-only toggle-checkbox"><div class="block bg-gray-300 dark:bg-gray-600 w-12 h-6 rounded-full"></div><div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition"></div></div></label>
-                </div>
-            </div>
-             <div class="bg-card p-4 rounded-lg border border-border">
-                <h2 class="text-lg font-semibold mb-3">Time & Region</h2>
-                <div class="flex items-center justify-between">
-                    <span class="font-medium">Detected Time Zone</span>
-                    <span id="detected-time-zone" class="font-semibold text-sm bg-card-secondary px-2 py-1 rounded-md"></span>
-                </div>
-                 <p class="text-xs text-muted-foreground mt-2">All times are calculated based on your device's local time settings.</p>
-            </div>
-            <div class="bg-card p-4 rounded-lg border border-border space-y-3">
-                <h2 class="text-lg font-semibold">Data Management</h2>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <button id="import-json-btn" class="w-full text-center py-2 px-4 rounded-lg font-semibold border border-input-border hover:bg-card-secondary">Import from JSON</button>
-                    <button id="export-json-btn" class="w-full text-center py-2 px-4 rounded-lg font-semibold border border-input-border hover:bg-card-secondary">Export to JSON</button>
-                </div>
-                <input type="file" id="import-file-input" class="hidden" accept="application/json">
-                 <div class="pt-2">
-                    <button id="clear-data-btn" class="w-full text-center py-2 px-4 rounded-lg font-semibold border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/50">Clear All Data</button>
-                 </div>
-            </div>
-            <div class="bg-card p-4 rounded-lg border border-border space-y-3">
-                <h2 class="text-lg font-semibold">Export CSV Report</h2>
-                <div class="flex items-center gap-2 text-sm">
-                    <input type="date" id="csv-date-start" class="w-full p-2 border rounded-md text-sm bg-card-secondary border-input-border text-foreground">
-                    <span>to</span>
-                    <input type="date" id="csv-date-end" class="w-full p-2 border rounded-md text-sm bg-card-secondary border-input-border text-foreground">
-                </div>
-                <button id="export-csv-btn" class="w-full text-white font-semibold py-2 rounded-md" style="background-color: var(--primary-accent);">Export CSV</button>
-            </div>
-            <div class="bg-card p-4 rounded-lg border border-border space-y-3">
-                <h2 class="text-lg font-semibold">About</h2>
-                 <p class="text-sm text-muted-foreground">This is a PWA-ready application. To make it installable, create the `manifest.json` and `sw.js` files as instructed in the source code comments.</p>
-                <button id="show-guide-btn" class="w-full text-center py-2 px-4 rounded-lg font-semibold border border-input-border hover:bg-card-secondary">Show User Guide</button>
-            </div>
-        </div>
-    </template>
-    
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script type="module" src="main.js"></script>
+            </div>`;
+        }).join('');
+    }
+    lucide.createIcons();
+};
 
-</body>
-</html>
+const openAddNoteModal = (noteId = null) => {
+    const modal = document.getElementById('add-note-modal');
+    const form = modal.querySelector('form');
+    form.reset();
+    
+    const projectSelect = modal.querySelector('#note-projects');
+    projectSelect.innerHTML = projects
+        .filter(p => p.status !== 'completed')
+        .map(p => `<option value="${p.id}">${p.name}</option>`)
+        .join('');
+
+    const taskSelect = modal.querySelector('#note-tasks');
+    taskSelect.innerHTML = predefinedTasks
+        .filter(t => !t.isCompleted)
+        .map(t => `<option value="${t.id}">${t.description}</option>`)
+        .join('');
+
+    if (noteId) {
+        const note = notes.find(n => n.id === noteId);
+        if (note) {
+            modal.querySelector('#note-modal-title').textContent = "Edit Note";
+            modal.querySelector('#note-id').value = note.id;
+            modal.querySelector('#note-title').value = note.title;
+            modal.querySelector('#note-content').value = note.content;
+            
+            // Pre-select tagged projects
+            Array.from(projectSelect.options).forEach(option => {
+                if ((note.projectIds || []).includes(option.value)) {
+                    option.selected = true;
+                }
+            });
+
+            // Pre-select tagged tasks
+            Array.from(taskSelect.options).forEach(option => {
+                if ((note.taskIds || []).includes(option.value)) {
+                    option.selected = true;
+                }
+            });
+        }
+    } else {
+        modal.querySelector('#note-modal-title').textContent = "New Note";
+        modal.querySelector('#note-id').value = '';
+    }
+    
+    openModal(modal);
+};
+
+const saveNote = async (e) => {
+    e.preventDefault();
+    const modal = document.getElementById('add-note-modal');
+    const id = modal.querySelector('#note-id').value;
+    const title = modal.querySelector('#note-title').value.trim();
+    if (!title) return;
+
+    const noteData = {
+        title: title,
+        content: modal.querySelector('#note-content').value.trim(),
+        projectIds: Array.from(modal.querySelector('#note-projects').selectedOptions).map(opt => opt.value),
+        taskIds: Array.from(modal.querySelector('#note-tasks').selectedOptions).map(opt => opt.value),
+        updatedAt: Date.now()
+    };
+
+    if (id) {
+        await updateData('notes', id, noteData);
+    } else {
+        noteData.createdAt = Date.now();
+        await addData('notes', noteData);
+    }
+    closeModal(modal);
+};
+
+// --- END: REPORTS FUNCTIONS ---
+
+// --- AUTHENTICATION FLOW ---
+const handleAuthSubmit = async (e) => {
+    e.preventDefault();
+    authSubmitBtn.disabled = true;
+    authLoader.classList.remove('hidden');
+    const email = authForm.email.value, password = authForm.password.value, displayName = displayNameInput.value;
+    try {
+        if (isSignUp) {
+            if (!displayName) { alert('Please enter a display name.'); throw new Error('Display name required'); }
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            await updateProfile(userCredential.user, { displayName });
+        } else {
+            await signInWithEmailAndPassword(auth, email, password);
+        }
+    } catch (error) {
+        alert(`Authentication failed: ${error.message}`);
+    } finally {
+        authSubmitBtn.disabled = false;
+        authLoader.classList.add('hidden');
+    }
+};
+const handleSignOut = async () => { if(confirm("Are you sure?")) { await signOut(auth); } };
+const toggleAuthMode = () => {
+    isSignUp = !isSignUp;
+    displayNameField.classList.toggle('hidden', !isSignUp);
+    displayNameInput.required = isSignUp;
+    authSubmitBtn.textContent = isSignUp ? 'Sign Up' : 'Sign In';
+    authPromptText.textContent = isSignUp ? 'Already have an account?' : "Don't have an account?";
+    authToggleBtn.textContent = isSignUp ? 'Sign In' : 'Sign Up';
+    authForm.reset();
+};
+
+// --- EVENT LISTENERS ---
+const addEventListeners = () => {
+    authForm.addEventListener('submit', handleAuthSubmit);
+    authToggleBtn.addEventListener('click', toggleAuthMode);
+
+    document.body.addEventListener('click',async e=>{
+        if (e.target.closest('#sign-out-btn')) { handleSignOut(); }
+        const navBtn = e.target.closest('.nav-btn');
+        if (navBtn) { const toPage = navBtn.dataset.page; if (activeTimer && document.querySelector('.page.active').id === 'page-session') { navigationIntent = toPage; openModal(document.getElementById('confirmation-modal')); return; } return navigateTo(toPage); }
+        if (e.target.closest('#settings-btn')) { if (activeTimer && document.querySelector('.page.active').id === 'page-session') { navigationIntent = 'page-settings'; openModal(document.getElementById('confirmation-modal')); return; } return navigateTo('page-settings'); }
+        if(e.target.closest('#add-btn-header')){
+            const activePage = document.querySelector('.page.active').id;
+            switch(activePage){
+                case 'page-timer': const modal=document.getElementById('manual-entry-modal'); modal.querySelector('form').reset(); modal.querySelector('#manual-entry-task-id').value = ''; modal.querySelector('#manual-entry-title').textContent = 'Add Manual Time Entry'; modal.querySelector('#manual-entry-project').innerHTML = projects.filter(p=>p.status !== 'completed').map(p => `<option value="${p.id}">${p.name}</option>`).join(''); modal.querySelector('#manual-entry-date').value=new Date().toISOString().slice(0,10); openModal(modal); break;
+                case 'page-projects': const palette=document.getElementById('color-palette');palette.innerHTML=PALETTE.map(c=>`<div class="color-swatch" style="background-color: ${c}" data-color="${c}"></div>`).join('');document.getElementById('new-project-color').value='';openModal(document.getElementById('add-project-modal')); break;
+                case 'page-tasks':
+                    const taskModal=document.getElementById('add-predefined-task-modal');
+                    taskModal.querySelector('form').reset();
+                    taskModal.querySelector('#predefined-task-id').value = ''; // THIS IS THE FIX
+                    taskModal.querySelector('#predefined-task-modal-title').textContent="New Task";
+                    const projectSelect=taskModal.querySelector('#predefined-task-project');
+                    projectSelect.innerHTML=`<option value="">General Task</option>`+projects.filter(p=>p.status!=='completed').map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+                    const goalSelect=taskModal.querySelector('#predefined-task-goal');
+                    goalSelect.innerHTML=`<option value="">No Associated Goal</option>`+goals.map(g=>`<option value="${g.id}">${g.title}</option>`).join('');
+                    openModal(taskModal);
+                    break;
+                case 'page-goals':
+                    const goalModal = document.getElementById('add-goal-modal');
+                    goalModal.querySelector('form').reset();
+                    goalModal.querySelector('#goal-id').value = '';
+                    goalModal.querySelector('#goal-modal-title').textContent="New Goal";
+                    const yearSelect = document.getElementById('goal-fy');
+                    const currentYear = new Date().getFullYear();
+                    yearSelect.innerHTML = [0,1,2,3,4].map(i => `<option>${currentYear + i}</option>`).join('');
+                    openModal(goalModal);
+                    break;
+                case 'page-notes':
+                    openAddNoteModal();
+                    break;
+            }
+        }
+        if(e.target.closest('.color-swatch')){
+            const swatch = e.target.closest('.color-swatch'), palette = swatch.parentElement;
+            palette.querySelectorAll('.color-swatch').forEach(el=>el.classList.remove('selected'));
+            swatch.classList.add('selected');
+            if (palette.id === 'color-palette') { document.getElementById('new-project-color').value = swatch.dataset.color; }
+            else if (palette.id === 'edit-color-palette') { document.getElementById('edit-project-color').value = swatch.dataset.color; }
+        }
+        if(e.target.closest('#cancel-add-project-btn'))return closeModal(document.getElementById('add-project-modal'));
+        if(e.target.closest('#page-timer .sort-btn')){const sortBtn=e.target.closest('#page-timer .sort-btn');document.querySelectorAll('#page-timer .sort-btn').forEach(b=>b.classList.remove('active'));sortBtn.classList.add('active');currentSort=sortBtn.dataset.sort;renderTimerPage();}
+
+        const reportSortBtn = e.target.closest('#reports-summary-controls .sort-btn');
+        if (reportSortBtn) {
+            if (reportSortBtn.classList.contains('active')) return;
+            document.querySelectorAll('#reports-summary-controls .sort-btn').forEach(b => b.classList.remove('active'));
+            reportSortBtn.classList.add('active');
+            currentReportSort = reportSortBtn.dataset.sort;
+            renderReportData();
+        }
+
+        const periodBtn = e.target.closest('.period-btn');
+        if(periodBtn) {
+            document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+            periodBtn.classList.add('active');
+            currentReportPeriod = periodBtn.dataset.period;
+            updateReportPeriodUI();
+            renderReportData();
+        }
+
+        if(e.target.closest('.edit-goal-btn')){const id=e.target.closest('.edit-goal-btn').dataset.goalId;const goal=goals.find(a=>a.id===id);if(goal){const modal=document.getElementById('add-goal-modal');modal.querySelector('form').reset();modal.querySelector('#goal-modal-title').textContent="Edit Goal";const yearSelect=modal.querySelector('#goal-fy');const currentYear=new Date().getFullYear();yearSelect.innerHTML=[0,1,2,3,4].map(i=>`<option>${currentYear+i}</option>`).join('');modal.querySelector('#goal-id').value=goal.id;modal.querySelector('#goal-title').value=goal.title;modal.querySelector('#goal-category').value=goal.category||'';modal.querySelector('#goal-description').value=goal.description||'';modal.querySelector('#goal-fy').value=goal.fiscalYear;modal.querySelector('#goal-quarter').value=goal.quarter;modal.querySelector('#goal-status').value=goal.status||'Not started';modal.querySelector('#goal-specific').value=goal.specific;modal.querySelector('#goal-measurable').value=goal.measurable;modal.querySelector('#goal-achievable').value=goal.achievable;modal.querySelector('#goal-relevant').value=goal.relevant;modal.querySelector('#goal-timebound').value=goal.timeBound;openModal(modal);}}
+        if(e.target.closest('#cancel-add-goal-btn'))return closeModal(document.getElementById('add-goal-modal'));if(e.target.closest('#import-json-btn'))dom.importFileInput.click();if(e.target.closest('#export-json-btn'))exportDataAsJSON();if(e.target.closest('#export-csv-btn'))exportTasksAsCSV();if(e.target.closest('#export-day-notes-btn'))exportDayNotesAsMarkdown();if(e.target.closest('#show-guide-btn'))showUserGuide();if(e.target.closest('#close-guide-btn'))closeModal(document.getElementById('guide-modal'));
+        if(e.target.closest('#cancel-add-predefined-task-btn'))return closeModal(document.getElementById('add-predefined-task-modal'));
+        if(e.target.closest('.delete-predefined-task-btn')){const taskEl=e.target.closest('[data-task-id]');if(taskEl){const taskId=taskEl.dataset.taskId;if(confirm('Delete this task?')) await deleteData('predefinedTasks',taskId);}}
+        if(e.target.closest('.edit-predefined-task-btn')){const taskEl=e.target.closest('[data-task-id]');if(taskEl){const taskId=taskEl.dataset.taskId;const task=predefinedTasks.find(t=>t.id===taskId);if(task){const modal=document.getElementById('add-predefined-task-modal');modal.querySelector('form').reset();modal.querySelector('#predefined-task-modal-title').textContent="Edit Task";const pSelect=modal.querySelector('#predefined-task-project');pSelect.innerHTML=`<option value="">General Task</option>`+projects.filter(p=>p.status!=='completed').map(p=>`<option value="${p.id}">${p.name}</option>`).join(''); const gSelect=modal.querySelector('#predefined-task-goal'); gSelect.innerHTML=`<option value="">No Goal</option>`+goals.map(g=>`<option value="${g.id}">${g.title}</option>`).join(''); modal.querySelector('#predefined-task-id').value=task.id;modal.querySelector('#predefined-task-desc').value=task.description;pSelect.value=task.projectId||''; gSelect.value=task.goalId||''; modal.querySelector('#predefined-task-due-date').value=task.dueDate||'';modal.querySelector('#predefined-task-notes').value=task.notes||'';modal.querySelector('#predefined-task-tags').value=(task.tags||[]).join(', ');openModal(modal);}}}
+        if(e.target.closest('#view-completed-projects-btn'))navigateTo('page-completed-projects');
+        
+        if(e.target.closest('.edit-project-btn')) {
+            currentDetailProjectId = e.target.closest('.project-card').dataset.projectId;
+            detailViewFilter = 'all';
+            navigateTo('page-detail');
+        }
+        if(e.target.closest('.view-project-detail-btn')) {
+            currentDetailProjectId = e.target.closest('.project-card').dataset.projectId;
+            detailViewFilter = 'today';
+            navigateTo('page-detail');
+        }
+
+        if(e.target.closest('.start-timer-btn')) {
+            const projectId = e.target.closest('.project-card').dataset.projectId;
+            const modal = document.getElementById('name-session-modal');
+            modal.querySelector('#session-project-id').value = projectId;
+            openModal(modal);
+        }
+        if(e.target.closest('#session-pause-resume-btn')) { if(activeTimer.isPaused) resumeTimer(); else pauseTimer(); }
+        if(e.target.closest('#session-stop-btn')) { stopTimer(); }
+        if(e.target.closest('#cancel-confirmation-btn')) { closeModal(document.getElementById('confirmation-modal')); navigationIntent=null;}
+        if(e.target.closest('#confirm-navigation-btn') && e.target.closest('#confirm-navigation-btn').dataset.action !== 'clear-data') { await stopTimer(); if (navigationIntent) navigateTo(navigationIntent); navigationIntent = null; closeModal(document.getElementById('confirmation-modal')); }
+        if (e.target.closest('#edit-project-btn-detail')) {
+            document.getElementById('project-detail-view-mode').classList.add('hidden');
+            document.getElementById('project-detail-edit-mode').classList.remove('hidden');
+            const p = projects.find(proj => proj.id === currentDetailProjectId);
+            if (p) {
+                const editPalette = document.getElementById('edit-color-palette');
+                editPalette.innerHTML = PALETTE.map(c => `<div class="color-swatch" style="background-color: ${c}" data-color="${c}"></div>`).join('');
+                const currentSwatch = editPalette.querySelector(`[data-color="${p.color}"]`);
+                if(currentSwatch) currentSwatch.classList.add('selected');
+            }
+        }
+        if (e.target.closest('#cancel-edit-project-btn')) {
+            document.getElementById('project-detail-view-mode').classList.remove('hidden');
+            document.getElementById('project-detail-edit-mode').classList.add('hidden');
+        }
+        if (e.target.closest('#save-updated-project-btn')) {
+            const name = document.getElementById('edit-project-name').value.trim(), description = document.getElementById('edit-project-description').value.trim();
+            const color = document.getElementById('edit-project-color').value, estimate = parseFloat(document.getElementById('edit-project-estimate').value) || 0;
+            if (!name || !color) { alert("Project name and color are required."); return; }
+            await updateData('projects', currentDetailProjectId, { name, description, color, estimate });
+            document.getElementById('project-detail-view-mode').classList.remove('hidden');
+            document.getElementById('project-detail-edit-mode').classList.add('hidden');
+        }
+        const sessionPage = e.target.closest('#page-session');
+        if(sessionPage && e.target.matches('.session-task-checkbox')) {
+            const taskItem = e.target.closest('.task-item');
+            if (!taskItem || !activeTimer) return;
+            const predefId = taskItem.dataset.predefinedTaskId;
+            const sessionTask = activeTimer.sessionTasks.find(t => t.predefinedTaskId === predefId);
+            if (sessionTask) {
+                sessionTask.completed = e.target.checked;
+                await updateData('predefinedTasks', predefId, {
+                    isCompleted: e.target.checked,
+                    completedDate: e.target.checked ? Date.now() : null
+                });
+                localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));
+            }
+        }
+        const completedProjectsView=e.target.closest('#page-completed-projects');if(completedProjectsView){if(e.target.closest('.back-to-dashboard-btn'))navigateTo('page-projects');if(e.target.closest('.completed-project-link')){const pId=e.target.closest('.completed-project-link').dataset.projectId;currentDetailProjectId=pId;navigateTo('page-detail');}}
+        if(e.target.closest('.accent-swatch')) { const theme = e.target.dataset.theme; applyAccentTheme(theme); document.querySelectorAll('.accent-swatch').forEach(el => el.classList.remove('selected')); e.target.classList.add('selected'); }
+        if(e.target.closest('.report-task-item')) { const taskId = e.target.closest('.report-task-item').dataset.taskId; openManualEntryModalForEdit(taskId); }
+        if(e.target.closest('#clear-data-btn')) { document.getElementById('confirmation-title').textContent = 'Clear All Data?'; document.getElementById('confirmation-message').textContent = 'This will permanently delete all data from the cloud. This action cannot be undone.'; document.getElementById('confirm-navigation-btn').dataset.action = 'clear-data'; openModal(document.getElementById('confirmation-modal')); }
+        if(e.target.closest('#confirm-navigation-btn') && e.target.closest('#confirm-navigation-btn').dataset.action === 'clear-data') { await clearAllData(); closeModal(document.getElementById('confirmation-modal')); }
+         if (e.target.closest('.delete-task-btn')) { const taskEl = e.target.closest('[data-task-id]'); if (taskEl) { const taskId = taskEl.dataset.taskId; if (confirm('Delete this time entry?')) { await deleteData('tasks', taskId); } } }
+        if (e.target.closest('.edit-task-btn')) { const taskEl = e.target.closest('[data-task-id]'); if (taskEl) { openManualEntryModalForEdit(taskEl.dataset.taskId); } }
+        if (e.target.closest('.back-to-projects-btn')) { navigateTo('page-projects'); }
+        if (e.target.closest('.back-to-goals-btn')) { navigateTo('page-goals'); }
+        if (e.target.closest('#cancel-manual-entry-btn')) { closeModal(document.getElementById('manual-entry-modal')); }
+        if (e.target.closest('.goal-item .view-goal-detail-btn')) { currentGoalId = e.target.closest('[data-goal-id]').dataset.goalId; navigateTo('page-goal-detail'); }
+
+        // Note listeners
+        if (e.target.closest('.edit-note-btn')) {
+            const noteId = e.target.closest('[data-note-id]').dataset.noteId;
+            openAddNoteModal(noteId);
+        }
+        if (e.target.closest('.delete-note-btn')) {
+            const noteId = e.target.closest('[data-note-id]').dataset.noteId;
+            if (confirm('Are you sure you want to delete this note?')) {
+                await deleteData('notes', noteId);
+            }
+        }
+        if (e.target.closest('#cancel-add-note-btn')) {
+            return closeModal(document.getElementById('add-note-modal'));
+        }
+    });
+
+    document.getElementById('add-project-form').addEventListener('submit',saveNewProject);
+    document.getElementById('manual-entry-form').addEventListener('submit',saveManualEntry);
+    document.getElementById('add-predefined-task-form').addEventListener('submit',savePredefinedTask);
+    document.getElementById('add-goal-form').addEventListener('submit',saveGoal);
+    document.getElementById('add-note-form').addEventListener('submit', saveNote);
+    
+    document.body.addEventListener('submit', async (e) => {
+        if(e.target.matches('#add-goal-update-form')) { await saveGoalUpdate(e); }
+        if (e.target.matches('#add-session-task-form')) {
+            e.preventDefault();
+            const input = document.getElementById('new-session-task-desc');
+            const description = input.value.trim();
+            if (description && activeTimer) {
+                const newTaskData = {
+                    description,
+                    projectId: activeTimer.projectId,
+                    isCompleted: false,
+                    completedDate: null,
+                    goalId: null,
+                    dueDate: null
+                };
+                const newDocRef = await addData('predefinedTasks', newTaskData);
+                const newSessionTask = {
+                    description: description,
+                    completed: false,
+                    predefinedTaskId: newDocRef.id
+                };
+                activeTimer.sessionTasks.push(newSessionTask);
+                localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));
+                input.value = '';
+                // No full re-render needed, Firestore listener will update the predefinedTasks array
+            }
+        }
+    });
+
+    document.getElementById('name-session-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const modal = document.getElementById('name-session-modal');
+        const projectId = modal.querySelector('#session-project-id').value;
+        const sessionName = modal.querySelector('#session-name').value.trim();
+        initiateTimer(projectId, sessionName);
+        modal.querySelector('form').reset();
+        closeModal(modal);
+    });
+
+    document.getElementById('modal-backdrop').addEventListener('click',()=>{closeModal(document.getElementById('add-project-modal'));closeModal(document.getElementById('guide-modal'));closeModal(document.getElementById('manual-entry-modal'));closeModal(document.getElementById('add-predefined-task-modal'));closeModal(document.getElementById('add-goal-modal'));closeModal(document.getElementById('add-note-modal'));closeModal(document.getElementById('name-session-modal'));closeModal(document.getElementById('confirmation-modal'));closeModal(document.getElementById('notes-view-modal'));});
+
+    document.body.addEventListener('change',async e=>{
+        if(e.target.closest('#dark-mode-toggle'))toggleTheme();
+        if(e.target.matches('#import-file-input'))importDataFromJSON(e);
+        if(e.target.matches('.predefined-task-checkbox')){const taskEl=e.target.closest('[data-task-id]');const taskId=taskEl.dataset.taskId;const task=predefinedTasks.find(t=>t.id===taskId);if(task){const isCompleted=e.target.checked;const completedDate=e.target.checked?Date.now():null;await updateData('predefinedTasks',taskId, {isCompleted, completedDate, completedInSessionId: null });}}
+        const sessionPage = e.target.closest('#page-session');
+        if(sessionPage && e.target.matches('#session-start-time')) {
+            const newTime = e.target.value;
+            const [hours, minutes] = newTime.split(':');
+            const newStartDate = new Date(activeTimer.startTime);
+            newStartDate.setHours(hours, minutes);
+            activeTimer.startTime = newStartDate.getTime();
+            localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));
+            renderSessionPage();
+        }
+        const detailPage = e.target.closest('#page-detail');
+        if(detailPage && e.target.matches('.project-status-radio')) { const p = projects.find(proj => proj.id === currentDetailProjectId); if(p) { await updateData('projects', p.id, {status: e.target.value}); } }
+        if (e.target.matches('#reports-day-picker') || e.target.matches('#reports-start-date') || e.target.matches('#reports-end-date')) {
+            renderReportData();
+        }
+    });
+
+    document.addEventListener('input',e=>{const input=e.target;if(input.matches('#session-notes')){ if(activeTimer)activeTimer.notes=input.value;localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));}
+    else if(input.matches('#session-tags')){if(!activeTimer)return;activeTimer.tags=input.value.trim().split(/[\s,]+/).filter(Boolean);localStorage.setItem('activeTimerState', JSON.stringify(activeTimer));}});
+}
+
+const initializeAppWithUI = () => {
+    // --- Assign UI Element Refs ---
+    signInScreen = document.getElementById('sign-in-screen');
+    appContainer = document.getElementById('app-container');
+    authForm = document.getElementById('auth-form');
+    authLoader = document.getElementById('auth-loader');
+    displayNameField = document.getElementById('display-name-field');
+    displayNameInput = document.getElementById('display-name');
+    authSubmitBtn = document.getElementById('auth-submit-btn');
+    authToggleBtn = document.getElementById('auth-toggle-btn');
+    authPromptText = document.getElementById('auth-prompt-text');
+
+    // --- FIREBASE INITIALIZATION ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyCWntzAeJ-cQJkBgbpGiYraWRJ3KeLSWvE",
+      authDomain: "work-timer-e9e49.firebaseapp.com",
+      projectId: "work-timer-e9e49",
+      storageBucket: "work-timer-e9e49.firebasestorage.app",
+      messagingSenderId: "1079058660834",
+      appId: "1:1079058660834:web:a5822ab08019cc3bff0dbb"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    auth = getAuth(app);
+    // setLogLevel('debug'); // Uncomment for detailed logs
+
+    addEventListeners();
+
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            userId = user.uid;
+            document.getElementById('user-avatar-header').src = user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || user.email)}&background=random`;
+            document.getElementById('user-name-header').textContent = user.displayName || user.email;
+            document.getElementById('user-info').classList.remove('hidden');
+            signInScreen.classList.add('hidden');
+            appContainer.classList.remove('hidden');
+            setupFirestoreListeners();
+            checkPersistentTimer();
+            if (activeTimer) { navigateTo('page-session'); }
+            else { navigateTo('page-timer'); }
+        } else {
+            userId = null;
+            unsubscribeListeners.forEach(unsub => unsub());
+            unsubscribeListeners = [];
+            projects = []; tasks = []; goals = []; predefinedTasks = []; notes = [];
+
+            if (isSignUp) {
+                toggleAuthMode();
+            }
+            authForm.reset();
+
+            appContainer.classList.add('hidden');
+            signInScreen.classList.remove('hidden');
+            document.getElementById('user-info').classList.add('hidden');
+        }
+    });
+
+    // --- UI INITIALIZATION ---
+    applyTheme(localStorage.getItem('theme') || 'light');
+    applyAccentTheme(localStorage.getItem('accentTheme') || 'theme-teal');
+};
+
+// --- Start the App ---
+document.addEventListener('DOMContentLoaded', initializeAppWithUI);
